@@ -1,0 +1,458 @@
+// Date: 2026-11-11. Read-only fixed workbench; no business transitions are performed here.
+import { useLayoutEffect, useRef, useState } from "react";
+import type { WorkbenchEnvelope as Envelope, Step, WorkbenchSnapshot } from "./contract/protocol";
+import "./workbench.css";
+
+type Status = Step["status"];
+type Reading = { selected: string; top: number; detailTop: number; lanes: Record<string, number> };
+const emptySnapshot: WorkbenchSnapshot = {
+	schemaVersion: "light-1.0",
+	date: "2026-11-11",
+	mode: "simulation",
+	revision: null,
+	generatedAt: "",
+	projects: [],
+	plans: [],
+	steps: [],
+	routes: [],
+	bindings: [],
+	executions: [],
+	supplements: [],
+	events: [],
+};
+const readingPositions = new Map<string, Reading>();
+const labels: Record<string, string> = {
+	pending: "待执行",
+	running: "执行中",
+	blocked: "已阻塞",
+	completed: "已完成",
+	cancelled: "已取消",
+};
+const connectionLabels: Record<string, string> = {
+	ready: "快照可用",
+	offline: "服务离线",
+	unauthorized: "未获授权",
+	stale: "数据已过期",
+	incompatible: "版本不兼容",
+	unknown: "结果未知",
+};
+const defaultScenarios = [
+	{ id: "multi-project", label: "多项目" },
+	{ id: "long-route", label: "长路线" },
+	{ id: "deep-branch", label: "深分支" },
+	{ id: "empty", label: "空数据" },
+	{ id: "offline", label: "离线" },
+	{ id: "unknown", label: "未知结果" },
+	{ id: "unauthorized", label: "拒绝授权" },
+	{ id: "incompatible", label: "版本不兼容" },
+	{ id: "stale", label: "过期快照" },
+];
+
+function currentStep(steps: Step[]) {
+	return (
+		steps.find((step) => step.status === "running") ??
+		steps.find((step) => step.status === "blocked") ??
+		steps.find((step) => step.status === "pending") ??
+		steps[0]
+	);
+}
+
+export function WorkbenchSummary({ envelope }: { envelope: Envelope }) {
+	const { connection } = envelope;
+	const snapshot = envelope.snapshot ?? emptySnapshot;
+	const active = currentStep(snapshot.steps);
+	const project = snapshot.projects.find((item) => item.key === active?.projectKey);
+	const count = (status: Status) => snapshot.steps.filter((item) => item.status === status).length;
+	return (
+		<div
+			className="wb-summary"
+			role="status"
+			data-workbench-summary
+			title={`${project?.name ?? "工作台"} · ${active ? `${active.code} ${active.title} · ${labels[active.status]}` : "暂无阶段"}`}
+			aria-label={`模拟工作台：${active ? `${active.code} ${active.title}` : "暂无阶段"}`}
+		>
+			<span className="wb-simulation">模拟</span>
+			<span className="wb-summary-title" title={active ? `${active.code} ${active.title}` : project?.name}>
+				{project?.name ?? "工作台"}
+				{active ? ` · ${active.code}` : ""}
+			</span>
+			<span className="wb-summary-counts">
+				{connection.state === "ready"
+					? `执行 ${count("running")} · 阻塞 ${count("blocked")} · 待处理 ${count("pending")}`
+					: connectionLabels[connection.state]}
+			</span>
+		</div>
+	);
+}
+
+export interface WorkbenchViewProps {
+	envelope: Envelope;
+	refresh: () => void | Promise<void>;
+	scenario: string;
+	setScenario: (value: string) => void;
+	scenarios?: readonly { id: string; label: string }[];
+	queryPending?: () => Promise<void>;
+}
+
+export function WorkbenchView({
+	envelope,
+	refresh,
+	scenario,
+	setScenario,
+	scenarios = defaultScenarios,
+	queryPending,
+}: WorkbenchViewProps) {
+	const { connection, pendingOperation } = envelope;
+	const snapshot = envelope.snapshot ?? emptySnapshot;
+	const memoryKey = `${envelope.mode}/${scenario}`;
+	const memory = readingPositions.get(memoryKey);
+	const [selectedKey, setSelectedKey] = useState(memory?.selected ?? currentStep(snapshot.steps)?.key ?? "");
+	const [copyMessage, setCopyMessage] = useState("");
+	const listRef = useRef<HTMLDivElement>(null);
+	const detailRef = useRef<HTMLElement>(null);
+	const positions = useRef<Reading>({
+		selected: selectedKey,
+		top: memory?.top ?? 0,
+		detailTop: memory?.detailTop ?? 0,
+		lanes: memory?.lanes ?? {},
+	});
+	const selected = snapshot.steps.find((step) => step.key === selectedKey);
+	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
+	const binding = snapshot.bindings.find((item) => item.key === selected?.bindingKey);
+	const context = binding?.context ?? snapshot.routes.find((route) => route.stepKeys.includes(selectedKey))?.context;
+	const supplements = snapshot.supplements.filter((item) => item.sourceStepKey === selectedKey);
+	const events = snapshot.events.filter((item) => !item.stepKey || item.stepKey === selectedKey);
+	const lastEvent = events[events.length - 1];
+	const latestEvent = snapshot.events[snapshot.events.length - 1];
+
+	useLayoutEffect(() => {
+		const saved = readingPositions.get(memoryKey);
+		positions.current = saved ?? { selected: currentStep(snapshot.steps)?.key ?? "", top: 0, detailTop: 0, lanes: {} };
+		setSelectedKey(positions.current.selected);
+		readingPositions.set(memoryKey, { ...positions.current });
+		if (detailRef.current) detailRef.current.scrollTop = positions.current.detailTop;
+		const list = listRef.current;
+		if (list) {
+			list.scrollTop = positions.current.top;
+			for (const lane of list.querySelectorAll<HTMLElement>("[data-route-key]"))
+				lane.scrollLeft = positions.current.lanes[lane.dataset.routeKey ?? ""] ?? 0;
+		}
+	}, [memoryKey, snapshot.steps]);
+
+	function remember() {
+		const list = listRef.current;
+		if (list) positions.current.top = list.scrollTop;
+		readingPositions.set(memoryKey, { ...positions.current });
+	}
+	function select(key: string) {
+		setSelectedKey(key);
+		setCopyMessage("");
+		positions.current.selected = key;
+		positions.current.detailTop = 0;
+		if (detailRef.current) detailRef.current.scrollTop = 0;
+		remember();
+	}
+	function locate(key?: string) {
+		const step = key ? stepByKey.get(key) : currentStep(snapshot.steps);
+		if (!step) return;
+		select(step.key);
+		const target = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-step-key]") ?? []).find(
+			(node) => node.dataset.stepKey === step.key,
+		);
+		target?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+		target?.focus({ preventScroll: true });
+	}
+	async function copy(value: string) {
+		try {
+			await navigator.clipboard.writeText(value);
+			setCopyMessage("已复制");
+		} catch {
+			setCopyMessage("复制不可用，请选择下方文本复制");
+		}
+	}
+	function name(key: string) {
+		const step = stepByKey.get(key);
+		return step ? `${step.code} ${step.title}` : key;
+	}
+
+	return (
+		<section className="wb" data-workbench data-no-drag aria-label="模拟工作台">
+			<div className="wb-toolbar">
+				<div>
+					<span className="wb-simulation">模拟数据</span>
+					<span className="wb-version">只读预览 · revision {snapshot.revision ?? "—"}</span>
+				</div>
+				<div className="wb-actions">
+					<button type="button" onClick={() => locate()} disabled={!snapshot.steps.length}>
+						定位当前
+					</button>
+					<button type="button" onClick={() => void refresh()}>
+						刷新
+					</button>
+				</div>
+			</div>
+			<div className="wb-scenario-row">
+				<label>
+					演示场景{" "}
+					<select aria-label="演示场景" value={scenario} onChange={(event) => setScenario(event.currentTarget.value)}>
+						{scenarios.map((item) => (
+							<option key={item.id} value={item.id}>
+								{item.label}
+							</option>
+						))}
+					</select>
+				</label>
+				<span className={`wb-connection wb-connection-${connection.state}`} data-connection={connection.state}>
+					{connectionLabels[connection.state]}
+				</span>
+			</div>
+			<div className={`wb-notice ${connection.state !== "ready" ? "wb-notice-warning" : ""}`} role="status">
+				{connection.message || "本页使用独立模拟快照，不连接正式业务服务"}
+				{connection.state !== "ready" && <span> · 保留快照仅供参考</span>}
+				<span className="wb-last-success">
+					模拟读取：
+					{connection.lastSuccessAt
+						? new Date(connection.lastSuccessAt).toLocaleTimeString("zh-CN", { hour12: false })
+						: "尚无"}
+				</span>
+			</div>
+			{pendingOperation && (
+				<div className="wb-unknown" role="status" data-unknown-result>
+					<strong>操作结果未知</strong>
+					<span>{pendingOperation.reason}</span>
+					<code>{pendingOperation.eventId}</code>
+					<span>需使用原事件键查询；此预览不会重发或创建新操作。</span>
+					{queryPending && (
+						<button type="button" onClick={() => void queryPending()}>
+							查询原事件
+						</button>
+					)}
+				</div>
+			)}
+			{latestEvent && (
+				<button
+					className="wb-event"
+					type="button"
+					data-event-id={latestEvent.eventId}
+					onClick={() => locate(latestEvent.stepKey ?? undefined)}
+					title="定位事件对应阶段"
+				>
+					最近事件 · {latestEvent.reason}
+					<span>定位 →</span>
+				</button>
+			)}
+			<div className="wb-main">
+				<div className="wb-projects" ref={listRef} onScroll={remember} data-workbench-routes>
+					{!snapshot.projects.length && (
+						<div className="wb-empty">
+							<span className="wb-empty-orbit">○</span>
+							<strong>{envelope.snapshot ? "暂无项目" : connectionLabels[connection.state]}</strong>
+							<span>{envelope.snapshot ? "空快照不代表任务已全部完成" : "当前没有可展示的有效快照"}</span>
+						</div>
+					)}
+					{snapshot.projects.map((project) => (
+						<section key={project.key} className="wb-project" data-project-key={project.key}>
+							<div className="wb-project-heading">
+								<h2>{project.name}</h2>
+								<span>{snapshot.plans.filter((plan) => plan.projectKey === project.key).length} 个方案</span>
+							</div>
+							{snapshot.plans
+								.filter((plan) => plan.projectKey === project.key)
+								.map((plan) => {
+									const routes = snapshot.routes.filter((route) => route.planKey === plan.key);
+									return (
+										<div className="wb-plan" key={plan.key}>
+											<h3>{plan.name}</h3>
+											{routes.length ? (
+												routes.map((route) => (
+													<div className="wb-route" key={route.key}>
+														<div className="wb-route-caption">
+															<span>{route.label}</span>
+															{route.sourceStepKey && (
+																<small title={name(route.sourceStepKey)}>
+																	↳ 来源 {stepByKey.get(route.sourceStepKey)?.code ?? route.sourceStepKey}
+																</small>
+															)}
+														</div>
+														<div
+															className="wb-lane"
+															data-route-key={route.key}
+															onScroll={(event) => {
+																positions.current.lanes[route.key] = event.currentTarget.scrollLeft;
+																remember();
+															}}
+														>
+															{route.stepKeys.map((key) => {
+																const step = stepByKey.get(key);
+																if (!step) return null;
+																return (
+																	<button
+																		type="button"
+																		className={`wb-step wb-step-${step.status}`}
+																		data-step-key={key}
+																		data-status={step.status}
+																		key={key}
+																		aria-pressed={selectedKey === key}
+																		title={`${step.code} ${step.title} · ${labels[step.status]}`}
+																		onClick={() => select(key)}
+																	>
+																		<span className="wb-step-track">
+																			<span className="wb-dot" />
+																		</span>
+																		<span className="wb-step-code">{step.code}</span>
+																		<span className="wb-step-title">{step.title}</span>
+																		<span className="wb-step-state">{labels[step.status]}</span>
+																	</button>
+																);
+															})}
+														</div>
+														{route.returnStepKey && (
+															<small className="wb-return">汇入 {name(route.returnStepKey)}</small>
+														)}
+													</div>
+												))
+											) : (
+												<p className="wb-muted">此方案暂无路线</p>
+											)}
+										</div>
+									);
+								})}
+						</section>
+					))}
+				</div>
+				<aside
+					className="wb-detail"
+					aria-label="阶段详情"
+					data-workbench-detail
+					ref={detailRef}
+					onScroll={(event) => {
+						positions.current.detailTop = event.currentTarget.scrollTop;
+						remember();
+					}}
+				>
+					{selected ? (
+						<>
+							<div className="wb-detail-eyebrow">
+								{selected.code}
+								<span className={`wb-status wb-step-${selected.status}`}>{labels[selected.status]}</span>
+							</div>
+							<h2>{selected.title}</h2>
+							<p className="wb-muted">选择阶段仅查看，不改变任务状态。</p>
+							<dl>
+								<dt>固定标识</dt>
+								<dd className="wb-id">{selected.id ?? selected.key}</dd>
+								<dt>验收 / 同步</dt>
+								<dd>
+									{selected.acceptance} / {selected.sync}
+								</dd>
+							</dl>
+							{snapshot.steps.some((child) => child.parentKey === selectedKey) && (
+								<>
+									<h3>细分阶段</h3>
+									<ul className="wb-dependencies" data-child-steps>
+										{snapshot.steps
+											.filter((child) => child.parentKey === selectedKey)
+											.map((child) => (
+												<li key={child.key}>
+													<button type="button" onClick={() => select(child.key)}>
+														{child.code} {child.title}
+													</button>
+													<span>{labels[child.status]}</span>
+												</li>
+											))}
+									</ul>
+								</>
+							)}
+							<h3>依赖</h3>
+							{selected.parentKey && (
+								<p className="wb-parent">
+									父阶段：
+									<button type="button" onClick={() => select(selected.parentKey ?? "")}>
+										{name(selected.parentKey)}
+									</button>
+								</p>
+							)}
+							{selected.dependsOn.length ? (
+								<ul className="wb-dependencies">
+									{selected.dependsOn.map((key) => (
+										<li key={key}>
+											<button type="button" onClick={() => select(key)}>
+												{name(key)}
+											</button>
+											<span>{labels[stepByKey.get(key)?.status ?? "pending"]}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<p className="wb-muted">无前置依赖</p>
+							)}
+							{selected.blockers
+								.filter((item) => !item.resolved)
+								.map((blocker) => (
+									<div className="wb-blocker" key={blocker.blockerId}>
+										<strong>等待：{blocker.reason}</strong>
+										<p>{blocker.waitingFor.join("、")}</p>
+										<p>解除条件：{blocker.releaseConditions.join("；")}</p>
+									</div>
+								))}
+							{supplements.length > 0 && (
+								<>
+									<h3>补充事项</h3>
+									{supplements.map((item) => (
+										<p className="wb-supplement" key={item.key}>
+											{item.linkedPlanKey ? (
+												<button
+													type="button"
+													data-linked-plan={item.linkedPlanKey}
+													onClick={() => {
+														const first = snapshot.plans.find((plan) => plan.key === item.linkedPlanKey)?.stageKeys[0];
+														if (first) locate(first);
+													}}
+												>
+													{item.title} ↗
+												</button>
+											) : (
+												<span>{item.title}</span>
+											)}
+											<small>{labels[item.status] ?? item.status}</small>
+										</p>
+									))}
+								</>
+							)}
+							<h3>最近进展</h3>
+							<p className="wb-muted">{lastEvent?.reason ?? "暂无阶段事件"}</p>
+							<h3>会话与工作树</h3>
+							<p className="wb-muted">当前能力不支持直接跳转，可复制以下标识。</p>
+							{[
+								{ label: "会话", value: context?.threadId },
+								{ label: "工作树", value: context?.worktreePath },
+								{ label: "分支", value: context?.branch },
+							].map((item) =>
+								item.value ? (
+									<div className="wb-copy" key={item.label}>
+										<label>
+											{item.label}
+											<input readOnly value={item.value} onFocus={(event) => event.currentTarget.select()} />
+										</label>
+										<button type="button" onClick={() => void copy(item.value ?? "")}>
+											复制
+										</button>
+									</div>
+								) : null,
+							)}
+							{!context?.threadId && !context?.worktreePath && <p className="wb-muted">尚无绑定信息</p>}
+							<p className="wb-copy-result" role="status">
+								{copyMessage}
+							</p>
+						</>
+					) : (
+						<div className="wb-empty">
+							<strong>选择一个阶段</strong>
+							<span>在左侧路线查看详情和依赖</span>
+						</div>
+					)}
+				</aside>
+			</div>
+		</section>
+	);
+}

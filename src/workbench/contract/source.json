@@ -1,0 +1,19 @@
+{
+	"date": "2026-11-11",
+	"protocolVersion": "island-workbench/1",
+	"snapshotVersion": "light-1.0",
+	"ownerRepository": "Codex-task-monitoring",
+	"sourceCommit": "4b80fb1ae275786e8b0b364955ae2305ed1a3778",
+	"sourcePath": "app/contracts/island-workbench-v1",
+	"mode": "simulation-only",
+	"files": {
+		"protocol.ts": {
+			"sha256": "f0ed1eec3f361fddef7adc5eacf76bc5e2e56ab9262194d5d13f06f3bad529da",
+			"lfSha256": "f0ed1eec3f361fddef7adc5eacf76bc5e2e56ab9262194d5d13f06f3bad529da"
+		},
+		"fixtures.ts": {
+			"sha256": "f2546369fd7888cf8bc4d1380846194fabf5959ba026f0bcaf15f61f82a60505",
+			"lfSha256": "f2546369fd7888cf8bc4d1380846194fabf5959ba026f0bcaf15f61f82a60505"
+		}
+	}
+}

@@ -48,7 +48,7 @@ export function useIslandController() {
 				? "hidden"
 				: hover.open
 					? "expanded"
-					: "idle";
+					: "compact";
 	return {
 		mode,
 		entries: [] as ModuleEntry[],

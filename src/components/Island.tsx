@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppearance } from "../core/appearance";
 import { command } from "../core/bridge";
 import { cn } from "../core/cn";
@@ -9,6 +9,7 @@ import { useGlass } from "../core/useGlass";
 import { useHitRects } from "../core/useHitRects";
 import { useIslandController } from "../core/useIslandController";
 import { useIslandDrag } from "../core/useIslandDrag";
+import { useWorkbench } from "../workbench/useWorkbench";
 import { islandContent } from "./island/content";
 import { GlassProbes } from "./island/GlassProbes";
 import { geometry, variantOf } from "./island/geometry";
@@ -17,7 +18,14 @@ import { Surface } from "./island/Surface";
 
 export function Island() {
 	const ctl = useIslandController();
-	const { mode, primary, focused } = ctl;
+	const { mode, primary } = ctl;
+	const workbench = useWorkbench();
+	const [viewport, setViewport] = useState({ width: innerWidth, height: innerHeight });
+	useEffect(() => {
+		const resize = () => setViewport({ width: innerWidth, height: innerHeight });
+		window.addEventListener("resize", resize);
+		return () => window.removeEventListener("resize", resize);
+	}, []);
 	const look = useAppearance();
 	const windows = look.style === "windows";
 	const v = variantOf(look);
@@ -25,12 +33,13 @@ export function Island() {
 	useGlass(look.glass);
 	useSyncLocale();
 
-	const bigSize = focused?.view.expandedSize;
-	const g = geometry(v, look, mode, bigSize, primary);
+	const bigSize = { width: Math.min(860, viewport.width - 40), height: Math.min(480, viewport.height - 100) };
+	const baseGeometry = geometry(v, look, mode, bigSize, primary);
+	const g = mode === "compact" ? { ...baseGeometry, width: Math.min(410, viewport.width - 40) } : baseGeometry;
 	const big = mode === "expanded";
 	const hidden = mode === "hidden";
 	const swallowed = mode === "swallowed";
-	const resting = mode === "idle";
+	const resting = mode === "compact";
 	const transition = big ? v.expandSpring : v.shellSpring;
 
 	const drag = useIslandDrag({
@@ -46,7 +55,7 @@ export function Island() {
 		[mode, ctl.tab, ctl.expand, ctl.collapse, ctl.keepOpen],
 	);
 
-	const content = islandContent(ctl, look, v);
+	const content = islandContent(ctl, look, v, workbench);
 	const rim = windows ? <Rim look={look} /> : null;
 
 	return (
