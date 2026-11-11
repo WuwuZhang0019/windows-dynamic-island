@@ -1,7 +1,7 @@
 [package]
 name = "dynamic-island"
-version = "0.5.0"
-description = "Island for Windows"
+version = "0.1.0"
+description = "Island Workbench"
 license = "GPL-3.0-or-later"
 edition = "2024"
 rust-version = "1.98"
@@ -28,29 +28,11 @@ tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-tiny_http = "0.12"
-ureq = "3"
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-base64 = "0.23"
 log = "0.4"
 tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls", "system-proxy"] }
-tauri-plugin-global-shortcut = "2"
-png = "0.17"
-# Calendar: iCal recurrence + time zones, Google OAuth (PKCE).
-rrule = "0.14"
-chrono-tz = "0.10"
-sha2 = "0.10"
-getrandom = "0.4"
-url = "2"
-# Plugin packages (zip), see `src/plugins/`.
-zip = { version = "8", default-features = false, features = ["deflate"] }
 
 [target.'cfg(windows)'.dependencies]
-# Drags shelf items out of the island into other apps (OLE drag & drop).
-drag = "2"
-# `IIterable` / `IMapView` for WinRT calls (`windows` doesn't re-export them).
-windows-collections = "0.3"
-# `#[implement]` (the drop target in `file_drop.rs`) expands to `windows_core::…`.
+# 毛玻璃 COM 的 #[implement] 宏仍需直接依赖。
 windows-core = "0.62"
 # WebView2 COM interfaces beyond what Tauri exposes: the memory target level,
 # and keeping plugin iframes within the plugin protocol (`plugins/frames.rs`).

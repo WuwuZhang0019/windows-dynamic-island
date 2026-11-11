@@ -94,7 +94,7 @@
     hiddenTooltip: "Windows 灵动岛（已隐藏）：点击以显示",
   },
   window: {
-    settings: "Windows 灵动岛 — 设置",
+    settings: "Island Workbench — 设置",
   },
 
   // 灵动岛主界面
@@ -468,9 +468,9 @@
       label: "样式",
       desc: "灵动岛在屏幕上的展现风格。",
       dynamic: "刘海模式 (Notch)",
-      dynamicDesc: "紧贴屏幕顶部边缘垂下，带有文字标签页。",
+      dynamicDesc: "紧贴屏幕顶部边缘垂下，展开后显示固定工作台。",
       windows: "Windows 灵动岛 (Windows Island)",
-      windowsDesc: "悬浮胶囊形态，静止时显示时钟并带彩色光边，模块切换图标位置可调整。",
+      windowsDesc: "悬浮胶囊形态，静止时显示时钟并带彩色光边，展开后显示固定工作台。",
     },
     windowsOnly: "仅在 Windows 灵动岛样式下可用。",
     tabsPosition: {

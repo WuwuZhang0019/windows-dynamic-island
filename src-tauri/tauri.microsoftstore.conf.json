@@ -1,6 +1,6 @@
 {
-	"productName": "Island for Windows",
-	"identifier": "com.heyyczer.windowsisland",
+	"productName": "Island Workbench",
+	"identifier": "com.wuwuzhang0019.islandworkbench.store",
 	"bundle": {
 		"createUpdaterArtifacts": false
 	}

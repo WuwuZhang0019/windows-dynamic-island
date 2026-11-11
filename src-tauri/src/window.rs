@@ -79,43 +79,7 @@ pub fn allow_activation() {
 
 #[cfg(windows)]
 fn activation_allowed() -> bool {
-    FILE_DRAG.load(Ordering::Relaxed) || tick_ms() < ACTIVATE_UNTIL.load(Ordering::Relaxed)
-}
-
-/// Files are being dragged in from another app. OLE refuses to drop on a
-/// window that can't be activated, so meanwhile the island may be.
-static FILE_DRAG: AtomicBool = AtomicBool::new(false);
-
-#[cfg(windows)]
-fn set_file_drag(win: &WebviewWindow, on: bool) {
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::UI::WindowsAndMessaging::{
-        GWL_EXSTYLE, GetWindowLongW, SetWindowLongW, WS_EX_NOACTIVATE,
-    };
-
-    FILE_DRAG.store(on, Ordering::Relaxed);
-    if on {
-        // WebView2 may have made new windows since the last drag: hook them too.
-        let w = win.clone();
-        let _ = win.run_on_main_thread(move || crate::file_drop::hook(w.app_handle(), &w));
-    }
-    let Ok(hwnd) = win.hwnd() else {
-        return;
-    };
-    // The subclass puts `WS_EX_NOACTIVATE` back unless a drag is on.
-    unsafe {
-        let hwnd = HWND(hwnd.0);
-        SetWindowLongW(
-            hwnd,
-            GWL_EXSTYLE,
-            GetWindowLongW(hwnd, GWL_EXSTYLE) & !(WS_EX_NOACTIVATE.0 as i32),
-        );
-    }
-}
-
-#[cfg(not(windows))]
-fn set_file_drag(_: &WebviewWindow, on: bool) {
-    FILE_DRAG.store(on, Ordering::Relaxed);
+    tick_ms() < ACTIVATE_UNTIL.load(Ordering::Relaxed)
 }
 
 #[cfg(windows)]
@@ -190,8 +154,6 @@ pub fn spawn_hit_test(app: AppHandle) {
         let mut tick = 0u32;
         let mut last_fg = 0isize;
         let mut button_down = false;
-        let mut pressed_inside = false;
-        let mut file_drag = false;
         loop {
             std::thread::sleep(Duration::from_millis(25));
             let Some(win) = app.get_webview_window(ISLAND_LABEL) else {
@@ -238,24 +200,11 @@ pub fn spawn_hit_test(app: AppHandle) {
             // island takes the cursor while the button is held. The other app
             // keeps the mouse capture, so nothing is stolen if it isn't a file.
             let down = left_button_down();
-            if down && !button_down {
-                pressed_inside = over_island;
-                if !over_island {
-                    let _ = app.emit(PRESS_OUTSIDE_EVENT, ());
-                }
+            if down && !button_down && !over_island {
+                let _ = app.emit(PRESS_OUTSIDE_EVENT, ());
             }
             button_down = down;
-            let drop_zone = island_interactive
-                && down
-                && !pressed_inside
-                && cursor_inside(&app, &win, DROP_MARGIN);
-            let dragging_in = down && !pressed_inside && (file_drag || drop_zone);
-            if dragging_in != file_drag {
-                file_drag = dragging_in;
-                set_file_drag(&win, file_drag);
-            }
-
-            let ignore = !inside && !drop_zone;
+            let ignore = !inside;
             if ignoring != Some(ignore) && win.set_ignore_cursor_events(ignore).is_ok() {
                 ignoring = Some(ignore);
             }
@@ -267,9 +216,6 @@ pub fn spawn_hit_test(app: AppHandle) {
         }
     });
 }
-
-/// Extra room (CSS px) around the island that accepts files dragged in.
-const DROP_MARGIN: f64 = 48.0;
 
 #[cfg(windows)]
 fn left_button_down() -> bool {
@@ -455,9 +401,7 @@ unsafe extern "system" fn overlay_proc(
                 change.styleNew &= !(WS_CAPTION.0 | WS_SYSMENU.0);
             } else if which == GWL_EXSTYLE.0 {
                 change.styleNew = (change.styleNew | WS_EX_TOOLWINDOW.0) & !WS_EX_APPWINDOW.0;
-                if !FILE_DRAG.load(Ordering::Relaxed) {
-                    change.styleNew |= WS_EX_NOACTIVATE.0;
-                }
+                change.styleNew |= WS_EX_NOACTIVATE.0;
             }
         }
         WM_WINDOWPOSCHANGING if lparam.0 != 0 && !activation_allowed() => {

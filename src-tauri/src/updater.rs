@@ -15,12 +15,17 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 
 const FIRST_CHECK: Duration = Duration::from_secs(5);
 const INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
+// 日期：2026-11-11。自有签名及发布源配置完成前，不检查或安装任何更新。
+const RELEASE_CONFIGURED: bool = false;
 
 /// A downloaded update waiting for the user: the update and its installer.
 #[derive(Default)]
 pub struct Pending(Mutex<Option<(Update, Vec<u8>)>>);
 
 pub fn spawn(app: AppHandle) {
+    if !RELEASE_CONFIGURED {
+        return;
+    }
     if cfg!(debug_assertions) {
         return; // dev builds would "update" into the released app
     }
@@ -68,6 +73,9 @@ async fn check(app: &AppHandle) -> tauri_plugin_updater::Result<Option<String>> 
 /// which never self-update.
 #[tauri::command]
 pub async fn check_update(app: AppHandle) -> Result<Option<String>, String> {
+    if !RELEASE_CONFIGURED {
+        return Err("unavailable".into());
+    }
     if crate::portable::is_portable() {
         return Err("portable".into());
     }
@@ -92,6 +100,9 @@ pub fn install_update(app: AppHandle) {
 /// Install the downloaded update. On Windows the installer takes over and the
 /// app exits; the installer starts it again when done.
 pub fn install(app: &AppHandle) {
+    if !RELEASE_CONFIGURED {
+        return;
+    }
     let Some(pending) = app.try_state::<Pending>() else {
         return;
     };

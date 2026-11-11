@@ -6,16 +6,11 @@ fn main() {
     embed_locales();
     embed_identifier();
     println!("cargo:rerun-if-changed=app.manifest");
-    // Tauri's default manifest plus the `<msix>` link to the sparse package
-    // that lets the island read Windows notifications.
+    // 修改日期：2026-11-11。外壳不注册原通知模块的稀疏包。
     let manifest = include_str!("app.manifest");
     // The Store's MSIX gives the exe its identity; a link to the sparse
     // package would point at another app's package.
-    let manifest = if store() {
-        strip_msix(manifest)
-    } else {
-        manifest.to_string()
-    };
+    let manifest = strip_msix(manifest);
     let windows = tauri_build::WindowsAttributes::new().app_manifest(manifest);
     tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
         .expect("failed to run tauri-build");

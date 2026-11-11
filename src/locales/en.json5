@@ -98,7 +98,7 @@
     hiddenTooltip: "Island for Windows (hidden): click to show",
   },
   window: {
-    settings: "Island for Windows — Settings",
+    settings: "Island Workbench — Settings",
   },
 
   // Island chrome
@@ -472,9 +472,9 @@
       label: "Style",
       desc: "How the island looks on your screen.",
       dynamic: "Notch",
-      dynamicDesc: "Hangs from the top edge like a notch, tabs with names.",
+      dynamicDesc: "Hangs from the top edge like a notch, opening into the fixed workbench.",
       windows: "Windows Island",
-      windowsDesc: "A floating pill with a clock at rest, a colored rim and configurable module switcher position.",
+      windowsDesc: "A floating pill with a clock at rest, a colored rim and a fixed workbench when expanded.",
     },
     windowsOnly: "Available in the Windows Island style.",
     tabsPosition: {

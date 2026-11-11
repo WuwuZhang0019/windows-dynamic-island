@@ -1,5 +1,15 @@
+import { useEffect, useState } from "react";
 import { useLocale } from "../core/i18n";
-import { useNow } from "../modules/ai-agents/common/format";
+
+/** 外壳时钟独立于已删除的业务模块。 */
+function useNow(interval: number) {
+	const [now, setNow] = useState(() => Date.now());
+	useEffect(() => {
+		const timer = window.setInterval(() => setNow(Date.now()), interval);
+		return () => window.clearInterval(timer);
+	}, [interval]);
+	return now;
+}
 
 /** Time in the resting pill (Windows Island style). */
 export function IdleClock() {

@@ -1,37 +1,22 @@
-import {
-	CommandIcon,
-	InfoIcon,
-	LayoutGridIcon,
-	MousePointerClickIcon,
-	PaletteIcon,
-	PuzzleIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { InfoIcon, MousePointerClickIcon, PaletteIcon, SettingsIcon } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { useSyncLocale, useT } from "../core/i18n";
-import { useSettings } from "../core/settings";
+import { useSettings, useSettingsError } from "../core/settings";
 import { NavItem, NavSection } from "./components/NavItem";
 import { TitleBar } from "./components/TitleBar";
 import { AboutPage } from "./pages/AboutPage";
 import { AppearancePage } from "./pages/AppearancePage";
 import { BehaviorPage } from "./pages/BehaviorPage";
 import { GeneralPage } from "./pages/GeneralPage";
-import { ModulePage } from "./pages/ModulePage";
-import { ModulesPage } from "./pages/ModulesPage";
-import { PluginPage } from "./pages/plugins/PluginPage";
-import { PluginsPage } from "./pages/plugins/PluginsPage";
-import { ShortcutsPage } from "./pages/ShortcutsPage";
 
 /**
- * Settings window: frameless, with a sidebar in two groups — the app itself
- * (general, appearance, behavior) and the island's modules (one page listing them all,
- * each opening its own settings) — plus about. Pages are routes in a
- * `MemoryRouter`, since the window has no URL.
+ * 无边框设置窗口只保留常规、外观、行为和关于四类页面。
  */
 export function SettingsApp() {
 	const values = useSettings();
+	const settingsError = useSettingsError();
 	const t = useT();
 	useSyncLocale();
 
@@ -39,17 +24,17 @@ export function SettingsApp() {
 		<MemoryRouter>
 			<div className="flex h-full flex-col" data-settings>
 				<TitleBar />
+				{settingsError && (
+					<div role="alert" className="bg-amber-950 px-4 py-2 text-sm text-amber-100">
+						{settingsError}
+					</div>
+				)}
 				<div className="flex min-h-0 flex-1">
 					<nav className="flex w-53 flex-none flex-col gap-0.5 px-2.5 pt-2 pb-4">
 						<NavSection label={t("settings.section.app")} />
 						<NavItem to="/" icon={<SettingsIcon size={15} />} label={t("settings.general")} />
 						<NavItem to="/appearance" icon={<PaletteIcon size={15} />} label={t("appearance.title")} />
 						<NavItem to="/behavior" icon={<MousePointerClickIcon size={15} />} label={t("behavior.title")} />
-						<NavSection label={t("settings.section.island")} />
-						{/* Stays highlighted on each module's own page too. */}
-						<NavItem to="/modules" end={false} icon={<LayoutGridIcon size={14} />} label={t("modules.title")} />
-						<NavItem to="/shortcuts" icon={<CommandIcon size={14} />} label={t("shortcuts.title")} />
-						<NavItem to="/plugins" end={false} icon={<PuzzleIcon size={14} />} label={t("plugins.title")} />
 						<div className="flex-1" />
 						<NavItem to="/about" icon={<InfoIcon size={15} />} label={t("settings.about.title")} />
 					</nav>
@@ -59,12 +44,8 @@ export function SettingsApp() {
 								<Route index element={<GeneralPage values={values} />} />
 								<Route path="appearance" element={<AppearancePage values={values} />} />
 								<Route path="behavior" element={<BehaviorPage values={values} />} />
-								<Route path="modules" element={<ModulesPage values={values} />} />
-								<Route path="modules/:id" element={<ModulePage values={values} />} />
-								<Route path="shortcuts" element={<ShortcutsPage values={values} />} />
-								<Route path="plugins" element={<PluginsPage values={values} />} />
-								<Route path="plugins/:id" element={<PluginPage values={values} />} />
 								<Route path="about" element={<AboutPage />} />
+								<Route path="*" element={<GeneralPage values={values} />} />
 							</Routes>
 						</Page>
 					</main>

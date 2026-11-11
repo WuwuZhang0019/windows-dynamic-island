@@ -86,7 +86,7 @@
     hiddenTooltip: "Island for Windows (oculta): clique para mostrar",
   },
   window: {
-    settings: "Island for Windows — Configurações",
+    settings: "Island Workbench — Configurações",
   },
 
   island: {
@@ -437,9 +437,9 @@
       label: "Estilo",
       desc: "Como a ilha aparece na sua tela.",
       dynamic: "Notch",
-      dynamicDesc: "Pendurada na borda de cima, como um notch, com abas nomeadas.",
+      dynamicDesc: "Pendurada na borda de cima, como um notch, abrindo a área de trabalho fixa.",
       windows: "Windows Island",
-      windowsDesc: "Uma pílula flutuante com relógio em repouso, borda colorida e posição dos módulos configurável.",
+      windowsDesc: "Uma pílula flutuante com relógio em repouso, borda colorida e área de trabalho fixa quando expandida.",
     },
     windowsOnly: "Disponível no estilo Windows Island.",
     tabsPosition: {

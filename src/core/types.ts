@@ -1,8 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { MessageKey } from "./i18n";
-import type { PluginInfo, PluginModuleDef } from "./plugins/types";
 import type { SettingDef } from "./settings";
-import type { ShortcutId } from "./shortcuts";
 
 /** What a module wants the island to render right now. */
 export interface ModuleView {
@@ -76,13 +74,6 @@ export interface IslandModule {
 	SettingsSection?: ComponentType;
 	/** `SettingsSection` lays out its own cards instead of sitting in one. */
 	settingsSectionCards?: boolean;
-	/** Global shortcut that opens it, editable on its settings page. */
-	shortcut?: ShortcutId;
-	/**
-	 * Set on a plugin's module (`core/plugins/modules.tsx`): its view comes
-	 * from the plugin, not from `useView`.
-	 */
-	plugin?: { plugin: PluginInfo; def: PluginModuleDef };
 }
 
 /** An enabled module together with its current view. */

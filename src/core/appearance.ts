@@ -68,7 +68,7 @@ export function borderColors(border: string, custom: string[]): string[] {
 export function useAppearance(): Appearance {
 	const s = useSettings();
 	const style = readSetting(s, appearanceSettings.style) === "windows" ? "windows" : "dynamic";
-	const tabsPosition = readSetting(s, appearanceSettings.tabsPosition) === "top" ? "top" : "bottom";
+	const tabsPosition = "bottom";
 	return {
 		style,
 		tabsPosition,

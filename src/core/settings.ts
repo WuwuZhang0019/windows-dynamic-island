@@ -11,7 +11,6 @@ import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import { command, isTauri } from "./bridge";
 import type { MessageKey } from "./i18n";
-import type { IslandModule } from "./types";
 
 /** Frosted glass behind the island, from none to the strongest blur. */
 export type GlassLevel = "off" | "subtle" | "moderate" | "strong";
@@ -28,6 +27,8 @@ export interface SettingDef<T = boolean> {
 export type Values = Record<string, unknown>;
 
 let values: Values = {};
+let settingsError = "";
+let browserReadOnly = false;
 const listeners = new Set<() => void>();
 const notify = () => {
 	for (const l of listeners) l();
@@ -37,7 +38,54 @@ const subscribe = (l: () => void) => {
 	return () => listeners.delete(l);
 };
 
-const LOCAL_KEY = "island-settings";
+export const LOCAL_KEY = "island-workbench-settings-v1";
+export const LEGACY_LOCAL_KEY = "island-settings";
+export const LEGACY_BACKUP_KEY = "island-workbench-legacy-settings-backup-v1";
+
+const SHELL_KEYS = new Set([
+	"app.language",
+	"appearance.style",
+	"appearance.border",
+	"appearance.customColors",
+	"appearance.borderThickness",
+	"appearance.animateBorder",
+	"appearance.glow",
+	"appearance.glass",
+	"appearance.idleClock",
+	"island.hidden",
+	"island.openOn",
+	"island.closeOn",
+	"island.expandOnHover",
+	"island.hideInFullscreen",
+	"island.avoidMaximized",
+	"island.returnToCenter",
+	"island.returnDelay",
+	"island.monitor",
+	"island.offset",
+]);
+
+/** 白名单导入保留偏好；不携带模块、插件、热键或旧布局开关。 */
+export function shellPreferences(value: unknown): Values {
+	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_SHELL_CONFIG");
+	if ("shell.configVersion" in value && value["shell.configVersion"] !== 1) throw new Error("UNSUPPORTED_SHELL_CONFIG");
+	return {
+		...Object.fromEntries(Object.entries(value).filter(([key]) => SHELL_KEYS.has(key))),
+		"shell.configVersion": 1,
+	};
+}
+
+/** 原始浏览器配置保持不变；先保存一次备份，再写入独立命名空间。 */
+export function loadBrowserPreferences(storage: Storage): Values {
+	const current = storage.getItem(LOCAL_KEY);
+	if (current !== null) return shellPreferences(JSON.parse(current));
+	const legacy = storage.getItem(LEGACY_LOCAL_KEY);
+	const backup = storage.getItem(LEGACY_BACKUP_KEY);
+	if (legacy !== null && backup !== null && backup !== legacy) throw new Error("LEGACY_BACKUP_MISMATCH");
+	if (legacy !== null && backup === null) storage.setItem(LEGACY_BACKUP_KEY, legacy);
+	const migrated = shellPreferences(JSON.parse(legacy ?? "{}"));
+	storage.setItem(LOCAL_KEY, JSON.stringify(migrated));
+	return migrated;
+}
 
 let started = false;
 export async function startSettings() {
@@ -45,9 +93,11 @@ export async function startSettings() {
 	started = true;
 	if (!isTauri) {
 		try {
-			values = JSON.parse(localStorage.getItem(LOCAL_KEY) ?? "{}");
+			values = loadBrowserPreferences(localStorage);
 		} catch {
 			values = {};
+			browserReadOnly = true;
+			settingsError = "设置读取或迁移失败，原配置已保留。";
 		}
 		notify();
 		return;
@@ -56,7 +106,11 @@ export async function startSettings() {
 		values = e.payload;
 		notify();
 	});
-	values = (await command<Values>("get_settings")) ?? {};
+	try {
+		values = (await command<Values>("get_settings")) ?? {};
+	} catch {
+		settingsError = "设置读取失败，请重试或恢复配置。";
+	}
 	notify();
 }
 
@@ -74,35 +128,46 @@ export function useSettings(): Values {
 	return useSyncExternalStore(subscribe, () => values);
 }
 
+export function useSettingsError(): string {
+	return useSyncExternalStore(subscribe, () => settingsError);
+}
+
 export function useSetting<T>(def: SettingDef<T>): T {
 	return readSetting(useSettings(), def);
 }
 
 export function setSetting<T>(def: SettingDef<T> | string, value: T) {
 	const key = typeof def === "string" ? def : def.key;
+	if (!SHELL_KEYS.has(key)) return;
+	if (!isTauri && browserReadOnly) {
+		settingsError = "配置读取或迁移失败，当前为只读；请恢复配置后重新打开。";
+		notify();
+		return;
+	}
+	const previous = values;
 	values = { ...values, [key]: value }; // optimistic
+	settingsError = "";
 	notify();
 	if (isTauri) {
-		command("set_setting", { key, value });
+		command("set_setting", { key, value }).catch(async () => {
+			settingsError = "设置保存失败，已恢复已保存的值。";
+			try {
+				values = (await command<Values>("get_settings")) ?? previous;
+			} catch {
+				values = previous;
+			}
+			notify();
+		});
 	} else {
 		try {
 			localStorage.setItem(LOCAL_KEY, JSON.stringify(values));
 		} catch {
-			/* preview only */
+			values = previous;
+			settingsError = "设置保存失败，原配置已保留。";
+			notify();
 		}
 	}
 }
-
-/** Every module gets an on/off switch. */
-export const moduleEnabled = ({
-	id,
-	title,
-	enabledByDefault = true,
-}: Pick<IslandModule, "id" | "title" | "enabledByDefault">): SettingDef => ({
-	key: `module.${id}.enabled`,
-	label: title,
-	default: enabledByDefault,
-});
 
 /** What opens the island: the pointer entering it, or a click on it. */
 export type OpenTrigger = "hover" | "click";
@@ -138,57 +203,6 @@ const LEGACY_EXPAND_ON_HOVER_KEY = "island.expandOnHover";
 export function openTrigger(all: Values): OpenTrigger {
 	if (behaviorSettings.openOn.key in all) return readSetting(all, behaviorSettings.openOn);
 	return all[LEGACY_EXPAND_ON_HOVER_KEY] === false ? "click" : "hover";
-}
-
-/**
- * Tabs of the open island: their order, and which ones sit in the tab bar.
- * Every enabled module is also in the launcher (the grid button), so the bar
- * can stay short however many modules there are.
- */
-export const layoutSettings = {
-	/** Module ids in tab order; modules missing from it follow in registry order. */
-	order: {
-		key: "island.order",
-		label: "modules.title",
-		default: [],
-	} satisfies SettingDef<string[]>,
-	/** Module ids shown in the tab bar (a busy module shows up there anyway). */
-	pinned: {
-		key: "island.pinned",
-		label: "layout.pinned",
-		default: ["music", "ai-agents", "ask", "notifications", "clipboard", "monitor", "clock"],
-	} satisfies SettingDef<string[]>,
-	/** Module ids kept in the tab bar even when they have nothing to show (e.g. an empty shelf). */
-	pinnedAlways: {
-		key: "island.pinnedAlways",
-		label: "layout.pinned",
-		default: [] as string[],
-	} satisfies SettingDef<string[]>,
-};
-
-/** Where a module's tab goes: the launcher only, the tab bar, or the tab bar even when empty. */
-export type Placement = "launcher" | "bar" | "always";
-
-export function placementOf(values: Record<string, unknown>, id: string): Placement {
-	if (readSetting(values, layoutSettings.pinnedAlways).includes(id)) return "always";
-	return readSetting(values, layoutSettings.pinned).includes(id) ? "bar" : "launcher";
-}
-
-export function setPlacement(values: Record<string, unknown>, id: string, placement: Placement) {
-	const without = (list: string[]) => list.filter((p) => p !== id);
-	const pinned = without(readSetting(values, layoutSettings.pinned));
-	const always = without(readSetting(values, layoutSettings.pinnedAlways));
-	setSetting(layoutSettings.pinned, placement === "bar" ? [...pinned, id] : pinned);
-	setSetting(layoutSettings.pinnedAlways, placement === "always" ? [...always, id] : always);
-}
-
-/** `items` sorted by the saved order; unknown ones keep their place at the end. */
-export function inOrder<T>(items: T[], idOf: (item: T) => string, order: string[]): T[] {
-	const rank = (item: T) => {
-		const i = order.indexOf(idOf(item));
-		return i === -1 ? order.length + items.indexOf(item) : i;
-	};
-	return [...items].sort((a, b) => rank(a) - rank(b));
 }
 
 /** Where the island goes after being dragged along the top edge. */
@@ -248,12 +262,6 @@ export const appearanceSettings = {
 		description: "appearance.style.desc",
 		default: "dynamic",
 	} as SettingDef<IslandStyle>,
-	tabsPosition: {
-		key: "appearance.tabsPosition",
-		label: "appearance.tabsPosition.label",
-		description: "appearance.tabsPosition.desc",
-		default: "bottom" as "top" | "bottom",
-	} as SettingDef<"top" | "bottom">,
 	/** A preset id from `core/appearance.ts`, "none" (classic hairline) or "custom". */
 	border: {
 		key: "appearance.border",

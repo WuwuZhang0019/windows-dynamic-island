@@ -1,11 +1,5 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+// 修改日期：2026-11-11。保留原生桌面入口，移除Claude状态栏CLI入口。
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 fn main() {
-    // Claude Code statusline bridge: short-lived CLI mode, no GUI.
-    if std::env::args().any(|a| a == dynamic_island_lib::STATUSLINE_BRIDGE_FLAG) {
-        dynamic_island_lib::run_statusline_bridge();
-        return;
-    }
     dynamic_island_lib::run()
 }

@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use crate::i18n;
 use crate::window::{ISLAND_LABEL, RECENTER_EVENT};
 
-const TRAY_ID: &str = "main";
+const TRAY_ID: &str = "island-workbench";
 /// Swallowed by the black hole (tray click): the island stays hidden, even across restarts.
 pub const HIDDEN_KEY: &str = "island.hidden";
 
@@ -118,7 +118,11 @@ pub fn is_hidden(app: &AppHandle) -> bool {
 
 /// The frontend plays the black hole animation when the setting changes.
 pub fn toggle_hidden(app: &AppHandle) {
-    crate::settings::set(app, HIDDEN_KEY, serde_json::Value::Bool(!is_hidden(app)));
+    if let Err(error) =
+        crate::settings::set(app, HIDDEN_KEY, serde_json::Value::Bool(!is_hidden(app)))
+    {
+        log::warn!("could not change island visibility: {error}");
+    }
 }
 
 /// The app icon, greyed out and faded: shown in the tray while the island is hidden.
