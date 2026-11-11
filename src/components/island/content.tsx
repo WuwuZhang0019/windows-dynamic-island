@@ -8,14 +8,14 @@ import { IdleClock } from "../IdleClock";
 import type { Variant } from "./geometry";
 import { Tabs } from "./Tabs";
 
-// Date: 2026-11-11. Fixed simulation content uses the original shell transition.
+// Date: 2026-11-12. Fixed workbench content uses the original shell transition.
 export function islandContent(
 	ctl: IslandController,
 	look: Appearance,
 	v: Variant,
 	workbench: WorkbenchState,
 ): { key: string; node: ReactNode } {
-	if (!workbench.envelope) return { key: "loading", node: <span className="p-3 text-xs">模拟数据加载中</span> };
+	if (!workbench.envelope) return { key: "loading", node: <span className="p-3 text-xs">工作台连接中</span> };
 	if (ctl.mode === "expanded") {
 		const controls = <Tabs bottom={v.tabsAtBottom} pinned={ctl.pinned} onPin={ctl.setPinned} />;
 		return {

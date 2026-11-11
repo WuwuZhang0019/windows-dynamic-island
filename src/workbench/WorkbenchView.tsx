@@ -1,6 +1,6 @@
-// Date: 2026-11-11. Read-only fixed workbench; no business transitions are performed here.
-import { useLayoutEffect, useRef, useState } from "react";
-import type { WorkbenchEnvelope as Envelope, Step, WorkbenchSnapshot } from "./contract/protocol";
+// Date: 2026-11-12. Read-only fixed workbench; no business transitions are performed here.
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { WorkbenchEnvelope as Envelope, Preferences, Step, WorkbenchSnapshot } from "./contract/protocol";
 import "./workbench.css";
 
 type Status = Step["status"];
@@ -69,9 +69,9 @@ export function WorkbenchSummary({ envelope }: { envelope: Envelope }) {
 			role="status"
 			data-workbench-summary
 			title={`${project?.name ?? "工作台"} · ${active ? `${active.code} ${active.title} · ${labels[active.status]}` : "暂无阶段"}`}
-			aria-label={`模拟工作台：${active ? `${active.code} ${active.title}` : "暂无阶段"}`}
+			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}工作台：${active ? `${active.code} ${active.title}` : "暂无阶段"}`}
 		>
-			<span className="wb-simulation">模拟</span>
+			<span className="wb-simulation">{envelope.mode === "simulation" ? "模拟" : "真实"}</span>
 			<span className="wb-summary-title" title={active ? `${active.code} ${active.title}` : project?.name}>
 				{project?.name ?? "工作台"}
 				{active ? ` · ${active.code}` : ""}
@@ -92,6 +92,9 @@ export interface WorkbenchViewProps {
 	setScenario: (value: string) => void;
 	scenarios?: readonly { id: string; label: string }[];
 	queryPending?: () => Promise<void>;
+	preferences?: Preferences | null;
+	savePreferences?: (value: Preferences) => Promise<void>;
+	preferenceMessage?: string;
 }
 
 export function WorkbenchView({
@@ -101,6 +104,9 @@ export function WorkbenchView({
 	setScenario,
 	scenarios = defaultScenarios,
 	queryPending,
+	preferences,
+	savePreferences,
+	preferenceMessage,
 }: WorkbenchViewProps) {
 	const { connection, pendingOperation } = envelope;
 	const snapshot = envelope.snapshot ?? emptySnapshot;
@@ -110,6 +116,7 @@ export function WorkbenchView({
 	const [copyMessage, setCopyMessage] = useState("");
 	const listRef = useRef<HTMLDivElement>(null);
 	const detailRef = useRef<HTMLElement>(null);
+	const pendingDetailTop = useRef<number | null>(null);
 	const positions = useRef<Reading>({
 		selected: selectedKey,
 		top: memory?.top ?? 0,
@@ -126,25 +133,69 @@ export function WorkbenchView({
 	const latestEvent = snapshot.events[snapshot.events.length - 1];
 
 	useLayoutEffect(() => {
-		const saved = readingPositions.get(memoryKey);
+		if (!envelope.snapshot) return;
+		const saved =
+			readingPositions.get(memoryKey) ??
+			(envelope.mode === "service" && preferences
+				? {
+						selected: preferences.selected,
+						top: preferences.y["island/list"] ?? 0,
+						detailTop: preferences.y["island/detail"] ?? 0,
+						lanes: Object.fromEntries(
+							Object.entries(preferences.scroll)
+								.filter(([key]) => key.startsWith("island/route/"))
+								.map(([key, value]) => [key.slice(13), value]),
+						),
+					}
+				: undefined);
 		positions.current = saved ?? { selected: currentStep(snapshot.steps)?.key ?? "", top: 0, detailTop: 0, lanes: {} };
 		if (!snapshot.steps.some((step) => step.key === positions.current.selected))
 			positions.current.selected = currentStep(snapshot.steps)?.key ?? "";
 		setSelectedKey(positions.current.selected);
 		readingPositions.set(memoryKey, { ...positions.current });
-		if (detailRef.current) detailRef.current.scrollTop = positions.current.detailTop;
+		pendingDetailTop.current = positions.current.detailTop;
 		const list = listRef.current;
 		if (list) {
 			list.scrollTop = positions.current.top;
 			for (const lane of list.querySelectorAll<HTMLElement>("[data-route-key]"))
 				lane.scrollLeft = positions.current.lanes[lane.dataset.routeKey ?? ""] ?? 0;
 		}
-	}, [memoryKey, snapshot.steps]);
+	}, [memoryKey, snapshot.steps, preferences, envelope.mode, envelope.snapshot]);
+	useLayoutEffect(() => {
+		// Restore only after the selected detail has committed; the previous shorter
+		// detail would clamp a saved scroll position to zero during hydration.
+		if (positions.current.selected !== selectedKey || pendingDetailTop.current === null) return;
+		if (detailRef.current) {
+			detailRef.current.scrollTop = pendingDetailTop.current;
+			pendingDetailTop.current = null;
+		}
+	});
+	const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	useEffect(() => () => clearTimeout(saveTimer.current), []);
 
 	function remember() {
 		const list = listRef.current;
 		if (list) positions.current.top = list.scrollTop;
 		readingPositions.set(memoryKey, { ...positions.current });
+		if (envelope.mode === "service" && preferences && savePreferences && connection.state === "ready") {
+			clearTimeout(saveTimer.current);
+			const reading = structuredClone(positions.current);
+			saveTimer.current = setTimeout(
+				() =>
+					void savePreferences({
+						...preferences,
+						selected: reading.selected,
+						scroll: {
+							...preferences.scroll,
+							...Object.fromEntries(
+								Object.entries(reading.lanes).map(([key, value]) => [`island/route/${key}`, value]),
+							),
+						},
+						y: { ...preferences.y, "island/list": reading.top, "island/detail": reading.detailTop },
+					}),
+				250,
+			);
+		}
 	}
 	function select(key: string) {
 		setSelectedKey(key);
@@ -178,11 +229,16 @@ export function WorkbenchView({
 	}
 
 	return (
-		<section className="wb" data-workbench data-no-drag aria-label="模拟工作台">
+		<section
+			className="wb"
+			data-workbench
+			data-no-drag
+			aria-label={envelope.mode === "simulation" ? "模拟工作台" : "真实工作台"}
+		>
 			<div className="wb-toolbar">
 				<div>
-					<span className="wb-simulation">模拟数据</span>
-					<span className="wb-version">只读预览 · revision {snapshot.revision ?? "—"}</span>
+					<span className="wb-simulation">{envelope.mode === "simulation" ? "模拟数据" : "真实服务"}</span>
+					<span className="wb-version">只读工作台 · revision {snapshot.revision ?? "—"}</span>
 				</div>
 				<div className="wb-actions">
 					<button type="button" onClick={() => locate()} disabled={!snapshot.steps.length}>
@@ -194,30 +250,38 @@ export function WorkbenchView({
 				</div>
 			</div>
 			<div className="wb-scenario-row">
-				<label>
-					演示场景{" "}
-					<select aria-label="演示场景" value={scenario} onChange={(event) => setScenario(event.currentTarget.value)}>
-						{scenarios.map((item) => (
-							<option key={item.id} value={item.id}>
-								{item.label}
-							</option>
-						))}
-					</select>
-				</label>
+				{envelope.mode === "simulation" && (
+					<label>
+						演示场景{" "}
+						<select aria-label="演示场景" value={scenario} onChange={(event) => setScenario(event.currentTarget.value)}>
+							{scenarios.map((item) => (
+								<option key={item.id} value={item.id}>
+									{item.label}
+								</option>
+							))}
+						</select>
+					</label>
+				)}
 				<span className={`wb-connection wb-connection-${connection.state}`} data-connection={connection.state}>
 					{connectionLabels[connection.state]}
 				</span>
 			</div>
 			<div className={`wb-notice ${connection.state !== "ready" ? "wb-notice-warning" : ""}`} role="status">
-				{connection.message || "本页使用独立模拟快照，不连接正式业务服务"}
+				{connection.message ||
+					(envelope.mode === "simulation" ? "本页使用独立模拟快照，不连接正式业务服务" : "真实服务连接")}
 				{connection.state !== "ready" && <span> · 保留快照仅供参考</span>}
 				<span className="wb-last-success">
-					模拟读取：
+					{envelope.mode === "simulation" ? "模拟读取：" : "最近成功同步："}
 					{connection.lastSuccessAt
 						? new Date(connection.lastSuccessAt).toLocaleTimeString("zh-CN", { hour12: false })
 						: "尚无"}
 				</span>
 			</div>
+			{preferenceMessage && (
+				<p className="wb-notice wb-notice-warning" role="status">
+					{preferenceMessage}
+				</p>
+			)}
 			{pendingOperation && (
 				<div className="wb-unknown" role="status" data-unknown-result>
 					<strong>操作结果未知</strong>

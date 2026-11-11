@@ -1,4 +1,4 @@
-// 修改日期：2026-11-11。固定工作台外壳仅启动窗口及设置服务。
+// 修改日期：2026-11-12。固定工作台外壳仅启动窗口及设置服务。
 mod autostart;
 mod display;
 mod glass;
@@ -10,6 +10,8 @@ mod store;
 mod tray;
 mod updater;
 mod window;
+mod workbench;
+mod workbench_connection;
 
 use tauri::Manager;
 
@@ -42,6 +44,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            workbench_connection::island_workbench_pending_binding,
+            workbench_connection::island_workbench_authorize_connection,
+            workbench_connection::island_workbench_confirm_binding,
+            workbench::island_workbench_read,
+            workbench::island_workbench_save_preferences,
             window::set_hit_rects,
             glass::set_glass_shapes,
             glass::set_glass_level,

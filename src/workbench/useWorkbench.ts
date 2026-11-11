@@ -1,61 +1,79 @@
-// Date: 2026-11-11. Simulation-only adapter; no service or credential access.
+// Date: 2026-11-12. Explicit simulation preview is isolated from the native service client.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MockWorkbenchClient, type ScenarioId, scenarios } from "./contract/fixtures";
-import { acceptEnvelope, type WorkbenchEnvelope } from "./contract/protocol";
+import { acceptEnvelope, type Preferences, type WorkbenchEnvelope } from "./contract/protocol";
+import { failedEnvelope, ServiceWorkbenchClient } from "./service-client";
 
 export function useWorkbench() {
-	const client = useRef(new MockWorkbenchClient());
+	const [client] = useState(() =>
+		new URLSearchParams(window.location.search).get("workbench") === "simulation"
+			? new MockWorkbenchClient()
+			: new ServiceWorkbenchClient(),
+	);
 	const request = useRef(0);
 	const current = useRef<WorkbenchEnvelope | null>(null);
+	const alive = useRef(false);
 	const [envelope, setEnvelope] = useState<WorkbenchEnvelope | null>(null);
+	const [preferences, setPreferences] = useState<Preferences | null>(null);
+	const [preferenceMessage, setPreferenceMessage] = useState("");
 	const [scenario, updateScenario] = useState<ScenarioId>("multi-project");
 	const read = useCallback(async () => {
 		const token = ++request.current;
 		try {
-			const incoming = await client.current.read();
-			if (token !== request.current) return;
+			const incoming = await client.read();
+			if (token !== request.current || !alive.current) return;
 			const next = acceptEnvelope(current.current, incoming);
 			current.current = next;
 			setEnvelope(next);
+			if (client instanceof ServiceWorkbenchClient) setPreferences(client.preferences);
 		} catch (error) {
-			if (token !== request.current || !current.current) return;
-			const next: WorkbenchEnvelope = {
-				...current.current,
-				connection: { ...current.current.connection, state: "incompatible", healthy: false, message: String(error) },
-			};
+			if (token !== request.current || !alive.current) return;
+			const next = failedEnvelope(client.mode, error, current.current);
 			current.current = next;
 			setEnvelope(next);
 		}
-	}, []);
+	}, [client]);
 	const setScenario = useCallback(
 		(id: string) => {
-			if (!scenarios.some((item) => item.id === id)) return;
+			if (!(client instanceof MockWorkbenchClient) || !scenarios.some((item) => item.id === id)) return;
 			++request.current;
-			// Scenario selection is an explicit isolated preview, not a connection fallback.
-			client.current.selectScenario(id as ScenarioId);
+			client.selectScenario(id as ScenarioId);
 			updateScenario(id as ScenarioId);
 			void read();
 		},
-		[read],
+		[client, read],
 	);
 	const queryPending = useCallback(async () => {
 		const eventId = current.current?.pendingOperation?.eventId;
 		if (!eventId) return;
-		const result = await client.current.queryEvent(eventId);
-		if (current.current?.pendingOperation?.eventId !== eventId) return;
+		const result = await client.queryEvent(eventId);
+		if (current.current?.pendingOperation?.eventId !== eventId || !alive.current) return;
 		if (result.state === "committed") await read();
-	}, [read]);
+		else setPreferenceMessage("请回原 MCP 聊天，携带原项目、操作类型和事件键查询；本窗口不会重发");
+	}, [client, read]);
+	const savePreferences = useCallback(
+		async (value: Preferences) => {
+			if (!(client instanceof ServiceWorkbenchClient)) return;
+			try {
+				await client.savePreferences(value);
+				if (alive.current) setPreferenceMessage("");
+			} catch {
+				if (alive.current) setPreferenceMessage("阅读位置保存未确认；请重连后重试，业务状态未改变");
+			}
+		},
+		[client],
+	);
 	useEffect(() => {
+		alive.current = true;
 		void read();
-	}, [read]);
-	useEffect(() => {
-		// Hidden windows refresh less often. Visibility never triggers a business write.
 		let timer: ReturnType<typeof setTimeout>;
+		let cancelled = false;
 		const poll = () => {
+			if (cancelled) return;
 			timer = setTimeout(
 				async () => {
 					await read();
-					poll();
+					if (!cancelled) poll();
 				},
 				document.hidden ? 30000 : 10000,
 			);
@@ -66,10 +84,23 @@ export function useWorkbench() {
 		poll();
 		document.addEventListener("visibilitychange", visible);
 		return () => {
+			cancelled = true;
+			alive.current = false;
+			++request.current;
 			clearTimeout(timer);
 			document.removeEventListener("visibilitychange", visible);
 		};
 	}, [read]);
-	return { envelope, scenario, setScenario, scenarios, refresh: read, queryPending };
+	return {
+		envelope,
+		scenario,
+		setScenario,
+		scenarios,
+		refresh: read,
+		queryPending,
+		preferences,
+		savePreferences,
+		preferenceMessage,
+	};
 }
 export type WorkbenchState = ReturnType<typeof useWorkbench>;
