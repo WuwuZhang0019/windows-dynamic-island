@@ -25,6 +25,19 @@ const call =
 	async <T>(command: string, args?: Record<string, unknown>) =>
 		(await handler(command, args)) as T;
 describe("native service client", () => {
+	test("service-schema nullable original codes remain null through native response mapping", async () => {
+		const value = panel(4);
+		value.snapshot.steps[0].originalCode = null;
+		const original = structuredClone(value.snapshot);
+		const client = new ServiceWorkbenchClient(call(() => value));
+		const mapped = await client.read();
+		expect(mapped.connection.state).toBe("ready");
+		expect(mapped.snapshot).toEqual(original);
+		expect(mapped.snapshot?.steps[0]?.originalCode).toBeNull();
+		expect(mapped.snapshot?.steps[0]?.code).toBe(original.steps[0]?.code);
+		expect(mapped.snapshot?.steps[1]?.originalCode).toBe(original.steps[1]?.originalCode);
+	});
+
 	test("first read errors expose offline without mock fallback, then reconnects", async () => {
 		let fail = true;
 		const client = new ServiceWorkbenchClient(

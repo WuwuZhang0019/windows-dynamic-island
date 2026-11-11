@@ -1,19 +1,22 @@
 {
-	"date": "2026-11-11",
+	"date": "2026-11-12",
 	"protocolVersion": "island-workbench/1",
 	"snapshotVersion": "light-1.0",
 	"ownerRepository": "Codex-task-monitoring",
-	"sourceCommit": "4b80fb1ae275786e8b0b364955ae2305ed1a3778",
+	"sourceCommit": "f3229d49c5b76fc47878d13fb145dd35cd2a785f",
 	"sourcePath": "app/contracts/island-workbench-v1",
-	"mode": "simulation-only",
+	"mode": "service-and-explicit-simulation",
 	"files": {
 		"protocol.ts": {
-			"sha256": "f0ed1eec3f361fddef7adc5eacf76bc5e2e56ab9262194d5d13f06f3bad529da",
-			"lfSha256": "f0ed1eec3f361fddef7adc5eacf76bc5e2e56ab9262194d5d13f06f3bad529da"
+			"sha256": "b69241c8c0ea74b4faa9ea7b8d5735e4669c9018857c94337fa411dddb3f974a",
+			"lfSha256": "b69241c8c0ea74b4faa9ea7b8d5735e4669c9018857c94337fa411dddb3f974a"
 		},
 		"fixtures.ts": {
 			"sha256": "f2546369fd7888cf8bc4d1380846194fabf5959ba026f0bcaf15f61f82a60505",
 			"lfSha256": "f2546369fd7888cf8bc4d1380846194fabf5959ba026f0bcaf15f61f82a60505"
 		}
-	}
+	},
+	"sourceBaseCommit": "f27192c58969a06f5afbba553f11a198a17afaf5",
+	"sourceState": "Committed D compatibility fix; copied protocol matches canonical bytes and LF-normalized source fingerprint.",
+	"compatibilityNote": "Step.originalCode preserves the light-1.0 schema string|null without replacing null or changing code/identity/status."
 }
