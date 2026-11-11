@@ -1,4 +1,4 @@
-import { InfoIcon, MousePointerClickIcon, PaletteIcon, SettingsIcon } from "lucide-react";
+import { InfoIcon, ListTodoIcon, MousePointerClickIcon, PaletteIcon, SettingsIcon } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -10,9 +10,10 @@ import { AboutPage } from "./pages/AboutPage";
 import { AppearancePage } from "./pages/AppearancePage";
 import { BehaviorPage } from "./pages/BehaviorPage";
 import { GeneralPage } from "./pages/GeneralPage";
+import { WorkbenchPage } from "./pages/WorkbenchPage";
 
 /**
- * 无边框设置窗口只保留常规、外观、行为和关于四类页面。
+ * Date: 2026-11-12. Workbench authorization has its own settings page.
  */
 export function SettingsApp() {
 	const values = useSettings();
@@ -35,6 +36,7 @@ export function SettingsApp() {
 						<NavItem to="/" icon={<SettingsIcon size={15} />} label={t("settings.general")} />
 						<NavItem to="/appearance" icon={<PaletteIcon size={15} />} label={t("appearance.title")} />
 						<NavItem to="/behavior" icon={<MousePointerClickIcon size={15} />} label={t("behavior.title")} />
+						<NavItem to="/workbench" icon={<ListTodoIcon size={15} />} label="工作台" />
 						<div className="flex-1" />
 						<NavItem to="/about" icon={<InfoIcon size={15} />} label={t("settings.about.title")} />
 					</nav>
@@ -44,6 +46,7 @@ export function SettingsApp() {
 								<Route index element={<GeneralPage values={values} />} />
 								<Route path="appearance" element={<AppearancePage values={values} />} />
 								<Route path="behavior" element={<BehaviorPage values={values} />} />
+								<Route path="workbench" element={<WorkbenchPage />} />
 								<Route path="about" element={<AboutPage />} />
 								<Route path="*" element={<GeneralPage values={values} />} />
 							</Routes>

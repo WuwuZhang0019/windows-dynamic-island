@@ -1,4 +1,4 @@
-// Date: 2026-11-12. Independent service connection is available from the new shell.
+// Date: 2026-11-12. General preferences are separate from workbench authorization.
 import { useEffect, useState } from "react";
 import { Card, Row } from "../../components/ui/card";
 import { Select } from "../../components/ui/form";
@@ -7,14 +7,12 @@ import { type LanguagePref, languageSetting, locales, systemLocale, useT } from 
 import { monitorSettings, readSetting, setSetting } from "../../core/settings";
 import { Title } from "../components/Heading";
 import { Toggle } from "../components/Toggle";
-import { WorkbenchConnection } from "../components/WorkbenchConnection";
 
 export function GeneralPage({ values }: { values: Record<string, unknown> }) {
 	const t = useT();
 	return (
 		<>
 			<Title>{t("settings.general")}</Title>
-			<WorkbenchConnection />
 			<Card>
 				<LanguageRow value={readSetting(values, languageSetting)} />
 				<AutostartRow />
