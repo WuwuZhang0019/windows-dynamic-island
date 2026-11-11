@@ -128,6 +128,8 @@ export function WorkbenchView({
 	useLayoutEffect(() => {
 		const saved = readingPositions.get(memoryKey);
 		positions.current = saved ?? { selected: currentStep(snapshot.steps)?.key ?? "", top: 0, detailTop: 0, lanes: {} };
+		if (!snapshot.steps.some((step) => step.key === positions.current.selected))
+			positions.current.selected = currentStep(snapshot.steps)?.key ?? "";
 		setSelectedKey(positions.current.selected);
 		readingPositions.set(memoryKey, { ...positions.current });
 		if (detailRef.current) detailRef.current.scrollTop = positions.current.detailTop;
