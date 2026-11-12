@@ -31,6 +31,7 @@ fn shell_key(key: &str) -> bool {
             | "appearance.glow"
             | "appearance.glass"
             | "appearance.idleClock"
+            | "appearance.tabsPosition"
             | "island.hidden"
             | "island.openOn"
             | "island.closeOn"
@@ -358,9 +359,10 @@ mod tests {
         let source = br#"{"app.language":"zh-CN","appearance.style":"windows","island.expandOnHover":false,"module.clipboard.enabled":true,"plugin.foo.enabled":true,"shortcut.module.ask":"Ctrl+Alt+Space","appearance.tabsPosition":"top","island.pinned":["music"]}"#;
         std::fs::write(&legacy, source).unwrap();
         let data = load_profile(&output, Some(&legacy)).unwrap();
-        assert_eq!(data.len(), 4);
+        assert_eq!(data.len(), 5);
         assert_eq!(data["app.language"], "zh-CN");
         assert_eq!(data["appearance.style"], "windows");
+        assert_eq!(data["appearance.tabsPosition"], "top");
         assert_eq!(data["island.expandOnHover"], false);
         assert_eq!(data[CONFIG_VERSION_KEY], CONFIG_VERSION);
         assert_eq!(std::fs::read(&legacy).unwrap(), source);
@@ -392,6 +394,30 @@ mod tests {
         .unwrap();
         assert!(load_profile(&output, Some(&legacy)).is_err());
         assert!(!output.exists());
+    }
+
+    #[test]
+    fn clock_and_controls_preferences_survive_restart() {
+        let root = Profile::new();
+        let path = root.0.join("settings.json");
+        let settings = Settings::from_paths(Some(path.clone()), None);
+        settings
+            .store_value("appearance.idleClock", Value::from(false))
+            .unwrap();
+        for position in ["top", "bottom"] {
+            settings
+                .store_value("appearance.tabsPosition", Value::from(position))
+                .unwrap();
+            let reloaded = Settings::from_paths(Some(path.clone()), None);
+            assert_eq!(
+                reloaded.get("appearance.idleClock"),
+                Some(Value::from(false))
+            );
+            assert_eq!(
+                reloaded.get("appearance.tabsPosition"),
+                Some(Value::from(position))
+            );
+        }
     }
 
     #[test]

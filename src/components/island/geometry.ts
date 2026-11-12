@@ -61,7 +61,7 @@ export const BUBBLE_GAP = 10;
 const AMBIENT_GAP = 8;
 
 export function variantOf(look: Appearance): Variant {
-	return look.style === "windows" ? { ...WINDOWS, tabsAtBottom: look.tabsPosition === "bottom" } : DYNAMIC;
+	return { ...(look.style === "windows" ? WINDOWS : DYNAMIC), tabsAtBottom: look.tabsPosition === "bottom" };
 }
 
 /** The island's size and shape in a given mode. */

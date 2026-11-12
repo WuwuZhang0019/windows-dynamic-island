@@ -1,4 +1,10 @@
-/* Date: 2026-11-12. Styles are scoped to the fixed workbench; shell animation stays upstream. */
+/* Date: 2026-11-11. Styles are scoped to the fixed workbench; shell animation stays upstream. */
+/* Date: 2026-11-12. User-approved shared station and route palette. */
+.wb,
+.wb-summary {
+	--wb-progress-green: rgb(0, 194, 106);
+	--wb-route-gray: #ffffff28;
+}
 .wb {
 	display: flex;
 	flex-direction: column;
@@ -226,20 +232,34 @@
 	justify-content: center;
 	position: relative;
 }
-.wb-step-track::before {
-	content: "";
-	height: 1px;
+.wb-step-track::before,
+.wb-step-track::after {
+	height: 0;
 	position: absolute;
-	left: 0;
-	right: 0;
 	top: 11px;
-	background: #ffffff28;
+	border-top: 1px solid var(--wb-route-gray);
 }
-.wb-step:first-child .wb-step-track::before {
-	left: 50%;
-}
-.wb-step:last-child .wb-step-track::before {
+.wb-step-track[data-before]::before {
+	content: "";
+	left: 0;
 	right: 50%;
+}
+.wb-step-track[data-after]::after {
+	content: "";
+	left: 50%;
+	right: 0;
+}
+/* A connection uses its destination station's state in both views. */
+.wb-route-segment[data-status="completed"],
+.wb-step-track[data-before="completed"]::before,
+.wb-step-track[data-after="completed"]::after {
+	border-top-color: var(--wb-progress-green);
+}
+.wb-route-segment[data-status="running"],
+.wb-step-track[data-before="running"]::before,
+.wb-step-track[data-after="running"]::after {
+	border-top-color: var(--wb-progress-green);
+	border-top-style: dashed;
 }
 .wb-dot {
 	width: 9px;
@@ -250,13 +270,12 @@
 	background: #080808;
 }
 .wb-step-running .wb-dot {
-	border-color: #53cf8a;
-	background: #53cf8a;
-	box-shadow: 0 0 9px #53cf8a33;
+	border-color: var(--wb-progress-green);
+	background: #080808;
 }
 .wb-step-completed .wb-dot {
-	border-color: #f06e74;
-	background: #f06e74;
+	border-color: var(--wb-progress-green);
+	background: var(--wb-progress-green);
 }
 .wb-step-blocked .wb-dot {
 	border-color: #eab560;
@@ -284,7 +303,10 @@
 	margin-top: 3px;
 }
 .wb-step-running .wb-step-state {
-	color: #6ed99a;
+	color: var(--wb-progress-green);
+}
+.wb-step-completed .wb-step-state {
+	color: var(--wb-progress-green);
 }
 .wb-step-blocked .wb-step-state {
 	color: #eab560;
@@ -371,4 +393,91 @@
 	border-radius: 5px;
 	padding: 3px 6px;
 	color: #eac084;
+}
+
+.wb-supplement button {
+	background: transparent;
+	border: 0;
+	text-align: left;
+	padding: 0;
+	color: #b3b6f5;
+	font-size: 10px;
+}
+/* Date: 2026-11-12. One complete route, sharing the expanded view's station states. */
+.wb-summary {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 0;
+	padding: 0 4px;
+}
+.wb-mini-route {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	min-width: 0;
+	height: 18px;
+	position: relative;
+}
+.wb-route-segment {
+	flex: 1 1 2px;
+	min-width: 0;
+	height: 0;
+	border-top: 1px solid var(--wb-route-gray);
+}
+.wb-mini-route:has(.wb-mini-stop:only-child) {
+	justify-content: center;
+}
+.wb-mini-stop {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 9px;
+	height: 12px;
+	flex: 0 1 9px;
+	min-width: 0;
+}
+.wb-mini-stop .wb-dot {
+	width: 100%;
+	max-width: 9px;
+	height: auto;
+	aspect-ratio: 1;
+}
+.wb-mini-stop[data-current="true"] .wb-dot {
+	outline: 1px solid #ffffffb3;
+	outline-offset: 2px;
+}
+
+/* Date: 2026-11-12. A short border beam loops only around running stage dots. */
+.wb-step-running .wb-dot {
+	position: relative;
+}
+.wb-step-running .wb-dot::after {
+	content: "";
+	position: absolute;
+	inset: -5px;
+	border-radius: 50%;
+	padding: 1.5px;
+	background: conic-gradient(from 0deg, transparent 0deg 240deg, #34d399 290deg, #e0fff4 350deg, transparent 360deg);
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	mask-composite: exclude;
+	pointer-events: none;
+	animation: wb-dot-border-beam 1.8s linear infinite;
+}
+.wb-mini-stop.wb-step-running[data-current="true"] .wb-dot {
+	outline: none;
+}
+@keyframes wb-dot-border-beam {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.wb-step-running .wb-dot::after {
+		animation: none;
+	}
 }

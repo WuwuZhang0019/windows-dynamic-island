@@ -1,9 +1,8 @@
 // Date: 2026-11-12. Read-only fixed workbench; no business transitions are performed here.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { WorkbenchEnvelope as Envelope, Preferences, Step, WorkbenchSnapshot } from "./contract/protocol";
 import "./workbench.css";
 
-type Status = Step["status"];
 type Reading = { selected: string; top: number; lanes: Record<string, number> };
 const emptySnapshot: WorkbenchSnapshot = {
 	schemaVersion: "light-1.0",
@@ -57,34 +56,65 @@ function currentStep(steps: Step[]) {
 	);
 }
 
-export function WorkbenchSummary({ envelope }: { envelope: Envelope }) {
-	const { connection } = envelope;
+export function WorkbenchSummary({
+	envelope,
+	scenario = "multi-project",
+	preferences,
+}: {
+	envelope: Envelope;
+	scenario?: string;
+	preferences?: Preferences | null;
+}) {
 	const snapshot = envelope.snapshot ?? emptySnapshot;
-	const active = currentStep(snapshot.steps);
-	const project = snapshot.projects.find((item) => item.key === active?.projectKey);
-	const count = (status: Status) => snapshot.steps.filter((item) => item.status === status).length;
+	const byKey = new Map(snapshot.steps.map((step) => [step.key, step]));
+	const remembered = readingPositions.get(`${envelope.mode}/${scenario}`)?.selected;
+	const focus = byKey.get(remembered ?? "") ?? byKey.get(preferences?.selected ?? "") ?? currentStep(snapshot.steps);
+	const routes = snapshot.routes.filter((route) => route.planKey === focus?.planKey).sort((a, b) => a.order - b.order);
+	// Date: 2026-11-12. Resolve one route, following ancestors for unlisted child stages.
+	let anchor = focus;
+	let route = routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
+	const visited = new Set<string>();
+	while (!route && anchor?.parentKey && !visited.has(anchor.key)) {
+		visited.add(anchor.key);
+		const parent = byKey.get(anchor.parentKey);
+		if (parent?.planKey !== focus?.planKey) break;
+		anchor = parent;
+		route = routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
+	}
+	route ??= routes[0];
+	const routeSteps = (route?.stepKeys ?? []).flatMap((key) => {
+		const step = byKey.get(key);
+		return step ? [step] : [];
+	});
 	return (
 		<div
 			className="wb-summary"
-			role="status"
+			role="img"
 			data-workbench-summary
-			title={`${project?.name ?? "工作台"} · ${active ? `${active.code} ${active.title} · ${labels[active.status]}` : "暂无阶段"}`}
-			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}工作台：${active ? `${active.code} ${active.title}` : "暂无阶段"}`}
+			data-connection={envelope.connection.state}
+			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${routeSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
 		>
-			<span className="wb-simulation">{envelope.mode === "simulation" ? "模拟" : "真实"}</span>
-			<span className="wb-summary-title" title={active ? `${active.code} ${active.title}` : project?.name}>
-				{project?.name ?? "工作台"}
-				{active ? ` · ${active.code}` : ""}
-			</span>
-			<span className="wb-summary-counts">
-				{connection.state === "ready"
-					? `执行 ${count("running")} · 阻塞 ${count("blocked")} · 待处理 ${count("pending")}`
-					: connectionLabels[connection.state]}
-			</span>
+			{routeSteps.length > 0 && (
+				<span className="wb-mini-route" data-route-key={route?.key}>
+					{routeSteps.map((step, index) => (
+						<Fragment key={step.key}>
+							{index > 0 && <span className="wb-route-segment" data-status={step.status} aria-hidden="true" />}
+							<span
+								className={`wb-mini-stop wb-step-${step.status}`}
+								data-step-key={step.key}
+								data-status={step.status}
+								data-current={step.key === anchor?.key}
+								title={`${step.code} ${step.title} · ${labels[step.status]}`}
+							>
+								<span className="wb-dot" />
+							</span>
+						</Fragment>
+					))}
+				</span>
+			)}
 		</div>
 	);
 }
-
 export interface WorkbenchViewProps {
 	envelope: Envelope;
 	refresh: () => void | Promise<void>;
@@ -316,7 +346,7 @@ export function WorkbenchView({
 																remember();
 															}}
 														>
-															{route.stepKeys.map((key) => {
+															{route.stepKeys.map((key, index) => {
 																const step = stepByKey.get(key);
 																if (!step) return null;
 																return (
@@ -330,7 +360,11 @@ export function WorkbenchView({
 																		title={`${step.code} ${step.title} · ${labels[step.status]}`}
 																		onClick={() => select(key)}
 																	>
-																		<span className="wb-step-track">
+																		<span
+																			className="wb-step-track"
+																			data-before={index > 0 ? step.status : undefined}
+																			data-after={stepByKey.get(route.stepKeys[index + 1])?.status}
+																		>
 																			<span className="wb-dot" />
 																		</span>
 																		<span className="wb-step-code">{step.code}</span>

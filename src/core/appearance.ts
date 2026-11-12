@@ -10,6 +10,7 @@ import {
 	type GlassLevel,
 	type IslandStyle,
 	readSetting,
+	tabsPosition,
 	useSettings,
 } from "./settings";
 
@@ -68,10 +69,9 @@ export function borderColors(border: string, custom: string[]): string[] {
 export function useAppearance(): Appearance {
 	const s = useSettings();
 	const style = readSetting(s, appearanceSettings.style) === "windows" ? "windows" : "dynamic";
-	const tabsPosition = "bottom";
 	return {
 		style,
-		tabsPosition,
+		tabsPosition: tabsPosition(s, style),
 		rim: borderColors(readSetting(s, appearanceSettings.border), readSetting(s, appearanceSettings.customColors)),
 		thickness: Math.min(3, Math.max(1, Number(readSetting(s, appearanceSettings.thickness)) || 2)),
 		animate: readSetting(s, appearanceSettings.animate),
