@@ -215,7 +215,10 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		const center = (low + high) / 2;
 		const members = new Set(run.map((node) => node.step.key));
 		const collision = [...nodes.values()].some(
-			(node) => !members.has(node.step.key) && node.lane === center && run.some((item) => item.column === node.column),
+			(node) =>
+				!members.has(node.step.key) &&
+				Math.abs(node.lane - center) < 1 &&
+				run.some((item) => item.column === node.column),
 		);
 		if (!collision) for (const node of run) node.lane = center;
 	}
