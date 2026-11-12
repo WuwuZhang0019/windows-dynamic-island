@@ -119,7 +119,7 @@ describe("single-route thumbnail", () => {
 		expect(keys(html)).toEqual(route.stepKeys);
 	});
 
-	test("expanded tracks use the same state on both halves of each connection", () => {
+	test("expanded graph connections use destination states without extra terminal segments", () => {
 		const envelope = createScenario("long-route");
 		const route = envelope.snapshot?.routes[0];
 		if (!route) throw Error("Missing fixture route");
@@ -127,14 +127,11 @@ describe("single-route thumbnail", () => {
 		const html = renderToStaticMarkup(
 			<WorkbenchView envelope={envelope} scenario="long-route" setScenario={() => {}} refresh={() => {}} />,
 		);
-		const tracks = [...html.matchAll(/class="wb-step-track"([^>]*)>/g)].map((match) => match[1]);
+		const expanded = html.split('class="wb-route-body"')[1];
+		const tracks = [...expanded.matchAll(/class="wb-step-track"/g)];
 		expect(tracks).toHaveLength(6);
-		expect(tracks[0]).not.toContain("data-before");
-		expect(tracks[tracks.length - 1]).not.toContain("data-after");
-		const expected = ["completed", "running", "blocked", "pending", "cancelled"];
-		for (const [index, state] of expected.entries()) {
-			expect(tracks[index]).toContain(`data-after="${state}"`);
-			expect(tracks[index + 1]).toContain(`data-before="${state}"`);
-		}
+		const states = [...expanded.matchAll(/data-status="([^"]+)" data-kind="route"/g)].map((match) => match[1]);
+		expect(states).toEqual(["completed", "running", "blocked", "pending", "cancelled"]);
+		expect([...expanded.matchAll(/data-from="/g)]).toHaveLength(5);
 	});
 });

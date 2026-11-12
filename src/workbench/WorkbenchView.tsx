@@ -1,23 +1,18 @@
 // Date: 2026-11-12. Route reader with explicit owner archival; execution states remain service-owned.
+import { ChevronDownIcon } from "lucide-react";
 import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setSetting, taskCardEffect, useSettings } from "../core/settings";
-import type {
-	WorkbenchEnvelope as Envelope,
-	Plan,
-	Preferences,
-	Project,
-	Route,
-	Step,
-	WorkbenchSnapshot,
-} from "./contract/protocol";
-import { orderedTasks, TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
+import type { WorkbenchEnvelope as Envelope, Preferences, Route, Step, WorkbenchSnapshot } from "./contract/protocol";
+import { GroupRouteGraph } from "./GroupRouteGraph";
+import { TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
 import { RouteArchiveButton } from "./RouteArchiveButton";
 import { SortableRouteCard } from "./SortableRouteCard";
+import { layoutRoutes, orderedTaskGroups, primaryRoute, type TaskGroup, taskGroups } from "./task-groups";
 import { libraryError } from "./task-library";
 import "./workbench.css";
 
-type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number> };
+type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number>; collapsed?: string[] };
 const emptySnapshot: WorkbenchSnapshot = {
 	schemaVersion: "light-1.0",
 	date: "2026-11-11",
@@ -141,22 +136,6 @@ export function WorkbenchSummary({
 		</div>
 	);
 }
-// Date: 2026-11-12. Stable route identities keep live updates and reading positions intact.
-type RouteEntry = { key: string; project: Project; plan?: Plan; route?: Route };
-function routeEntries(snapshot: WorkbenchSnapshot): RouteEntry[] {
-	const entries: RouteEntry[] = [];
-	for (const project of snapshot.projects) {
-		const plans = snapshot.plans.filter((plan) => plan.projectKey === project.key);
-		if (!plans.length) entries.push({ key: project.key, project });
-		for (const plan of plans) {
-			const routes = snapshot.routes.filter((route) => route.planKey === plan.key).sort((a, b) => a.order - b.order);
-			if (!routes.length) entries.push({ key: plan.key, project, plan });
-			for (const route of routes) entries.push({ key: route.key, project, plan, route });
-		}
-	}
-	return entries;
-}
-
 export interface WorkbenchViewProps {
 	envelope: Envelope;
 	refresh: () => void | Promise<void>;
@@ -200,12 +179,12 @@ export function WorkbenchView({
 		route: memory?.route,
 		top: memory?.top ?? 0,
 		lanes: memory?.lanes ?? {},
+		collapsed: memory?.collapsed ?? preferences?.collapsed.filter((key) => key.startsWith("island/group/")) ?? [],
 	});
 	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
 	const savedOrder = taskOrder(settings);
-	const hidden = archivedKeys;
-	const allEntries = orderedTasks(routeEntries(snapshot), draftOrder ?? savedOrder);
-	const entries = allEntries.filter((entry) => !hidden.includes(entry.key));
+	const entries = orderedTaskGroups(taskGroups(snapshot, archivedKeys), draftOrder ?? savedOrder);
+	const [collapsedKeys, setCollapsedKeys] = useState<string[]>(positions.current.collapsed ?? []);
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [archiveMessage, setArchiveMessage] = useState("");
 
@@ -215,6 +194,7 @@ export function WorkbenchView({
 			readingPositions.get(memoryKey) ??
 			(envelope.mode === "service" && preferences
 				? {
+						collapsed: preferences.collapsed.filter((key) => key.startsWith("island/group/")),
 						selected: preferences.selected,
 						route: preferences.focus.at(-1),
 						top: preferences.y["island/list"] ?? 0,
@@ -244,6 +224,7 @@ export function WorkbenchView({
 			positions.current.selected =
 				currentStep(snapshot.steps.filter((step) => next?.stepKeys.includes(step.key)))?.key ?? "";
 		}
+		setCollapsedKeys(positions.current.collapsed ?? []);
 		setSelectedRouteKey(positions.current.route ?? "");
 		setSelectedKey(positions.current.selected);
 		readingPositions.set(memoryKey, { ...positions.current });
@@ -267,6 +248,10 @@ export function WorkbenchView({
 			const save = () =>
 				void savePreferences({
 					...preferences,
+					collapsed: [
+						...preferences.collapsed.filter((key) => !key.startsWith("island/group/")),
+						...(reading.collapsed ?? []),
+					],
 					selected: reading.selected,
 					focus: reading.route ? [reading.route] : [],
 					scroll: {
@@ -300,15 +285,28 @@ export function WorkbenchView({
 			remember(true);
 		}
 	}
-	// Date: 2026-11-12. Archive after owner confirmation; failed or unknown writes remain visible.
-	async function archiveEntry(key: string, title: string) {
+	function toggleGroup(key: string) {
+		const token = `island/group/${key}`;
+		const next = collapsedKeys.includes(token)
+			? collapsedKeys.filter((item) => item !== token)
+			: [...collapsedKeys, token];
+		positions.current.collapsed = next;
+		setCollapsedKeys(next);
+		remember(true);
+	}
+	// Archive existing owner entries sequentially, retaining any unconfirmed remainder.
+	async function archiveEntry(group: TaskGroup, title: string) {
 		if (!archiveTask || busyKey) return;
-		setBusyKey(key);
+		setBusyKey(group.key);
+		let completed = 0;
 		try {
-			await archiveTask(key);
+			for (const key of group.archiveKeys) {
+				await archiveTask(key);
+				completed++;
+			}
 			setArchiveMessage(`已归档：${title}，可在设置 → 任务列表中查看`);
 		} catch (error) {
-			setArchiveMessage(libraryError(error));
+			setArchiveMessage(`${completed ? "部分路线已归档，其余仍保留在列表。" : ""}${libraryError(error)}`);
 		} finally {
 			setBusyKey(null);
 		}
@@ -332,10 +330,6 @@ export function WorkbenchView({
 		if (from < 0 || to < 0 || to >= keys.length) return;
 		[keys[from], keys[to]] = [keys[to], keys[from]];
 		commitOrder(keys);
-	}
-	function name(key: string) {
-		const step = stepByKey.get(key);
-		return step ? `${step.code} ${step.title}` : key;
 	}
 
 	return (
@@ -415,34 +409,38 @@ export function WorkbenchView({
 						onReorder={reorder}
 					>
 						<AnimatePresence mode="popLayout">
-							{entries.map(({ key, project, plan, route }, index) => {
-								const steps = (route?.stepKeys ?? []).flatMap((key) => {
-									const step = stepByKey.get(key);
-									return step ? [step] : [];
-								});
-								const completed = steps.filter((step) => step.status === "completed").length;
+							{entries.map((group, index) => {
+								const { key, project, plan, routes } = group;
+								const fullLayout = layoutRoutes(routes, snapshot.steps);
+								const steps = fullLayout.nodes.map((node) => node.step);
+								const main = primaryRoute(routes);
+								const collapsed = collapsedKeys.includes(`island/group/${key}`);
+								const layout = collapsed && main ? layoutRoutes([main], snapshot.steps) : fullLayout;
 								const state = steps.some((step) => step.status === "blocked")
 									? "blocked"
 									: steps.some((step) => step.status === "running")
 										? "running"
-										: steps.length && completed === steps.length
+										: steps.length && steps.every((step) => step.status === "completed")
 											? "completed"
 											: steps.length && steps.every((step) => step.status === "cancelled")
 												? "cancelled"
 												: "pending";
-								const title = route?.label || plan?.name || project.name;
-								const context = [...new Set([project.name, plan?.name].filter((name) => name && name !== title))].join(
-									" · ",
-								);
+								const title = plan?.name || project.name;
+								const context = project.name !== title ? project.name : "";
 								const routeSelected = selectedRouteKey
-									? route?.key === selectedRouteKey
+									? routes.some((route) => route.key === selectedRouteKey)
 									: steps.some((step) => step.key === selectedKey);
+								const anchor = currentStep(steps);
+								const route =
+									routes.find((item) => item.key === selectedRouteKey) ??
+									routes.find((item) => item.stepKeys.includes(anchor?.key ?? "")) ??
+									main;
 								const delay = reducedMotion ? 0 : Math.min(index, 5) * 0.07;
 								return (
 									<SortableRouteCard
 										key={key}
 										itemKey={key}
-										routeKey={route?.key}
+										routeKey={key}
 										projectKey={project.key}
 										title={title}
 										state={state}
@@ -458,84 +456,75 @@ export function WorkbenchView({
 											<button
 												type="button"
 												className="wb-route-select"
-												data-route-select={route.key}
+												data-route-select={key}
 												aria-label={`显示${project.name} · ${title}的路线缩略图`}
 												title={context ? `${title} — ${context}` : title}
 												aria-pressed={routeSelected}
 												onClick={() => selectRoute(route)}
 											/>
 										)}
-										<header className="wb-route-heading">
+										<header
+											className="wb-route-heading"
+											style={{ minHeight: compact ? Math.max(32, 22 + (layout.lanes - 1) * 18) : 32 }}
+										>
 											<div className="wb-route-title">
 												<h2 title={title}>{title}</h2>
 												{context && <p title={context}>{context}</p>}
 											</div>
 											{steps.length > 0 && (
-												<span className="wb-row-thumbnail" data-route-preview={route?.key} aria-hidden="true">
-													<RouteThumbnail
-														routeKey={route?.key}
-														steps={steps}
-														currentKey={routeSelected ? selectedKey : undefined}
+												<div
+													className="wb-row-thumbnail"
+													data-route-preview={key}
+													inert={!compact}
+													aria-hidden={!compact}
+												>
+													<GroupRouteGraph
+														layout={layout}
+														compact
+														selectedKey={selectedKey}
+														selectedRouteKey={selectedRouteKey}
+														onSelect={select}
 													/>
-												</span>
+												</div>
 											)}
 											<div className="wb-route-actions">
+												{routes.length > 1 && (
+													<button
+														type="button"
+														className="wb-group-toggle"
+														aria-label={collapsed ? "展开分支" : "收起分支"}
+														title={collapsed ? "展开分支" : "收起分支"}
+														aria-expanded={!collapsed}
+														onClick={() => toggleGroup(key)}
+													>
+														<ChevronDownIcon size={14} aria-hidden="true" />
+													</button>
+												)}
 												<RouteArchiveButton
 													title={title}
 													disabled={!archiveTask || !!busyKey || connection.state !== "ready"}
-													onArchive={() => void archiveEntry(key, title)}
+													onArchive={() => void archiveEntry(group, title)}
 												/>
 											</div>
 										</header>
-										{/* Date: 2026-11-12. Keep both views mounted for a continuous height transition. */}
 										<div className="wb-route-body" inert={compact} aria-hidden={compact}>
 											<div className="wb-route-body-inner">
-												{route ? (
-													<div className="wb-route">
-														{route.sourceStepKey && (
-															<small className="wb-route-source" title={name(route.sourceStepKey)}>
-																↳ 来源 {name(route.sourceStepKey)}
-															</small>
-														)}
-														<div
-															className="wb-lane"
-															data-route-key={route.key}
-															onScroll={(event) => {
-																positions.current.lanes[route.key] = event.currentTarget.scrollLeft;
-																remember();
-															}}
-														>
-															{route.stepKeys.map((key, index) => {
-																const step = stepByKey.get(key);
-																if (!step) return null;
-																return (
-																	<button
-																		type="button"
-																		className={`wb-step wb-step-${step.status}`}
-																		data-step-key={key}
-																		data-status={step.status}
-																		key={key}
-																		aria-pressed={selectedKey === key}
-																		title={`${step.code} ${step.title} · ${labels[step.status]}`}
-																		onClick={() => select(key, route.key)}
-																	>
-																		<span
-																			className="wb-step-track"
-																			data-before={index > 0 ? step.status : undefined}
-																			data-after={stepByKey.get(route.stepKeys[index + 1])?.status}
-																		>
-																			<span className="wb-dot" />
-																		</span>
-																		<span className="wb-step-code">{step.code}</span>
-																		<span className="wb-step-title">{step.title}</span>
-																		<span className="wb-step-state">{labels[step.status]}</span>
-																	</button>
-																);
-															})}
-														</div>
-														{route.returnStepKey && (
-															<small className="wb-return">汇入 {name(route.returnStepKey)}</small>
-														)}
+												{routes.length ? (
+													<div
+														className="wb-lane wb-group-lane"
+														data-route-key={key}
+														onScroll={(event) => {
+															positions.current.lanes[key] = event.currentTarget.scrollLeft;
+															remember();
+														}}
+													>
+														<GroupRouteGraph
+															layout={layout}
+															compact={false}
+															selectedKey={selectedKey}
+															selectedRouteKey={selectedRouteKey}
+															onSelect={select}
+														/>
 													</div>
 												) : (
 													<p className="wb-muted">{plan ? "此方案暂无路线" : "此项目暂无方案"}</p>
