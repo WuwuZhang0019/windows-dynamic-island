@@ -36,6 +36,7 @@ export function SettingsApp() {
 						<NavItem to="/" icon={<SettingsIcon size={15} />} label={t("settings.general")} />
 						<NavItem to="/appearance" icon={<PaletteIcon size={15} />} label={t("appearance.title")} />
 						<NavItem to="/behavior" icon={<MousePointerClickIcon size={15} />} label={t("behavior.title")} />
+						<NavSection label={t("settings.section.island")} />
 						<NavItem to="/workbench" icon={<ListTodoIcon size={15} />} label="工作台" />
 						<div className="flex-1" />
 						<NavItem to="/about" icon={<InfoIcon size={15} />} label={t("settings.about.title")} />
