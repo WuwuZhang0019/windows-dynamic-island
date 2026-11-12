@@ -1,14 +1,24 @@
 /* Date: 2026-11-12. Adapted from Uiverse.io by vinodjangid07, smart-emu-83 (MIT).
-   Archived delete controls expand on hover while active-list archive controls stay compact. */
+   Archive and delete share expansion and icon motion, with distinct labels and colors. */
 .wb-route-actions {
 	position: relative;
 	pointer-events: auto;
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	flex: 0 0 32px;
+	flex: 0 0 auto;
+	min-width: 32px;
 }
 .wb-route-delete {
+	--wb-action-label: "删除";
+	--wb-action-hover: rgb(255, 69, 69);
+}
+.wb-route-archive {
+	--wb-action-label: "归档";
+	--wb-action-hover: rgb(0, 194, 106);
+}
+.wb-route-delete,
+.wb-route-archive {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -29,19 +39,24 @@
 		background-color 0.3s,
 		border-radius 0.3s;
 }
-.wb-delete-icon {
-	width: 11px;
+.wb-delete-icon,
+.wb-archive-icon {
+	width: 14px;
 	height: 14px;
-	fill: currentColor;
 	transition:
 		width 0.3s,
 		height 0.3s,
 		transform 0.3s;
 }
-.wb-route-delete::before {
+.wb-delete-icon {
+	width: 11px;
+	fill: currentColor;
+}
+.wb-route-delete::before,
+.wb-route-archive::before {
 	position: absolute;
 	top: -15px;
-	content: "删除";
+	content: var(--wb-action-label);
 	font-size: 2px;
 	opacity: 0;
 	transition:
@@ -49,47 +64,33 @@
 		opacity 0.3s,
 		transform 0.3s;
 }
-.wb-route-delete:is(:hover, :focus-visible):not(:disabled) {
+.wb-route-delete:is(:hover, :focus-visible):not(:disabled),
+.wb .wb-route-archive:is(:hover, :focus-visible):not(:disabled) {
 	width: 84px;
 	border-radius: 15px;
-	background: rgb(255, 69, 69);
+	background: var(--wb-action-hover);
 }
-.wb-route-delete:is(:hover, :focus-visible):not(:disabled) .wb-delete-icon {
+.wb-route-delete:is(:hover, :focus-visible):not(:disabled) .wb-delete-icon,
+.wb-route-archive:is(:hover, :focus-visible):not(:disabled) .wb-archive-icon {
 	width: 28px;
 	height: 28px;
 	transform: translateY(65%);
 }
-.wb-route-delete:is(:hover, :focus-visible):not(:disabled)::before {
+.wb-route-delete:is(:hover, :focus-visible):not(:disabled)::before,
+.wb-route-archive:is(:hover, :focus-visible):not(:disabled)::before {
 	font-size: 11px;
 	opacity: 1;
 	transform: translateY(22px);
 }
 @media (prefers-reduced-motion: reduce) {
 	.wb-route-delete,
+	.wb-route-archive,
 	.wb-delete-icon,
-	.wb-route-delete::before {
+	.wb-archive-icon,
+	.wb-route-delete::before,
+	.wb-route-archive::before {
 		transition: none;
 	}
-}
-
-.wb-route-archive {
-	display: grid;
-	place-items: center;
-	width: 30px;
-	height: 30px;
-	padding: 0;
-	border: 1px solid #ffffff10;
-	border-radius: 9px;
-	background: #ffffff06;
-	color: #ffffff70;
-	cursor: pointer;
-	transition:
-		color 0.2s,
-		background 0.2s;
-}
-.wb-route-archive:is(:hover, :focus-visible):not(:disabled) {
-	color: #fff;
-	background: #ffffff16;
 }
 .wb-route-archive:disabled,
 .wb-route-delete:disabled {

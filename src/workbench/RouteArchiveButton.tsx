@@ -22,7 +22,7 @@ export function RouteArchiveButton({
 				onArchive();
 			}}
 		>
-			<ArchiveIcon size={14} aria-hidden="true" />
+			<ArchiveIcon size={14} aria-hidden="true" className="wb-archive-icon" />
 		</button>
 	);
 }
