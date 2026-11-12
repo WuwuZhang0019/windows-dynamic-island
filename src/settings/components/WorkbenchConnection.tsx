@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { command, isTauri } from "../../core/bridge";
-import { type AppId, agentApps } from "../../workbench/agent-apps";
+import type { AppId } from "../../workbench/agent-apps";
 
 export type ConnectionStatus = {
 	state: "checking" | "disabled" | "waiting" | "connected" | "disconnected" | "legacy" | "unavailable" | "preview";
@@ -95,7 +95,7 @@ function failure(error: unknown) {
 	if (/BUSY/.test(String(error))) return "正在处理连接，请稍后查看状态。";
 	return "连接操作未完成，请检查配套服务后重试。";
 }
-type AppStatus = ConnectionStatus & { appId: AppId };
+type AppStatus = ConnectionStatus & { appId: AppId; name?: string };
 export function WorkbenchConnection() {
 	const [statuses, setStatuses] = useState<AppStatus[]>([]);
 	const [busy, setBusy] = useState<AppId | null>(null);
@@ -114,8 +114,7 @@ export function WorkbenchConnection() {
 					const result = await command<AppStatus[]>("island_agent_connections");
 					if (!stopped && revision === generation.current) setStatuses(result);
 				} catch {
-					if (!stopped && revision === generation.current)
-						setStatuses(agentApps.map((app) => ({ appId: app.id, state: "unavailable" })));
+					if (!stopped && revision === generation.current) setMessage("连接服务暂不可用，请确认服务已启动。");
 				}
 			}
 			if (!stopped) timer = setTimeout(() => void poll(), 3000);
@@ -143,12 +142,12 @@ export function WorkbenchConnection() {
 			setBusy(null);
 		}
 	}
-	async function copySetup(appId: AppId) {
+	async function copySetup() {
 		if (operating.current) return;
 		operating.current = true;
-		setBusy(appId);
+		setBusy("onboarding");
 		try {
-			const setup = await command<string>("island_agent_onboarding_instructions", { appId });
+			const setup = await command<string>("island_agent_onboarding_instructions");
 			await navigator.clipboard.writeText(setup);
 			setMessage("已复制接入指令。请在 30 分钟内发送到对应应用的对话窗口，Agent 配置完成后会自动开启连接。");
 		} catch {
@@ -163,11 +162,17 @@ export function WorkbenchConnection() {
 			<p className="text-[13px]/relaxed text-text-dim">
 				复制接入指令，发送给对应应用的 Agent。它完成安装与配置后会自动开启连接，无需回来点击。
 			</p>
-			{agentApps.map((app) => {
-				const status = statuses.find((value) => value.appId === app.id) ?? {
-					state: isTauri ? "checking" : "preview",
-					enabled: false,
-				};
+			<Button disabled={!isTauri || busy !== null} onClick={() => void copySetup()}>
+				<CopyIcon size={14} />
+				复制接入指令
+			</Button>
+			{!statuses.length && (
+				<p className="text-sm text-text-faint">
+					尚无接入应用。将指令发送到任意支持 MCP 的 Agent 对话中，完成后会自动显示名称与状态。再次复制可添加其他应用。
+				</p>
+			)}
+			{statuses.map((status) => {
+				const app = { id: status.appId, name: status.name ?? status.appId };
 				const view = connectionPresentation(status, app.name);
 				return (
 					<Card key={app.id}>
@@ -181,10 +186,6 @@ export function WorkbenchConnection() {
 							</div>
 							<p className="text-[13px]/relaxed text-text-dim">{view.description}</p>
 							<div className="flex flex-wrap gap-2">
-								<Button disabled={!isTauri || busy !== null} onClick={() => void copySetup(app.id)}>
-									<CopyIcon size={14} />
-									复制接入指令
-								</Button>
 								{status.enabled && (
 									<Button
 										disabled={busy !== null || uncertain.includes(app.id)}

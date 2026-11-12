@@ -17,7 +17,11 @@ export function AgentAppTabs({
 }) {
 	const tabs = [
 		{ id: "all", name: "全部", color: "#bcb9ff" },
-		...agentApps,
+		...(envelope.agentApps ?? []).map((app) => ({
+			id: app.appId,
+			name: app.name,
+			color: agentApps.find((known) => known.id === app.appId)?.color ?? "#a8b7cc",
+		})),
 		{ id: "unassigned", name: "未分配", color: "#b5b5bb" },
 	] as const;
 	return (
