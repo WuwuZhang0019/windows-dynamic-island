@@ -32,6 +32,8 @@ fn shell_key(key: &str) -> bool {
             | "appearance.glass"
             | "appearance.idleClock"
             | "appearance.tabsPosition"
+            | "tasks.displaySize"
+            | "tasks.routeOrder"
             | "island.hidden"
             | "island.openOn"
             | "island.closeOn"
@@ -418,6 +420,32 @@ mod tests {
                 Some(Value::from(position))
             );
         }
+    }
+
+    // Date: 2026-11-12. Size and local task order must survive native process restarts.
+    #[test]
+    fn task_list_size_and_order_survive_restart() {
+        let root = Profile::new();
+        let path = root.0.join("settings.json");
+        let settings = Settings::from_paths(Some(path.clone()), None);
+        settings
+            .store_value("tasks.displaySize", Value::from("small"))
+            .unwrap();
+        settings
+            .store_value(
+                "tasks.routeOrder",
+                serde_json::json!(["route-b", "route-a"]),
+            )
+            .unwrap();
+        let reloaded = Settings::from_paths(Some(path), None);
+        assert_eq!(
+            reloaded.get("tasks.displaySize"),
+            Some(Value::from("small"))
+        );
+        assert_eq!(
+            reloaded.get("tasks.routeOrder"),
+            Some(serde_json::json!(["route-b", "route-a"]))
+        );
     }
 
     #[test]

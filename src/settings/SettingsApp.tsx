@@ -1,4 +1,12 @@
-import { BookOpenIcon, InfoIcon, MousePointerClickIcon, PaletteIcon, PlugIcon, SettingsIcon } from "lucide-react";
+import {
+	BookOpenIcon,
+	Grid2X2Icon,
+	InfoIcon,
+	MousePointerClickIcon,
+	PaletteIcon,
+	PlugIcon,
+	SettingsIcon,
+} from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Navigate, Route, Routes, useLocation } from "react-router";
@@ -10,6 +18,7 @@ import { AboutPage } from "./pages/AboutPage";
 import { AppearancePage } from "./pages/AppearancePage";
 import { BehaviorPage } from "./pages/BehaviorPage";
 import { GeneralPage } from "./pages/GeneralPage";
+import { ModulesPage } from "./pages/ModulesPage";
 import { SkillPage } from "./pages/SkillPage";
 import { WorkbenchPage } from "./pages/WorkbenchPage";
 
@@ -38,6 +47,7 @@ export function SettingsApp() {
 						<NavItem to="/appearance" icon={<PaletteIcon size={15} />} label={t("appearance.title")} />
 						<NavItem to="/behavior" icon={<MousePointerClickIcon size={15} />} label={t("behavior.title")} />
 						<NavSection label={t("settings.section.island")} />
+						<NavItem to="/modules" icon={<Grid2X2Icon size={15} />} label="模块" />
 						<NavItem to="/mcp" icon={<PlugIcon size={15} />} label="MCP" />
 						<NavItem to="/skill" icon={<BookOpenIcon size={15} />} label="Skill" />
 						<div className="flex-1" />
@@ -49,6 +59,7 @@ export function SettingsApp() {
 								<Route index element={<GeneralPage values={values} />} />
 								<Route path="appearance" element={<AppearancePage values={values} />} />
 								<Route path="behavior" element={<BehaviorPage values={values} />} />
+								<Route path="modules" element={<ModulesPage values={values} />} />
 								<Route path="mcp" element={<WorkbenchPage />} />
 								<Route path="workbench" element={<Navigate to="/mcp" replace />} />
 								<Route path="skill" element={<SkillPage />} />

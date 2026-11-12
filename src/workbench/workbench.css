@@ -488,3 +488,72 @@
 		animation: none;
 	}
 }
+
+/* Date: 2026-11-12. Handle-only reorder works in both full cards and compact rows. */
+.wb-route-heading {
+	padding-left: 18px;
+}
+.wb .wb-route-drag {
+	position: absolute;
+	z-index: 2;
+	left: 5px;
+	top: 15px;
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 28px;
+	padding: 0;
+	border: 0;
+	border-radius: 5px;
+	background: transparent;
+	color: var(--text-faint);
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+.wb .wb-route-drag:active {
+	cursor: grabbing;
+}
+.wb[data-task-size="small"] .wb-route-list {
+	gap: 5px;
+}
+.wb[data-task-size="small"] .wb-route-card {
+	padding: 5px 12px 5px 30px;
+	border-radius: 9px;
+}
+.wb[data-task-size="small"] .wb-route-heading {
+	min-height: 32px;
+	margin: 0;
+	padding-left: 0;
+	gap: 9px;
+}
+.wb[data-task-size="small"] .wb-route-index {
+	width: 24px;
+	height: 24px;
+	border-radius: 7px;
+	font-size: 10px;
+}
+.wb[data-task-size="small"] .wb-route-title h2 {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
+}
+.wb[data-task-size="small"] .wb-route-title p {
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.wb[data-task-size="small"] .wb-route-progress {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+}
+.wb[data-task-size="small"] .wb-route {
+	display: none;
+}
+.wb[data-task-size="small"] .wb-route-drag {
+	top: 50%;
+	transform: translateY(-50%);
+}

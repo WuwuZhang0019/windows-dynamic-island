@@ -1,6 +1,7 @@
 // Date: 2026-11-12. Read-only fixed workbench; no business transitions are performed here.
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { setSetting, useSettings } from "../core/settings";
 import type {
 	WorkbenchEnvelope as Envelope,
 	Plan,
@@ -10,6 +11,8 @@ import type {
 	Step,
 	WorkbenchSnapshot,
 } from "./contract/protocol";
+import { orderedTasks, TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
+import { SortableRouteCard } from "./SortableRouteCard";
 import "./workbench.css";
 
 type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number> };
@@ -165,6 +168,9 @@ export function WorkbenchView({
 	preferenceMessage,
 }: WorkbenchViewProps) {
 	const reducedMotion = useReducedMotion();
+	const settings = useSettings();
+	const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
+	const dragOrder = useRef<string[] | null>(null);
 	const { connection, pendingOperation } = envelope;
 	const snapshot = envelope.snapshot ?? emptySnapshot;
 	const memoryKey = `${envelope.mode}/${scenario}`;
@@ -179,7 +185,8 @@ export function WorkbenchView({
 		lanes: memory?.lanes ?? {},
 	});
 	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
-	const entries = routeEntries(snapshot);
+	const savedOrder = taskOrder(settings);
+	const entries = orderedTasks(routeEntries(snapshot), draftOrder ?? savedOrder);
 
 	useLayoutEffect(() => {
 		if (!envelope.snapshot) return;
@@ -257,6 +264,26 @@ export function WorkbenchView({
 			remember(true);
 		}
 	}
+	function reorder(keys: string[]) {
+		dragOrder.current = keys;
+		setDraftOrder(keys);
+	}
+	function commitOrder(keys: string[]) {
+		setSetting(TASK_ORDER_KEY, [...keys, ...savedOrder.filter((key) => !keys.includes(key))]);
+		dragOrder.current = null;
+		setDraftOrder(null);
+	}
+	function finishReorder() {
+		if (dragOrder.current) commitOrder(dragOrder.current);
+	}
+	function moveRoute(key: string, direction: number) {
+		const keys = entries.map((entry) => entry.key);
+		const from = keys.indexOf(key),
+			to = from + direction;
+		if (from < 0 || to < 0 || to >= keys.length) return;
+		[keys[from], keys[to]] = [keys[to], keys[from]];
+		commitOrder(keys);
+	}
 	function name(key: string) {
 		const step = stepByKey.get(key);
 		return step ? `${step.code} ${step.title}` : key;
@@ -266,6 +293,7 @@ export function WorkbenchView({
 		<section
 			className="wb"
 			data-workbench
+			data-task-size={taskSize(settings)}
 			data-no-drag
 			aria-label={envelope.mode === "simulation" ? "模拟工作台" : "真实工作台"}
 		>
@@ -322,7 +350,15 @@ export function WorkbenchView({
 							<span>{envelope.snapshot ? "空快照不代表任务已全部完成" : "当前没有可展示的有效快照"}</span>
 						</div>
 					)}
-					<ul className="wb-route-list" aria-label="路线列表" key={memoryKey}>
+					<Reorder.Group
+						as="ul"
+						axis="y"
+						className="wb-route-list"
+						aria-label="路线列表"
+						key={memoryKey}
+						values={entries.map((entry) => entry.key)}
+						onReorder={reorder}
+					>
 						<AnimatePresence mode="popLayout">
 							{entries.map(({ key, project, plan, route }, index) => {
 								const steps = (route?.stepKeys ?? []).flatMap((key) => {
@@ -348,29 +384,18 @@ export function WorkbenchView({
 									: steps.some((step) => step.key === selectedKey);
 								const delay = reducedMotion ? 0 : Math.min(index, 5) * 0.07;
 								return (
-									<motion.li
+									<SortableRouteCard
 										key={key}
-										className="wb-route-card"
-										data-route-card={route?.key}
-										data-project-key={project.key}
-										data-state={state}
-										data-selected={routeSelected}
-										layout={reducedMotion ? false : "position"}
-										initial={reducedMotion ? false : { opacity: 0, y: 14, scale: 0.97 }}
-										animate={{ opacity: 1, y: 0, scale: 1 }}
-										exit={{
-											opacity: 0,
-											scale: reducedMotion ? 1 : 0.97,
-											transition: { duration: reducedMotion ? 0 : 0.15 },
-										}}
-										transition={{
-											type: "spring",
-											stiffness: 360,
-											damping: 30,
-											delay,
-											opacity: { duration: reducedMotion ? 0 : 0.22, delay },
-											layout: { duration: reducedMotion ? 0 : 0.25, delay: 0 },
-										}}
+										itemKey={key}
+										routeKey={route?.key}
+										projectKey={project.key}
+										title={title}
+										state={state}
+										selected={routeSelected}
+										delay={delay}
+										reducedMotion={!!reducedMotion}
+										onSortEnd={finishReorder}
+										onMove={moveRoute}
 									>
 										{route && (
 											<button
@@ -447,11 +472,11 @@ export function WorkbenchView({
 										) : (
 											<p className="wb-muted">{plan ? "此方案暂无路线" : "此项目暂无方案"}</p>
 										)}
-									</motion.li>
+									</SortableRouteCard>
 								);
 							})}
 						</AnimatePresence>
-					</ul>
+					</Reorder.Group>
 				</motion.div>
 			</div>
 		</section>

@@ -53,6 +53,8 @@ const SHELL_KEYS = new Set([
 	"appearance.glass",
 	"appearance.idleClock",
 	"appearance.tabsPosition",
+	"tasks.displaySize",
+	"tasks.routeOrder",
 	"island.hidden",
 	"island.openOn",
 	"island.closeOn",
@@ -126,7 +128,11 @@ export function readSetting<T>(all: Values, def: SettingDef<T>): T {
 
 /** Whole settings map (re-renders on any change). */
 export function useSettings(): Values {
-	return useSyncExternalStore(subscribe, () => values);
+	return useSyncExternalStore(
+		subscribe,
+		() => values,
+		() => values,
+	);
 }
 
 export function useSettingsError(): string {
