@@ -14,6 +14,7 @@ type Props = {
 	state: StepStatus;
 	selected: boolean;
 	delay: number;
+	orderIndex: number;
 	reducedMotion: boolean;
 	cardEffect: TaskCardEffect;
 	children: ReactNode;
@@ -30,6 +31,7 @@ export const SortableRouteCard = forwardRef<HTMLLIElement, Props>(function Sorta
 		state,
 		selected,
 		delay,
+		orderIndex,
 		reducedMotion,
 		cardEffect,
 		children,
@@ -61,6 +63,8 @@ export const SortableRouteCard = forwardRef<HTMLLIElement, Props>(function Sorta
 				keepOpen(false, hold);
 			}}
 			layout="position"
+			// Date: 2026-11-12. Reorder projection must not compete with the CSS size transition.
+			layoutDependency={orderIndex}
 			initial={reducedMotion ? false : { opacity: 0, scale: 0.97 }}
 			animate={{ opacity: 1, scale: 1, y: 0 }}
 			// Date: 2026-11-12. Uiverse lift distances; Motion owns transforms during reorder.

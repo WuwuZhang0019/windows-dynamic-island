@@ -100,6 +100,8 @@
 	scrollbar-width: thin;
 	scrollbar-color: #ffffff26 transparent;
 	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+	overflow-anchor: none;
 }
 /* Date: 2026-11-12. Each route is a stable card in the animated list. */
 .wb-route-list {
@@ -107,6 +109,7 @@
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	gap: 12px;
+	transition: gap 320ms cubic-bezier(0.22, 1, 0.36, 1);
 	margin: 0;
 	padding: 10px 10px 20px;
 	list-style: none;
@@ -122,6 +125,8 @@
 		0 3px 12px #00000018,
 		inset 0 1px 0 #ffffff03;
 	transition:
+		padding 320ms cubic-bezier(0.22, 1, 0.36, 1),
+		border-radius 320ms cubic-bezier(0.22, 1, 0.36, 1),
 		border-color 300ms var(--wb-card-ease, ease),
 		background-color 300ms var(--wb-card-ease, ease),
 		box-shadow 300ms var(--wb-card-ease, ease);
@@ -172,11 +177,15 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
+	min-height: 32px;
 	margin-bottom: 12px;
+	transition: margin-bottom 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .wb-route-title {
 	flex: 1;
 	min-width: 0;
+	max-width: calc(100% - 42px);
+	transition: max-width 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .wb-route-title h2 {
 	margin: 0;
@@ -190,6 +199,19 @@
 	font-size: 10px;
 	color: var(--text-faint);
 	overflow-wrap: anywhere;
+}
+/* Date: 2026-11-12. Animate intrinsic content height without scaling text or rerunning entry effects. */
+.wb-route-body {
+	display: grid;
+	grid-template-rows: 1fr;
+	opacity: 1;
+	transition:
+		grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 180ms;
+}
+.wb-route-body-inner {
+	min-height: 0;
+	overflow: hidden;
 }
 .wb-route {
 	pointer-events: none;
@@ -496,14 +518,13 @@
 	gap: 5px;
 }
 .wb[data-task-size="small"] .wb-route-card {
-	padding: 5px 12px 5px 30px;
+	padding: 5px 14px;
 	border-radius: 9px;
 }
 .wb[data-task-size="small"] .wb-route-heading {
 	min-height: 32px;
 	margin: 0;
-	padding-left: 0;
-	gap: 9px;
+	gap: 10px;
 }
 .wb[data-task-size="small"] .wb-route-title h2 {
 	overflow: hidden;
@@ -517,36 +538,50 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.wb[data-task-size="small"] .wb-route {
-	display: none;
+.wb[data-task-size="small"] .wb-route-body {
+	grid-template-rows: 0fr;
+	opacity: 0;
 }
 .wb[data-task-size="small"] .wb-route-drag {
 	top: 50%;
 	transform: translateY(-50%);
 }
 
-/* Date: 2026-11-12. Reserve the compact row's center for its full route thumbnail. */
+/* Date: 2026-11-12. Stable thumbnail and action slots avoid a right-edge jump on size changes. */
 .wb[data-task-size="small"] .wb-route-heading:has(> .wb-row-thumbnail) .wb-route-title {
-	flex: 0 0 150px;
-	width: 150px;
 	max-width: 150px;
 }
-.wb[data-task-size="small"] .wb-row-thumbnail {
+.wb-row-thumbnail {
+	position: absolute;
+	left: 177px;
+	right: 52px;
+	top: 50%;
 	display: flex;
 	align-items: center;
-	flex: 1 1 140px;
 	min-width: 0;
-	padding: 0 10px;
-	margin: 0 5px;
 	pointer-events: none;
+	opacity: 0;
+	transform: translateY(calc(-50% + 4px));
+	transition:
+		opacity 160ms,
+		transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-@media (max-width: 640px) {
-	.wb[data-task-size="small"] .wb-row-thumbnail {
-		margin: 0;
-		padding: 0 6px;
+.wb[data-task-size="small"] .wb-row-thumbnail {
+	opacity: 1;
+	transform: translateY(-50%);
+}
+.wb-route-heading > .wb-route-actions {
+	margin-left: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+	.wb-route-list,
+	.wb-route-heading,
+	.wb-route-title,
+	.wb-route-body,
+	.wb-row-thumbnail {
+		transition: none;
 	}
 }
-
 .wb-archive-notice {
 	flex-shrink: 0;
 	font-size: 10px;

@@ -185,6 +185,7 @@ export function WorkbenchView({
 }: WorkbenchViewProps) {
 	const reducedMotion = useReducedMotion();
 	const settings = useSettings();
+	const compact = taskSize(settings) === "small";
 	const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
 	const dragOrder = useRef<string[] | null>(null);
 	const { connection, pendingOperation } = envelope;
@@ -341,7 +342,7 @@ export function WorkbenchView({
 		<section
 			className="wb"
 			data-workbench
-			data-task-size={taskSize(settings)}
+			data-task-size={compact ? "small" : "large"}
 			data-no-drag
 			aria-label={envelope.mode === "simulation" ? "模拟工作台" : "真实工作台"}
 		>
@@ -447,6 +448,7 @@ export function WorkbenchView({
 										state={state}
 										selected={routeSelected}
 										delay={delay}
+										orderIndex={index}
 										reducedMotion={!!reducedMotion}
 										cardEffect={taskCardEffect(settings)}
 										onSortEnd={finishReorder}
@@ -468,7 +470,7 @@ export function WorkbenchView({
 												<h2 title={title}>{title}</h2>
 												{context && <p title={context}>{context}</p>}
 											</div>
-											{taskSize(settings) === "small" && steps.length > 0 && (
+											{steps.length > 0 && (
 												<span className="wb-row-thumbnail" data-route-preview={route?.key} aria-hidden="true">
 													<RouteThumbnail
 														routeKey={route?.key}
@@ -485,54 +487,61 @@ export function WorkbenchView({
 												/>
 											</div>
 										</header>
-										{route ? (
-											<div className="wb-route">
-												{route.sourceStepKey && (
-													<small className="wb-route-source" title={name(route.sourceStepKey)}>
-														↳ 来源 {name(route.sourceStepKey)}
-													</small>
+										{/* Date: 2026-11-12. Keep both views mounted for a continuous height transition. */}
+										<div className="wb-route-body" inert={compact} aria-hidden={compact}>
+											<div className="wb-route-body-inner">
+												{route ? (
+													<div className="wb-route">
+														{route.sourceStepKey && (
+															<small className="wb-route-source" title={name(route.sourceStepKey)}>
+																↳ 来源 {name(route.sourceStepKey)}
+															</small>
+														)}
+														<div
+															className="wb-lane"
+															data-route-key={route.key}
+															onScroll={(event) => {
+																positions.current.lanes[route.key] = event.currentTarget.scrollLeft;
+																remember();
+															}}
+														>
+															{route.stepKeys.map((key, index) => {
+																const step = stepByKey.get(key);
+																if (!step) return null;
+																return (
+																	<button
+																		type="button"
+																		className={`wb-step wb-step-${step.status}`}
+																		data-step-key={key}
+																		data-status={step.status}
+																		key={key}
+																		aria-pressed={selectedKey === key}
+																		title={`${step.code} ${step.title} · ${labels[step.status]}`}
+																		onClick={() => select(key, route.key)}
+																	>
+																		<span
+																			className="wb-step-track"
+																			data-before={index > 0 ? step.status : undefined}
+																			data-after={stepByKey.get(route.stepKeys[index + 1])?.status}
+																		>
+																			<span className="wb-dot" />
+																		</span>
+																		<span className="wb-step-code">{step.code}</span>
+																		<span className="wb-step-title">{step.title}</span>
+																		<span className="wb-step-state">{labels[step.status]}</span>
+																	</button>
+																);
+															})}
+														</div>
+														{route.returnStepKey && (
+															<small className="wb-return">汇入 {name(route.returnStepKey)}</small>
+														)}
+													</div>
+												) : (
+													<p className="wb-muted">{plan ? "此方案暂无路线" : "此项目暂无方案"}</p>
 												)}
-												<div
-													className="wb-lane"
-													data-route-key={route.key}
-													onScroll={(event) => {
-														positions.current.lanes[route.key] = event.currentTarget.scrollLeft;
-														remember();
-													}}
-												>
-													{route.stepKeys.map((key, index) => {
-														const step = stepByKey.get(key);
-														if (!step) return null;
-														return (
-															<button
-																type="button"
-																className={`wb-step wb-step-${step.status}`}
-																data-step-key={key}
-																data-status={step.status}
-																key={key}
-																aria-pressed={selectedKey === key}
-																title={`${step.code} ${step.title} · ${labels[step.status]}`}
-																onClick={() => select(key, route.key)}
-															>
-																<span
-																	className="wb-step-track"
-																	data-before={index > 0 ? step.status : undefined}
-																	data-after={stepByKey.get(route.stepKeys[index + 1])?.status}
-																>
-																	<span className="wb-dot" />
-																</span>
-																<span className="wb-step-code">{step.code}</span>
-																<span className="wb-step-title">{step.title}</span>
-																<span className="wb-step-state">{labels[step.status]}</span>
-															</button>
-														);
-													})}
-												</div>
-												{route.returnStepKey && <small className="wb-return">汇入 {name(route.returnStepKey)}</small>}
 											</div>
-										) : (
-											<p className="wb-muted">{plan ? "此方案暂无路线" : "此项目暂无方案"}</p>
-										)}
+										</div>
 									</SortableRouteCard>
 								);
 							})}

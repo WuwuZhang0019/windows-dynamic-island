@@ -28,7 +28,7 @@ export function TaskSizeToggle() {
 				setSetting(TASK_SIZE_KEY, compact ? "large" : "small");
 			}}
 		>
-			<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+			<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
 				{dots.map((dot, index) => {
 					const x = compact ? 2 : dot.x;
 					const y = compact ? 3 + index * 5 : dot.y;
