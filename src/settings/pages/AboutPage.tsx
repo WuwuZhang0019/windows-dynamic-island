@@ -1,19 +1,17 @@
+// Date: 2026-11-13. Friendly project support and upstream acknowledgements.
 import { AppLogo, GitHubIcon } from "../../components/icons";
 import { Button } from "../../components/ui/button";
 import { Card, Row } from "../../components/ui/card";
 import { command, isTauri } from "../../core/bridge";
 import { useT } from "../../core/i18n";
 
-const REPO_URL = "https://github.com/WuwuZhang0019/windows-dynamic-island";
-const UPSTREAM_URL = "https://github.com/HeyyCzer/windows-dynamic-island";
-const LICENSE_URL = `${UPSTREAM_URL}/blob/e286d9045746837bf1960e0d13b7ed572b8d9e50/LICENSE`;
+const REPO_URL = "https://github.com/WuwuZhang0019/Codex-task-monitoring.git";
+const UPSTREAM_URL = "https://github.com/HeyyCzer";
 export function AboutPage() {
 	const t = useT();
 	const openRepo = () => (isTauri ? command("open_repo") : window.open(REPO_URL, "_blank", "noopener"));
 	const openUpstream = () =>
 		isTauri ? command("open_external", { url: UPSTREAM_URL }) : window.open(UPSTREAM_URL, "_blank", "noopener");
-	const openLicense = () =>
-		isTauri ? command("open_external", { url: LICENSE_URL }) : window.open(LICENSE_URL, "_blank", "noopener");
 	return (
 		<>
 			<div className="flex flex-col items-center gap-2.5 pt-4.5 pb-2.5 [&_svg]:drop-shadow-[0_8px_24px_rgba(143,148,255,0.18)]">
@@ -24,19 +22,22 @@ export function AboutPage() {
 				</span>
 			</div>
 			<Card>
-				<Row label={t("settings.about.source")} desc={REPO_URL.replace("https://", "")}>
+				<Row label="支持任务岛" desc="如果任务岛帮到了你，请在 GitHub 点个 Star，这对我们意义重大。">
 					<Button onClick={openRepo}>
 						<GitHubIcon size={14} />
-						GitHub
+						去点Star
 					</Button>
 				</Row>
 				<Row label={t("settings.about.updates.label")} desc="更新暂不可用：自有发布源尚未配置" />
-				<Row
-					label={t("settings.about.license")}
-					desc="GPL-3.0-or-later · © HeyyCzer · 致谢 Vorssaint · 修改日期：2026-11-12"
-				>
-					<Button onClick={openLicense}>许可证</Button>
-					<Button onClick={openUpstream}>上游来源</Button>
+				<Row label="致谢" desc="HeyyCzer · Windows Dynamic Island">
+					<Button
+						onClick={openUpstream}
+						aria-label="访问 HeyyCzer 的 GitHub"
+						title="访问 HeyyCzer 的 GitHub"
+						className="px-3"
+					>
+						<GitHubIcon size={18} />
+					</Button>
 				</Row>
 			</Card>
 		</>

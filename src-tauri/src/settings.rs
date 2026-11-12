@@ -281,7 +281,7 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-const REPO_URL: &str = "https://github.com/WuwuZhang0019/windows-dynamic-island";
+const REPO_URL: &str = "https://github.com/WuwuZhang0019/Codex-task-monitoring.git";
 
 /// Open the GitHub repo in the default browser (About page).
 #[tauri::command]
