@@ -162,7 +162,11 @@ fn config_root() -> Result<PathBuf, String> {
 async fn manager_post(data: &Path, route: &str, value: Value) -> Result<Value, String> {
     if !matches!(
         route,
-        "api/light-access/grants" | "api/light-access/revoke" | "api/light-access/confirm-binding"
+        "api/light-access/grants"
+            | "api/light-access/revoke"
+            | "api/light-access/confirm-binding"
+            | "api/light-access/connect"
+            | "api/light-access/connection-status"
     ) {
         return Err("FORBIDDEN".into());
     }
@@ -230,6 +234,26 @@ async fn authorize_with_saver(
     save: fn(&Path, &Path, &str) -> Result<PathBuf, String>,
 ) -> Result<Value, String> {
     checked_input(&value)?;
+    let body = json!({"projectKeys":[value.project_key],"threadId":value.thread_id,"hostId":value.host_id,"worktreeRoots":[value.worktree_root],"acknowledged":true});
+    let metadata = json!({"projectKey":value.project_key,"threadId":value.thread_id,"hostId":value.host_id,"worktreeRoot":value.worktree_root});
+    issue_with_saver(
+        data,
+        directory,
+        "api/light-access/grants",
+        body,
+        metadata,
+        save,
+    )
+    .await
+}
+async fn issue_with_saver(
+    data: &Path,
+    directory: &Path,
+    route: &str,
+    body: Value,
+    mut metadata: Value,
+    save: fn(&Path, &Path, &str) -> Result<PathBuf, String>,
+) -> Result<Value, String> {
     // Prepare a protected backup before issuing a new grant; never discard an existing connection.
     let original = prepare_config(directory)?;
     let original_metadata = match fs::read(directory.join("connection-result.json")) {
@@ -237,7 +261,7 @@ async fn authorize_with_saver(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(_) => return Err("CONFIG_METADATA_BACKUP_FAILED".into()),
     };
-    let grant = manager_post(data, "api/light-access/grants", json!({"projectKeys":[value.project_key],"threadId":value.thread_id,"hostId":value.host_id,"worktreeRoots":[value.worktree_root],"acknowledged":true})).await?;
+    let grant = manager_post(data, route, body).await?;
     let principal = grant["principal"]
         .as_str()
         .filter(|s| !s.is_empty() && s.len() <= 2000)
@@ -247,7 +271,9 @@ async fn authorize_with_saver(
         .filter(|s| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit()));
     let saved = match token {
         Some(token) => {
-            let metadata = json!({"date":"2026-11-12","principal":principal,"projectKey":value.project_key,"threadId":value.thread_id,"hostId":value.host_id,"worktreeRoot":value.worktree_root,"configPath":directory.join("config.json")});
+            metadata["date"] = json!("2026-11-12");
+            metadata["principal"] = json!(principal);
+            metadata["configPath"] = json!(directory.join("config.json"));
             atomic_save(
                 &directory.join("connection-result.json"),
                 &serde_json::to_vec_pretty(&metadata).map_err(|_| "CONFIG_ENCODING_FAILED")?,
@@ -370,6 +396,99 @@ pub fn island_workbench_pending_binding(window: WebviewWindow) -> Result<Value, 
     Ok(value)
 }
 
+// Date: 2026-11-12. One click enables local automatic association; status comes from live MCP leases.
+fn saved_principal(directory: &Path) -> Result<Option<String>, String> {
+    let file = directory.join("connection-result.json");
+    let metadata = match fs::metadata(&file) {
+        Ok(value) => value,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err("CONFIG_READ_FAILED".into()),
+    };
+    if !metadata.is_file() || metadata.len() > 32768 {
+        return Err("CONFIG_READ_FAILED".into());
+    }
+    let bytes = fs::read(file).map_err(|_| "CONFIG_READ_FAILED")?;
+    if bytes.len() > 32768 {
+        return Err("CONFIG_READ_FAILED".into());
+    }
+    let value: Value = serde_json::from_slice(&bytes).map_err(|_| "CONFIG_READ_FAILED")?;
+    value["principal"]
+        .as_str()
+        .filter(|s| !s.is_empty() && s.len() <= 2000)
+        .map(|s| Some(s.to_owned()))
+        .ok_or("CONFIG_READ_FAILED".into())
+}
+async fn status_at(data: &Path, directory: &Path) -> Result<Value, String> {
+    let principal = saved_principal(directory)?.unwrap_or_default();
+    let mut status = manager_post(
+        data,
+        "api/light-access/connection-status",
+        json!({"principal":principal,"acknowledged":true}),
+    )
+    .await?;
+    if !status["enabled"].is_boolean()
+        || !status["automatic"].is_boolean()
+        || !status["connected"].is_boolean()
+        || !status["mcpConnected"].is_boolean()
+    {
+        return Err("INVALID_CONNECTION_STATUS".into());
+    }
+    status["state"] = json!(if status["enabled"] != true {
+        "disabled"
+    } else if status["automatic"] != true {
+        "legacy"
+    } else if status["connected"] == true {
+        "connected"
+    } else if status["lastSeenAt"].is_string() {
+        "disconnected"
+    } else {
+        "waiting"
+    });
+    Ok(status)
+}
+#[tauri::command]
+pub async fn island_workbench_connection_status(window: WebviewWindow) -> Result<Value, String> {
+    require_confirmation(window.label(), true)?;
+    status_at(&root()?, &config_root()?).await
+}
+async fn set_connection_at(data: &Path, directory: &Path, enabled: bool) -> Result<Value, String> {
+    let status = status_at(data, directory).await?;
+    if enabled {
+        if status["enabled"] != true || status["automatic"] != true {
+            issue_with_saver(
+                data,
+                directory,
+                "api/light-access/connect",
+                json!({"acknowledged":true}),
+                json!({"automatic":true}),
+                save_config,
+            )
+            .await?;
+        }
+    } else if status["enabled"] == true {
+        let principal = saved_principal(directory)?.ok_or("CONFIG_READ_FAILED")?;
+        let result = manager_post(
+            data,
+            "api/light-access/revoke",
+            json!({"principal":principal,"acknowledged":true}),
+        )
+        .await?;
+        if result["revoked"] != true {
+            return Err("AUTHORIZATION_RESULT_UNKNOWN".into());
+        }
+    }
+    status_at(data, directory).await
+}
+#[tauri::command]
+pub async fn island_workbench_set_connection(
+    window: WebviewWindow,
+    enabled: bool,
+) -> Result<Value, String> {
+    require_confirmation(window.label(), true)?;
+    let _permit = Permit::take()?;
+    set_connection_at(&root()?, &config_root()?, enabled).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -448,6 +567,77 @@ mod tests {
             }
             calls
         })
+    }
+    #[test]
+    fn automatic_connection_needs_no_scope_form_and_reuses_enabled_grant() {
+        let root = fixture();
+        let config = root.join("config");
+        let disabled = json!({"enabled":false,"automatic":false,"connected":false,"mcpConnected":false,"lastSeenAt":null}).to_string();
+        let waiting = json!({"enabled":true,"automatic":true,"connected":false,"mcpConnected":false,"lastSeenAt":null}).to_string();
+        let server = fake_owner(
+            &root,
+            vec![
+                disabled,
+                json!({"principal":"automatic-principal","token":"b".repeat(64),"automatic":true})
+                    .to_string(),
+                waiting.clone(),
+                waiting.clone(),
+                waiting.clone(),
+            ],
+        );
+        let result =
+            tauri::async_runtime::block_on(set_connection_at(&root.join("data"), &config, true))
+                .unwrap();
+        assert_eq!(result["state"], "waiting");
+        assert!(result.get("token").is_none());
+        assert_eq!(
+            tauri::async_runtime::block_on(set_connection_at(&root.join("data"), &config, true))
+                .unwrap()["state"],
+            "waiting"
+        );
+        let calls = server.join().unwrap();
+        assert_eq!(
+            calls
+                .iter()
+                .filter(|call| call.starts_with("POST /api/light-access/connect HTTP"))
+                .count(),
+            1
+        );
+        assert!(!calls[1].contains("worktreeRoot"));
+        assert!(!calls[1].contains("threadId"));
+        assert!(
+            fs::read_to_string(config.join("config.json"))
+                .unwrap()
+                .contains(&"b".repeat(64))
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn connection_state_uses_live_lease_and_disconnect_revokes_without_deleting_config() {
+        let root = fixture();
+        let config = root.join("config");
+        fs::create_dir_all(&config).unwrap();
+        fs::write(
+            config.join("connection-result.json"),
+            json!({"principal":"automatic-principal"}).to_string(),
+        )
+        .unwrap();
+        fs::write(config.join("config.json"), "preserved private config").unwrap();
+        let live = json!({"enabled":true,"automatic":true,"connected":true,"mcpConnected":true,"lastSeenAt":"2026-11-12T08:00:00Z"});
+        let server = fake_owner(&root, vec![live.to_string(),
+            json!({"principal":"automatic-principal","revoked":true}).to_string(),
+            json!({"enabled":false,"automatic":false,"connected":false,"mcpConnected":false,"lastSeenAt":null}).to_string()]);
+        assert_eq!(
+            tauri::async_runtime::block_on(set_connection_at(&root.join("data"), &config, false))
+                .unwrap()["state"],
+            "disabled"
+        );
+        assert_eq!(
+            fs::read_to_string(config.join("config.json")).unwrap(),
+            "preserved private config"
+        );
+        assert!(server.join().unwrap()[1].starts_with("POST /api/light-access/revoke HTTP"));
+        fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn settings_and_explicit_ack_are_mandatory_and_scope_rejects_injected_fields() {

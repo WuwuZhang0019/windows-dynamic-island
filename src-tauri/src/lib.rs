@@ -45,6 +45,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            workbench_connection::island_workbench_connection_status,
+            workbench_connection::island_workbench_set_connection,
             workbench_connection::island_workbench_pending_binding,
             workbench_connection::island_workbench_authorize_connection,
             workbench_connection::island_workbench_confirm_binding,

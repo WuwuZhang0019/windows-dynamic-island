@@ -1,285 +1,165 @@
-// Date: 2026-11-12. No authorization runs until the user explicitly confirms and submits.
-import { useState } from "react";
+// Date: 2026-11-12. Automatic local association with status backed by expiring MCP heartbeats.
+import { PlugIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
-import { Input } from "../../components/ui/form";
 import { command, isTauri } from "../../core/bridge";
 
-const button = "rounded-lg bg-white/10 px-3 py-2 text-sm disabled:opacity-40";
-function failure(error: unknown) {
-	const code = String(error);
-	if (/UNKNOWN|RESTORE_FAILED/.test(code))
-		return "提交或恢复结果尚未确认。请保留当前信息，不要重复签发；先核对原授权及本机备份。";
-	if (/GRANT_REVOKED/.test(code)) return "连接配置保存失败，本次新授权已撤销，原配置已恢复。";
-	if (/BUSY/.test(code)) return "另一项连接操作正在处理，请稍后核对结果。";
-	if (/REJECTED_403|UNAUTHORIZED/.test(code)) return "当前管理连接未获授权，请确认独立服务正常运行。";
-	if (/REJECTED_409/.test(code)) return "方案或绑定版本已变化，请重新准备并审阅最新绑定内容。";
-	if (/BINDING_CONFIRMATION_SAVE_FAILED/.test(code))
-		return "绑定确认凭据已签发但未保存，尚不能继续；请核对本机连接目录。";
-	return "操作未完成。请检查独立服务、填写内容及本机连接目录权限。";
-}
-type BindingSummary = {
-	projectId: string;
-	threadId: string;
-	worktreePath: string;
-	branch: string;
-	stepCount: number;
-	revision: number;
+export type ConnectionStatus = {
+	state: "checking" | "disabled" | "waiting" | "connected" | "disconnected" | "legacy" | "unavailable" | "preview";
+	enabled?: boolean;
+	automatic?: boolean;
+	lastSeenAt?: string | null;
 };
-export function readBindingSummary(raw: string): BindingSummary | null {
-	try {
-		const value = JSON.parse(raw);
-		const input = value?.input;
-		const context = input?.context;
-		if (
-			input?.action !== "confirm" ||
-			[input?.projectId, context?.threadId, context?.worktreePath, context?.branch].some(
-				(x) => typeof x !== "string" || !x.trim(),
-			) ||
-			!Array.isArray(input.stepIds) ||
-			!input.stepIds.length ||
-			input.stepIds.some((x: unknown) => typeof x !== "string" || !x) ||
-			!Number.isSafeInteger(input.expectedRevision) ||
-			input.expectedRevision < 0
-		)
-			return null;
-		return {
-			projectId: input.projectId,
-			threadId: context.threadId,
-			worktreePath: context.worktreePath,
-			branch: context.branch,
-			stepCount: input.stepIds.length,
-			revision: input.expectedRevision,
-		};
-	} catch {
-		return null;
+export function connectionPresentation(status: ConnectionStatus) {
+	switch (status.state) {
+		case "connected":
+			return {
+				title: "已连接 Codex",
+				description: "连接正常。执行任务时会自动关联聊天和工作目录，并同步进度。",
+				action: "断开连接",
+				enabled: false,
+				color: "bg-emerald-400",
+			};
+		case "waiting":
+			return {
+				title: "等待 Codex 接入",
+				description: "自动连接已开启。请在 Codex 中使用任务工作台；聊天和工作目录会自动关联。",
+				action: "关闭自动连接",
+				enabled: false,
+				color: "bg-amber-400",
+			};
+		case "disconnected":
+			return {
+				title: "连接已中断",
+				description: "暂未收到 Codex 的连接信号，正在等待自动恢复。",
+				action: "关闭自动连接",
+				enabled: false,
+				color: "bg-amber-400",
+			};
+		case "legacy":
+			return {
+				title: "可升级为自动连接",
+				description: "已有旧版连接配置。开启后会自动关联聊天和工作目录，无须手工确认。",
+				action: "开启自动连接",
+				enabled: true,
+				color: "bg-amber-400",
+			};
+		case "unavailable":
+			return {
+				title: "连接服务暂不可用",
+				description: "无法确认当前连接，请启动任务岛配套服务后重试。",
+				action: "重试连接",
+				enabled: true,
+				color: "bg-rose-400",
+			};
+		case "preview":
+			return {
+				title: "桌面版可连接 Codex",
+				description: "请在任务岛桌面设置中开启连接。",
+				action: "连接 Codex",
+				enabled: true,
+				color: "bg-white/30",
+			};
+		case "checking":
+			return {
+				title: "正在检查连接",
+				description: "正在确认 Codex 的连接状态。",
+				action: "连接 Codex",
+				enabled: true,
+				color: "bg-white/30",
+			};
+		default:
+			return {
+				title: "尚未连接 Codex",
+				description: "允许本机 Codex 同步任务岛中的项目进度，并自动关联聊天和工作目录。",
+				action: "连接 Codex",
+				enabled: true,
+				color: "bg-white/30",
+			};
 	}
+}
+function failure(error: unknown) {
+	if (/UNKNOWN|RESTORE_FAILED/.test(String(error))) return "连接操作的结果尚未确认，正在核对；请稍后查看状态。";
+	if (/REJECTED_404|INVALID_CONNECTION_STATUS/.test(String(error))) return "请先更新任务岛配套服务，再重新连接。";
+	if (/BUSY/.test(String(error))) return "正在处理连接，请稍后查看状态。";
+	return "连接操作未完成，请检查配套服务后重试。";
 }
 export function WorkbenchConnection() {
-	const [projectKey, setProjectKey] = useState("");
-	const [threadId, setThreadId] = useState("");
-	const [hostId, setHostId] = useState("local");
-	const [worktreeRoot, setWorktreeRoot] = useState("");
-	const [accepted, setAccepted] = useState(false);
-	const [bindingAccepted, setBindingAccepted] = useState(false);
-	const [binding, setBinding] = useState("");
+	const [status, setStatus] = useState<ConnectionStatus>({ state: isTauri ? "checking" : "preview" });
 	const [busy, setBusy] = useState(false);
-	const [resultUncertain, setResultUncertain] = useState(false);
+	const [uncertain, setUncertain] = useState(false);
 	const [message, setMessage] = useState("");
-	const bindingSummary = readBindingSummary(binding);
-	async function authorize() {
-		if (!isTauri || !accepted || busy || resultUncertain) return;
+	const generation = useRef(0);
+	const operating = useRef(false);
+	const mounted = useRef(true);
+	const view = connectionPresentation(status);
+	useEffect(() => {
+		mounted.current = true;
+		if (!isTauri) return;
+		let stopped = false;
+		let timer: ReturnType<typeof setTimeout>;
+		async function poll() {
+			const revision = generation.current;
+			if (!operating.current) {
+				try {
+					const result = await command<ConnectionStatus>("island_workbench_connection_status");
+					if (!stopped && revision === generation.current) setStatus(result);
+				} catch {
+					if (!stopped && revision === generation.current) setStatus({ state: "unavailable" });
+				}
+			}
+			if (!stopped) timer = setTimeout(() => void poll(), 3000);
+		}
+		void poll();
+		return () => {
+			stopped = true;
+			mounted.current = false;
+			clearTimeout(timer);
+		};
+	}, []);
+	async function connect() {
+		if (!isTauri || operating.current || uncertain) return;
+		operating.current = true;
+		generation.current += 1;
 		setBusy(true);
+		setMessage("");
 		try {
-			const result = await command<{ principal: string; configPath: string }>("island_workbench_authorize_connection", {
-				value: { projectKey, threadId, hostId, worktreeRoot, acknowledged: true },
-			});
-			setMessage(`连接授权已保存。主体：${result.principal}；配置：${result.configPath}`);
-			setAccepted(false);
+			const result = await command<ConnectionStatus>("island_workbench_set_connection", { enabled: view.enabled });
+			if (mounted.current) setStatus(result);
 		} catch (error) {
-			setMessage(failure(error));
-			setAccepted(false);
-			setBindingAccepted(false);
-			if (/UNKNOWN|RESTORE_FAILED|BINDING_CONFIRMATION_SAVE_FAILED/.test(String(error))) setResultUncertain(true);
+			if (mounted.current) {
+				setMessage(failure(error));
+				if (/UNKNOWN|RESTORE_FAILED/.test(String(error))) setUncertain(true);
+			}
 		} finally {
-			setBusy(false);
-		}
-	}
-	async function confirm() {
-		if (!isTauri || !bindingAccepted || !bindingSummary || busy || resultUncertain) return;
-		let value: unknown;
-		try {
-			value = JSON.parse(binding);
-		} catch {
-			setMessage("绑定内容不是有效 JSON，请重新核对全文。");
-			return;
-		}
-		setBusy(true);
-		try {
-			const result = await command<{ saved: boolean; filePath: string; principal: string; eventId: string }>(
-				"island_workbench_confirm_binding",
-				{ value, acknowledged: true },
-			);
-			setMessage(
-				`绑定确认已保存。事件：${result.eventId}；位置：${result.filePath}。执行聊天需按原事件及有效期继续完成绑定。`,
-			);
-			setBindingAccepted(false);
-		} catch (error) {
-			setMessage(failure(error));
-			setAccepted(false);
-			setBindingAccepted(false);
-			if (/UNKNOWN|RESTORE_FAILED|BINDING_CONFIRMATION_SAVE_FAILED/.test(String(error))) setResultUncertain(true);
-		} finally {
-			setBusy(false);
-		}
-	}
-	async function loadBinding() {
-		if (!isTauri || busy) return;
-		setBusy(true);
-		try {
-			const value = await command<Record<string, unknown>>("island_workbench_pending_binding");
-			setBinding(JSON.stringify(value, null, 2));
-			setBindingAccepted(false);
-			setMessage("已载入本机待确认绑定，请阅读全文后决定是否签发。");
-		} catch {
-			setMessage("本机尚无有效待确认绑定，请由执行聊天准备，或在下方粘贴完整内容。");
-		} finally {
-			setBusy(false);
+			operating.current = false;
+			if (mounted.current) setBusy(false);
 		}
 	}
 	return (
 		<Card>
-			<details className="p-4 text-sm" data-workbench-connection>
-				<summary className="cursor-pointer font-medium">MCP 连接与绑定确认</summary>
-				{!isTauri ? (
-					<p className="mt-3 text-text-dim">浏览器预览无法签发授权，请使用桌面设置。</p>
-				) : (
-					<div className="mt-4 flex flex-col gap-4">
-						<p className="text-text-dim">
-							配置任务岛配套服务的连接与授权，供 MCP 接入使用。请核对下方项目、会话及工作树范围后再确认。
-						</p>
-						<form
-							className="flex flex-col gap-3"
-							onSubmit={(event) => {
-								event.preventDefault();
-								void authorize();
-							}}
-						>
-							<label htmlFor="workbench-project-key" className="flex flex-col gap-1">
-								项目关联键
-								<Input
-									id="workbench-project-key"
-									required
-									value={projectKey}
-									disabled={busy}
-									onChange={(e) => {
-										setProjectKey(e.target.value);
-										setAccepted(false);
-									}}
-								/>
-							</label>
-							<label htmlFor="workbench-thread-id" className="flex flex-col gap-1">
-								执行聊天 ID
-								<Input
-									id="workbench-thread-id"
-									required
-									value={threadId}
-									disabled={busy}
-									onChange={(e) => {
-										setThreadId(e.target.value);
-										setAccepted(false);
-									}}
-								/>
-							</label>
-							<label htmlFor="workbench-host-id" className="flex flex-col gap-1">
-								宿主 ID
-								<Input
-									id="workbench-host-id"
-									required
-									value={hostId}
-									disabled={busy}
-									onChange={(e) => {
-										setHostId(e.target.value);
-										setAccepted(false);
-									}}
-								/>
-							</label>
-							<label htmlFor="workbench-worktree-root" className="flex flex-col gap-1">
-								工作树绝对路径
-								<Input
-									id="workbench-worktree-root"
-									required
-									value={worktreeRoot}
-									disabled={busy}
-									onChange={(e) => {
-										setWorktreeRoot(e.target.value);
-										setAccepted(false);
-									}}
-								/>
-							</label>
-							<label className="flex items-center gap-2">
-								<input
-									type="checkbox"
-									checked={accepted}
-									disabled={busy}
-									onChange={(e) => setAccepted(e.target.checked)}
-								/>
-								我已核对以上范围，确认签发此连接授权
-							</label>
-							<button type="submit" className={button} disabled={busy || resultUncertain || !accepted}>
-								签发并保存连接授权
-							</button>
-						</form>
-						<hr className="border-white/10" />
-						<p className="text-text-dim">
-							绑定确认仅适用于执行聊天准备的这一份完整内容。不会修改项目状态；确认凭据仅保存在本机，不展示或复制到聊天。
-						</p>
-						<button type="button" className={button} disabled={busy} onClick={() => void loadBinding()}>
-							载入本机待确认绑定
-						</button>
-						{bindingSummary ? (
-							<dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-lg bg-white/5 p-3" data-binding-summary>
-								<dt>项目 ID</dt>
-								<dd className="break-all">{bindingSummary.projectId}</dd>
-								<dt>执行聊天</dt>
-								<dd className="break-all">{bindingSummary.threadId}</dd>
-								<dt>工作树</dt>
-								<dd className="break-all">{bindingSummary.worktreePath}</dd>
-								<dt>分支</dt>
-								<dd className="break-all">{bindingSummary.branch}</dd>
-								<dt>关联步骤</dt>
-								<dd>{bindingSummary.stepCount} 个</dd>
-								<dt>服务版本</dt>
-								<dd>{bindingSummary.revision}</dd>
-							</dl>
-						) : (
-							<p className="text-text-dim">请载入待确认绑定，核对项目、会话、工作树和步骤范围后再确认。</p>
-						)}
-						<details>
-							<summary className="cursor-pointer text-text-dim">查看完整内容（高级）</summary>
-							<label className="flex flex-col gap-1">
-								完整绑定内容（principal 与 input）
-								<textarea
-									className="min-h-64 rounded-lg bg-white/8 p-3 font-mono text-xs select-text"
-									value={binding}
-									disabled={busy}
-									onChange={(e) => {
-										setBinding(e.target.value);
-										setBindingAccepted(false);
-									}}
-									spellCheck={false}
-								/>
-							</label>
-						</details>
-						<label className="flex items-center gap-2">
-							<input
-								type="checkbox"
-								checked={bindingAccepted}
-								disabled={busy || !bindingSummary || resultUncertain}
-								onChange={(e) => setBindingAccepted(e.target.checked)}
-							/>
-							我已核对上述范围，确认此会话、工作树及步骤绑定
-						</label>
-						<button
-							type="button"
-							className={button}
-							disabled={busy || resultUncertain || !bindingAccepted || !bindingSummary}
-							onClick={() => void confirm()}
-						>
-							签发并保存绑定确认
-						</button>
-						{resultUncertain && (
-							<p className="text-text-dim">
-								本次提交结果待核对，当前设置页已停止新的签发操作。请先核对原授权、原事件或本机备份后再接续。
-							</p>
-						)}
-						{message && (
-							<p role="status" className="break-all text-text-dim">
-								{message}
-							</p>
-						)}
-					</div>
+			<div className="flex flex-col gap-5 p-4" data-workbench-connection>
+				<div className="flex items-center gap-3" role="status" aria-live="polite">
+					<span className={`h-2.5 w-2.5 shrink-0 rounded-full ${view.color}`} />
+					<span className="font-medium">{view.title}</span>
+				</div>
+				<p className="text-[13px]/relaxed text-text-dim">{view.description}</p>
+				<div>
+					<Button
+						disabled={busy || uncertain || status.state === "checking" || !isTauri}
+						onClick={() => void connect()}
+					>
+						<PlugIcon size={15} />
+						{busy ? "正在处理…" : view.action}
+					</Button>
+				</div>
+				{message && (
+					<p role="alert" className="text-[13px]/relaxed text-text-dim">
+						{message}
+					</p>
 				)}
-			</details>
+			</div>
 		</Card>
 	);
 }

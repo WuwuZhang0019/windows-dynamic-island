@@ -48,7 +48,7 @@ export function SkillPage() {
 				<Link to="/mcp" className="mx-1 text-text underline underline-offset-3">
 					MCP
 				</Link>
-				页面配置连接与绑定。
+				页面点击“连接 Codex”，聊天和工作目录会自动关联。
 			</p>
 		</>
 	);
