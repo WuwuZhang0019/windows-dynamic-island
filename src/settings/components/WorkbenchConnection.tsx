@@ -53,19 +53,6 @@ const suggestedApps = [
 	["antigravity", "Antigravity", "antigravity"],
 	["oh-my-pi", "Oh My Pi", "pi"],
 	["copilot-cli", "Copilot CLI", "githubcopilot"],
-	["hy4", "Hy4", "hunyuan"],
-	["hy3", "Hy3", "hunyuan"],
-	["deepseek-v4-1-flash", "DeepSeek-V4.1-Flash", "deepseek"],
-	["glm-5-3", "GLM-5.3", "zai"],
-	["glm-5-3-flash", "GLM-5.3 Flash", "zai"],
-	["glm-5-2", "GLM-5.2", "zai"],
-	["minimax-m3-1-flash", "MiniMax-M3.1-Flash", "minimax"],
-	["kimi-k3-1-pro", "Kimi-K3.1-Pro", "kimi"],
-	["kimi-k3", "Kimi-K3", "kimi"],
-	["kimi-k2-8-preview", "Kimi-K2.8-Preview", "kimi"],
-	["deepseek-v4-pro", "DeepSeek-V4-Pro", "deepseek"],
-	["step-5-preview", "Step-5-Preview", "stepfun"],
-	["xiaomi-mimo-v2-6-pro", "Xiaomi MiMo-V2.6-Pro", "xiaomimimo"],
 ];
 const appKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 export function WorkbenchConnection() {
