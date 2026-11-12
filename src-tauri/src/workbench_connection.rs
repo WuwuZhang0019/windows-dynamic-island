@@ -13,9 +13,9 @@ use tauri::WebviewWindow;
 
 static BUSY: AtomicBool = AtomicBool::new(false);
 static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
-struct Permit;
+pub(crate) struct Permit;
 impl Permit {
-    fn take() -> Result<Self, String> {
+    pub(crate) fn take() -> Result<Self, String> {
         BUSY.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_| "CONNECTION_OPERATION_BUSY")?;
         Ok(Self)
@@ -146,20 +146,20 @@ fn restore(file: &Path, previous: &Option<Vec<u8>>) -> Result<(), String> {
         }
     }
 }
-fn save_config(directory: &Path, data: &Path, token: &str) -> Result<PathBuf, String> {
+pub(crate) fn save_config(directory: &Path, data: &Path, token: &str) -> Result<PathBuf, String> {
     let bytes = serde_json::to_vec_pretty(&json!({"dataDir":data,"token":token}))
         .map_err(|_| "CONFIG_ENCODING_FAILED")?;
     atomic_save(&directory.join("config.json"), &bytes)?;
     Ok(directory.join("config.json"))
 }
-fn config_root() -> Result<PathBuf, String> {
+pub(crate) fn config_root() -> Result<PathBuf, String> {
     std::env::var_os("USERPROFILE")
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
         .map(|p| p.join(".codex/task-workbench-light"))
         .ok_or("PRIVATE_ACCOUNT_UNAVAILABLE".into())
 }
-async fn manager_post(data: &Path, route: &str, value: Value) -> Result<Value, String> {
+pub(crate) async fn manager_post(data: &Path, route: &str, value: Value) -> Result<Value, String> {
     if !matches!(
         route,
         "api/light-access/grants"
@@ -246,7 +246,7 @@ async fn authorize_with_saver(
     )
     .await
 }
-async fn issue_with_saver(
+pub(crate) async fn issue_with_saver(
     data: &Path,
     directory: &Path,
     route: &str,
@@ -397,7 +397,7 @@ pub fn island_workbench_pending_binding(window: WebviewWindow) -> Result<Value, 
 }
 
 // Date: 2026-11-12. One click enables local automatic association; status comes from live MCP leases.
-fn saved_principal(directory: &Path) -> Result<Option<String>, String> {
+pub(crate) fn saved_principal(directory: &Path) -> Result<Option<String>, String> {
     let file = directory.join("connection-result.json");
     let metadata = match fs::metadata(&file) {
         Ok(value) => value,
@@ -418,7 +418,7 @@ fn saved_principal(directory: &Path) -> Result<Option<String>, String> {
         .map(|s| Some(s.to_owned()))
         .ok_or("CONFIG_READ_FAILED".into())
 }
-async fn status_at(data: &Path, directory: &Path) -> Result<Value, String> {
+pub(crate) async fn status_at(data: &Path, directory: &Path) -> Result<Value, String> {
     let principal = saved_principal(directory)?.unwrap_or_default();
     let mut status = manager_post(
         data,

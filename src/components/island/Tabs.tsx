@@ -23,7 +23,7 @@ export function Tabs({ bottom, pinned, onPin }: { bottom: boolean; pinned: boole
 	const s = controls({ bottom });
 	return (
 		<div className={s.base()} data-no-drag data-island-controls>
-			<span className="mr-auto flex items-center text-sm text-text-dim">任务岛</span>
+			<span className="mr-auto" />
 			<TaskSizeToggle />
 			<motion.button
 				type="button"

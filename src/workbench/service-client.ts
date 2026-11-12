@@ -33,6 +33,8 @@ export function failedEnvelope(
 		protocolVersion: "island-workbench/1",
 		mode,
 		snapshot: previous?.snapshot ?? null,
+		agentApps: previous?.agentApps?.map((app) => ({ ...app, connected: false })),
+		bindingApps: previous?.bindingApps,
 		capabilities,
 		connection: {
 			state,
@@ -77,6 +79,8 @@ export class ServiceWorkbenchClient implements WorkbenchClient {
 				protocolVersion: "island-workbench/1",
 				mode: "service",
 				snapshot: panel.snapshot,
+				agentApps: panel.agentApps ?? [],
+				bindingApps: panel.bindingApps ?? {},
 				capabilities,
 				connection: {
 					state: "ready",

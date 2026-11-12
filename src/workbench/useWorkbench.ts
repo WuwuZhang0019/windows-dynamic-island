@@ -1,12 +1,14 @@
 // Date: 2026-11-12. Explicit simulation preview is isolated from the native service client.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onEvent } from "../core/bridge";
+import type { AppFilter } from "./agent-apps";
 import { MockWorkbenchClient, type ScenarioId, scenarios } from "./contract/fixtures";
 import { acceptEnvelope, type Preferences, type WorkbenchEnvelope } from "./contract/protocol";
 import { failedEnvelope, ServiceWorkbenchClient } from "./service-client";
 import { changeTaskLibrary } from "./task-library";
 
 export function useWorkbench() {
+	const [selectedApp, setSelectedApp] = useState<AppFilter>("all");
 	const [client] = useState(() =>
 		new URLSearchParams(window.location.search).get("workbench") === "simulation"
 			? new MockWorkbenchClient()
@@ -112,6 +114,8 @@ export function useWorkbench() {
 	}, [read]);
 	return {
 		envelope,
+		selectedApp,
+		setSelectedApp,
 		scenario,
 		setScenario,
 		scenarios,

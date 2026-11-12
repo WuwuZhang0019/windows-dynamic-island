@@ -685,3 +685,65 @@
 		transition: none;
 	}
 }
+
+/* Date: 2026-11-12. Application pills remain above the task list in both shell styles. */
+.agent-panel-header {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	flex: none;
+	margin-bottom: 10px;
+	min-width: 0;
+}
+.agent-panel-header [data-island-controls] {
+	margin: 0;
+	flex: none;
+}
+.agent-app-tabs {
+	display: flex;
+	flex: 1;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+.agent-app-pill {
+	display: inline-flex;
+	height: 26px;
+	cursor: pointer;
+	align-items: center;
+	gap: 6px;
+	border-radius: 999px;
+	background: rgb(255 255 255 / 0.05);
+	padding: 0 10px;
+	font-size: 12px;
+	font-weight: 650;
+	color: var(--text-faint);
+	transition:
+		background 0.15s,
+		color 0.15s;
+	white-space: nowrap;
+}
+.agent-app-pill:hover {
+	background: rgb(255 255 255 / 0.09);
+	color: var(--text-dim);
+}
+.agent-app-pill-selected,
+.agent-app-pill-selected:hover {
+	background: color-mix(in srgb, var(--agent) 18%, transparent);
+	color: var(--agent);
+}
+.agent-app-pill:focus-visible {
+	outline: 2px solid var(--agent);
+	outline-offset: 2px;
+}
+.agent-connection-dot {
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: #77777d;
+}
+.agent-connection-dot[data-connected="true"] {
+	background: #36c88a;
+	box-shadow: 0 0 5px #36c88a40;
+}

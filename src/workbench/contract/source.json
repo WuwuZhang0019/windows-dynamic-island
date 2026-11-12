@@ -3,13 +3,13 @@
 	"protocolVersion": "island-workbench/1",
 	"snapshotVersion": "light-1.0",
 	"ownerRepository": "Codex-task-monitoring",
-	"sourceCommit": "f3229d49c5b76fc47878d13fb145dd35cd2a785f",
+	"sourceCommit": "bda3b1e4dd6f337b36ce22f3912e447f028d9727",
 	"sourcePath": "app/contracts/island-workbench-v1",
 	"mode": "service-and-explicit-simulation",
 	"files": {
 		"protocol.ts": {
-			"sha256": "b69241c8c0ea74b4faa9ea7b8d5735e4669c9018857c94337fa411dddb3f974a",
-			"lfSha256": "b69241c8c0ea74b4faa9ea7b8d5735e4669c9018857c94337fa411dddb3f974a"
+			"sha256": "6640a14eaba612c4402c390d99a66044fcc025d9b1feedf3f731097c1ea0ba8e",
+			"lfSha256": "6640a14eaba612c4402c390d99a66044fcc025d9b1feedf3f731097c1ea0ba8e"
 		},
 		"fixtures.ts": {
 			"sha256": "f2546369fd7888cf8bc4d1380846194fabf5959ba026f0bcaf15f61f82a60505",
@@ -17,6 +17,6 @@
 		}
 	},
 	"sourceBaseCommit": "f27192c58969a06f5afbba553f11a198a17afaf5",
-	"sourceState": "Committed D compatibility fix; copied protocol matches canonical bytes and LF-normalized source fingerprint.",
-	"compatibilityNote": "Step.originalCode preserves the light-1.0 schema string|null without replacing null or changing code/identity/status."
+	"sourceState": "Committed multi-application presentation metadata; canonical protocol and shell copy match.",
+	"compatibilityNote": "Optional agentApps and bindingApps are presentation metadata; light-1.0 business identities remain unchanged."
 }

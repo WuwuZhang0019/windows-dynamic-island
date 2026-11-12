@@ -4,6 +4,8 @@ import { type Preferences, validateEnvelope, type WorkbenchSnapshot } from "./co
 
 export type ArchivedTask = { key: string; archivedAt: string };
 export type TaskLibraryPanel = {
+	agentApps?: import("./agent-apps").AgentConnection[];
+	bindingApps?: Record<string, import("./agent-apps").AppId>;
 	snapshot: WorkbenchSnapshot;
 	preferences: Preferences | null;
 	library?: unknown;

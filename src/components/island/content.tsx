@@ -6,6 +6,7 @@ import type { IslandController } from "../../core/useIslandController";
 import type { WorkbenchState } from "../../workbench/useWorkbench";
 import { WorkbenchSummary, WorkbenchView } from "../../workbench/WorkbenchView";
 import { IdleClock } from "../IdleClock";
+import { AgentAppTabs } from "./AgentAppTabs";
 import type { Variant } from "./geometry";
 import { Tabs } from "./Tabs";
 
@@ -33,7 +34,14 @@ export function islandContent(
 					}}
 					className={cn("flex h-full flex-col px-5 pt-3.5 pb-4.5", v.tabsAtBottom && "pb-2")}
 				>
-					{!v.tabsAtBottom && controls}
+					<div className="agent-panel-header" data-agent-panel-header>
+						<AgentAppTabs
+							selected={workbench.selectedApp}
+							onSelect={workbench.setSelectedApp}
+							envelope={workbench.envelope}
+						/>
+						{!v.tabsAtBottom && controls}
+					</div>
 					<WorkbenchView {...workbench} envelope={workbench.envelope} />
 					{v.tabsAtBottom && controls}
 				</div>

@@ -1,9 +1,10 @@
 // Date: 2026-11-12. Automatic local association with status backed by expiring MCP heartbeats.
-import { PlugIcon } from "lucide-react";
+import { CopyIcon, PlugIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { command, isTauri } from "../../core/bridge";
+import { type AppId, agentApps } from "../../workbench/agent-apps";
 
 export type ConnectionStatus = {
 	state: "checking" | "disabled" | "waiting" | "connected" | "disconnected" | "legacy" | "unavailable" | "preview";
@@ -11,7 +12,7 @@ export type ConnectionStatus = {
 	automatic?: boolean;
 	lastSeenAt?: string | null;
 };
-export function connectionPresentation(status: ConnectionStatus) {
+function originalPresentation(status: ConnectionStatus) {
 	switch (status.state) {
 		case "connected":
 			return {
@@ -79,23 +80,30 @@ export function connectionPresentation(status: ConnectionStatus) {
 			};
 	}
 }
+export function connectionPresentation(status: ConnectionStatus, name = "Codex") {
+	const result = originalPresentation(status);
+	return {
+		...result,
+		title: result.title.replaceAll("Codex", name),
+		description: result.description.replaceAll("Codex", name),
+		action: result.action.replaceAll("Codex", name),
+	};
+}
 function failure(error: unknown) {
 	if (/UNKNOWN|RESTORE_FAILED/.test(String(error))) return "连接操作的结果尚未确认，正在核对；请稍后查看状态。";
 	if (/REJECTED_404|INVALID_CONNECTION_STATUS/.test(String(error))) return "请先更新任务岛配套服务，再重新连接。";
 	if (/BUSY/.test(String(error))) return "正在处理连接，请稍后查看状态。";
 	return "连接操作未完成，请检查配套服务后重试。";
 }
+type AppStatus = ConnectionStatus & { appId: AppId };
 export function WorkbenchConnection() {
-	const [status, setStatus] = useState<ConnectionStatus>({ state: isTauri ? "checking" : "preview" });
-	const [busy, setBusy] = useState(false);
-	const [uncertain, setUncertain] = useState(false);
+	const [statuses, setStatuses] = useState<AppStatus[]>([]);
+	const [busy, setBusy] = useState<AppId | null>(null);
+	const [uncertain, setUncertain] = useState<AppId[]>([]);
 	const [message, setMessage] = useState("");
 	const generation = useRef(0);
 	const operating = useRef(false);
-	const mounted = useRef(true);
-	const view = connectionPresentation(status);
 	useEffect(() => {
-		mounted.current = true;
 		if (!isTauri) return;
 		let stopped = false;
 		let timer: ReturnType<typeof setTimeout>;
@@ -103,10 +111,11 @@ export function WorkbenchConnection() {
 			const revision = generation.current;
 			if (!operating.current) {
 				try {
-					const result = await command<ConnectionStatus>("island_workbench_connection_status");
-					if (!stopped && revision === generation.current) setStatus(result);
+					const result = await command<AppStatus[]>("island_agent_connections");
+					if (!stopped && revision === generation.current) setStatuses(result);
 				} catch {
-					if (!stopped && revision === generation.current) setStatus({ state: "unavailable" });
+					if (!stopped && revision === generation.current)
+						setStatuses(agentApps.map((app) => ({ appId: app.id, state: "unavailable" })));
 				}
 			}
 			if (!stopped) timer = setTimeout(() => void poll(), 3000);
@@ -114,52 +123,83 @@ export function WorkbenchConnection() {
 		void poll();
 		return () => {
 			stopped = true;
-			mounted.current = false;
 			clearTimeout(timer);
 		};
 	}, []);
-	async function connect() {
-		if (!isTauri || operating.current || uncertain) return;
+	async function connect(appId: AppId, enabled: boolean) {
+		if (!isTauri || operating.current || uncertain.includes(appId)) return;
 		operating.current = true;
 		generation.current += 1;
-		setBusy(true);
+		setBusy(appId);
 		setMessage("");
 		try {
-			const result = await command<ConnectionStatus>("island_workbench_set_connection", { enabled: view.enabled });
-			if (mounted.current) setStatus(result);
+			const result = await command<AppStatus>("island_agent_set_connection", { appId, enabled });
+			setStatuses((values) => [...values.filter((value) => value.appId !== appId), result]);
 		} catch (error) {
-			if (mounted.current) {
-				setMessage(failure(error));
-				if (/UNKNOWN|RESTORE_FAILED/.test(String(error))) setUncertain(true);
-			}
+			setMessage(failure(error));
+			if (/UNKNOWN|RESTORE_FAILED/.test(String(error))) setUncertain((values) => [...values, appId]);
 		} finally {
 			operating.current = false;
-			if (mounted.current) setBusy(false);
+			setBusy(null);
+		}
+	}
+	async function copySetup(appId: AppId) {
+		try {
+			const setup = await command<Record<string, unknown>>("island_agent_connection_setup", { appId });
+			await navigator.clipboard.writeText(JSON.stringify(setup, null, 2));
+			setMessage("已复制连接配置。在对应应用的 MCP 设置中添加后即可接入；配置中不包含连接令牌。");
+		} catch {
+			setMessage("未能复制连接配置，请先确认任务工作台运行组件已安装。");
 		}
 	}
 	return (
-		<Card>
-			<div className="flex flex-col gap-5 p-4" data-workbench-connection>
-				<div className="flex items-center gap-3" role="status" aria-live="polite">
-					<span className={`h-2.5 w-2.5 shrink-0 rounded-full ${view.color}`} />
-					<span className="font-medium">{view.title}</span>
-				</div>
-				<p className="text-[13px]/relaxed text-text-dim">{view.description}</p>
-				<div>
-					<Button
-						disabled={busy || uncertain || status.state === "checking" || !isTauri}
-						onClick={() => void connect()}
-					>
-						<PlugIcon size={15} />
-						{busy ? "正在处理…" : view.action}
-					</Button>
-				</div>
-				{message && (
-					<p role="alert" className="text-[13px]/relaxed text-text-dim">
-						{message}
-					</p>
-				)}
-			</div>
-		</Card>
+		<>
+			<p className="text-[13px]/relaxed text-text-dim">各应用可以同时连接，分别管理。开启后自动关联聊天和工作目录。</p>
+			{agentApps.map((app) => {
+				const status = statuses.find((value) => value.appId === app.id) ?? { state: isTauri ? "checking" : "preview" };
+				const view = connectionPresentation(status, app.name);
+				return (
+					<Card key={app.id}>
+						<div className="flex flex-col gap-3 p-4" data-workbench-connection={app.id}>
+							<div className="flex items-center gap-3">
+								<strong className="mr-auto">{app.name}</strong>
+								<span className={`h-2 w-2 rounded-full ${view.color}`} />
+								<span className="text-xs text-text-dim" role="status" aria-live="polite">
+									{view.title}
+								</span>
+							</div>
+							<p className="text-[13px]/relaxed text-text-dim">{view.description}</p>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									disabled={busy !== null || uncertain.includes(app.id) || status.state === "checking" || !isTauri}
+									onClick={() => void connect(app.id, view.enabled)}
+								>
+									<PlugIcon size={15} />
+									{busy === app.id ? "正在处理…" : view.action}
+								</Button>
+								{app.id !== "codex" && (
+									<Button disabled={!isTauri} onClick={() => void copySetup(app.id)}>
+										<CopyIcon size={14} />
+										复制连接配置
+									</Button>
+								)}
+							</div>
+							{app.id === "codex" ? (
+								<p className="text-xs text-text-faint">通过已安装的“任务工作台”插件接入。</p>
+							) : (
+								<p className="text-xs text-text-faint">
+									在此应用中添加本地 MCP 配置。{app.id === "dsh" ? "需先确认当前 dsh 版本支持本地 MCP。" : ""}
+								</p>
+							)}
+						</div>
+					</Card>
+				);
+			})}
+			{message && (
+				<p role="alert" className="text-[13px]/relaxed text-text-dim">
+					{message}
+				</p>
+			)}
+		</>
 	);
 }

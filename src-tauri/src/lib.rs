@@ -1,4 +1,5 @@
 // 修改日期：2026-11-12。固定工作台外壳仅启动窗口及设置服务。
+mod agent_connections;
 mod autostart;
 mod display;
 mod glass;
@@ -45,6 +46,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            agent_connections::island_agent_connections,
+            agent_connections::island_agent_set_connection,
+            agent_connections::island_agent_connection_setup,
             workbench_connection::island_workbench_connection_status,
             workbench_connection::island_workbench_set_connection,
             workbench_connection::island_workbench_pending_binding,

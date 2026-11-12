@@ -2,6 +2,7 @@
 import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setSetting, taskCardEffect, useSettings } from "../core/settings";
+import { type AppFilter, matchesApp } from "./agent-apps";
 import type { WorkbenchEnvelope as Envelope, Preferences, Route, Step, WorkbenchSnapshot } from "./contract/protocol";
 import { GroupRouteGraph } from "./GroupRouteGraph";
 import { TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
@@ -136,6 +137,7 @@ export function WorkbenchSummary({
 	);
 }
 export interface WorkbenchViewProps {
+	selectedApp?: AppFilter;
 	envelope: Envelope;
 	refresh: () => void | Promise<void>;
 	scenario: string;
@@ -151,6 +153,7 @@ export interface WorkbenchViewProps {
 
 export function WorkbenchView({
 	envelope,
+	selectedApp = "all",
 	scenario,
 	setScenario,
 	scenarios = defaultScenarios,
@@ -181,7 +184,8 @@ export function WorkbenchView({
 	});
 	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
 	const savedOrder = taskOrder(settings);
-	const entries = orderedTaskGroups(taskGroups(snapshot, archivedKeys), draftOrder ?? savedOrder);
+	const allEntries = orderedTaskGroups(taskGroups(snapshot, archivedKeys), draftOrder ?? savedOrder);
+	const entries = allEntries.filter((group) => matchesApp(group, envelope, selectedApp));
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [archiveMessage, setArchiveMessage] = useState("");
 
@@ -319,7 +323,10 @@ export function WorkbenchView({
 		setDraftOrder(keys);
 	}
 	function commitOrder(keys: string[]) {
-		setSetting(TASK_ORDER_KEY, [...keys, ...savedOrder.filter((key) => !keys.includes(key))]);
+		const moving = new Set(keys);
+		let cursor = 0;
+		const merged = allEntries.map((entry) => (moving.has(entry.key) ? keys[cursor++] : entry.key));
+		setSetting(TASK_ORDER_KEY, [...merged, ...savedOrder.filter((key) => !merged.includes(key))]);
 		dragOrder.current = null;
 		setDraftOrder(null);
 	}
@@ -398,8 +405,12 @@ export function WorkbenchView({
 					)}
 					{snapshot.projects.length > 0 && entries.length === 0 && (
 						<div className="wb-empty">
-							<strong>列表中暂无任务</strong>
-							<span>已归档任务可在设置 → 任务列表中查看。</span>
+							<strong>{selectedApp === "all" ? "列表中暂无任务" : "此应用暂无关联任务"}</strong>
+							<span>
+								{selectedApp === "all"
+									? "已归档任务可在设置 → 任务列表中查看。"
+									: "切换“全部”查看其他任务，历史任务保留在“未分配”。"}
+							</span>
 						</div>
 					)}
 					<Reorder.Group
