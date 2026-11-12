@@ -9,6 +9,11 @@ use crate::i18n;
 use crate::window::{ISLAND_LABEL, RECENTER_EVENT};
 
 const TRAY_ID: &str = "island-workbench";
+// Date: 2026-11-12. Keep the tray mark independent of the bundled window icon.
+fn tray_icon() -> Image<'static> {
+    Image::from_bytes(include_bytes!("../icons/tray.png"))
+        .expect("embedded tray icon must be a valid PNG")
+}
 /// Swallowed by the black hole (tray click): the island stays hidden, even across restarts.
 pub const HIDDEN_KEY: &str = "island.hidden";
 
@@ -66,7 +71,8 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         quit: quit.clone(),
     });
 
-    let mut builder = TrayIconBuilder::with_id(TRAY_ID)
+    let builder = TrayIconBuilder::with_id(TRAY_ID)
+        .icon(tray_icon())
         .tooltip("Island for Windows")
         .menu(&menu)
         // Left click: the black hole swallows the island / gives it back. Right click: menu.
@@ -101,9 +107,6 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
             "quit" => app.exit(0),
             _ => {}
         });
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
     builder.build(app)?;
     sync_hidden(app);
     Ok(())
@@ -125,7 +128,7 @@ pub fn toggle_hidden(app: &AppHandle) {
     }
 }
 
-/// The app icon, greyed out and faded: shown in the tray while the island is hidden.
+/// The tray icon, greyed out and faded: shown while the island is hidden.
 fn dimmed(icon: &Image<'_>) -> Image<'static> {
     let mut rgba = icon.rgba().to_vec();
     for px in rgba.as_chunks_mut::<4>().0 {
@@ -149,10 +152,9 @@ pub fn sync_hidden(app: &AppHandle) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
-    let icon = app
-        .default_window_icon()
-        .map(|icon| if hidden { dimmed(icon) } else { icon.clone() });
-    let _ = tray.set_icon(icon);
+    let icon = tray_icon();
+    let icon = if hidden { dimmed(&icon) } else { icon };
+    let _ = tray.set_icon(Some(icon));
     let tooltip = if hidden {
         i18n::t(app, "tray.hiddenTooltip")
     } else {
