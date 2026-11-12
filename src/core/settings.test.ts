@@ -9,6 +9,7 @@ import {
 	setSetting,
 	shellPreferences,
 	startSettings,
+	tabsPosition,
 } from "./settings";
 
 describe("openTrigger", () => {
@@ -68,6 +69,7 @@ describe("外壳偏好迁移", () => {
 			"app.language": "zh-CN",
 			"appearance.style": "windows",
 			"island.expandOnHover": false,
+			"appearance.tabsPosition": "top",
 			"shell.configVersion": 1,
 		});
 		expect(storage.getItem(LEGACY_LOCAL_KEY)).toBe(legacy);
@@ -121,5 +123,28 @@ describe("外壳偏好迁移", () => {
 		setSetting("appearance.style", "windows");
 		expect(storage.getItem(LOCAL_KEY)).toBe("broken");
 		expect(getSettings()["appearance.style"]).toBeUndefined();
+	});
+});
+
+describe("expanded controls position", () => {
+	test("keeps each style's original default and ignores invalid values", () => {
+		expect(tabsPosition({}, "windows")).toBe("bottom");
+		expect(tabsPosition({}, "dynamic")).toBe("top");
+		expect(tabsPosition({ "appearance.tabsPosition": "left" }, "windows")).toBe("bottom");
+		expect(tabsPosition({ "appearance.tabsPosition": null }, "dynamic")).toBe("top");
+	});
+	test("an explicit position works in both styles", () => {
+		for (const style of ["windows", "dynamic"] as const) {
+			for (const position of ["top", "bottom"] as const) {
+				expect(tabsPosition({ "appearance.tabsPosition": position }, style)).toBe(position);
+			}
+		}
+	});
+	test("new browser preferences retain clock and controls position after reload", () => {
+		const storage = new MemoryStorage();
+		storage.setItem(LOCAL_KEY, JSON.stringify({ "appearance.tabsPosition": "top", "appearance.idleClock": false }));
+		const loaded = loadBrowserPreferences(storage);
+		expect(loaded["appearance.idleClock"]).toBe(false);
+		expect(loaded["appearance.tabsPosition"]).toBe("top");
 	});
 });

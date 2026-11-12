@@ -20,6 +20,7 @@ import {
 	type IslandStyle,
 	readSetting,
 	setSetting,
+	tabsPosition,
 } from "../../core/settings";
 import { useGlassSupported } from "../../core/useGlass";
 import { Title } from "../components/Heading";
@@ -152,8 +153,21 @@ export function AppearancePage({ values }: { values: Record<string, unknown> }) 
 						/>
 					</Row>
 				)}
-				<ToggleRow def={appearanceSettings.idleClock} value={readSetting(values, appearanceSettings.idleClock)} />
 			</motion.section>
+
+			<Card>
+				<ToggleRow def={appearanceSettings.idleClock} value={readSetting(values, appearanceSettings.idleClock)} />
+				<Row label={t("appearance.tabsPosition.label")} desc={t("appearance.tabsPosition.desc")}>
+					<Segmented
+						options={(["top", "bottom"] as const).map((position) => ({
+							value: position,
+							label: t(`appearance.tabsPosition.${position}`),
+						}))}
+						value={tabsPosition(values, style)}
+						onChange={(position) => setSetting(appearanceSettings.tabsPosition, position)}
+					/>
+				</Row>
+			</Card>
 
 			<Card>
 				<Row as="label" label={t("appearance.hide.label")} desc={t("appearance.hide.desc")}>

@@ -52,6 +52,7 @@ const SHELL_KEYS = new Set([
 	"appearance.glow",
 	"appearance.glass",
 	"appearance.idleClock",
+	"appearance.tabsPosition",
 	"island.hidden",
 	"island.openOn",
 	"island.closeOn",
@@ -64,7 +65,7 @@ const SHELL_KEYS = new Set([
 	"island.offset",
 ]);
 
-/** 白名单导入保留偏好；不携带模块、插件、热键或旧布局开关。 */
+/** 白名单导入保留偏好；不携带模块、插件或热键。 */
 export function shellPreferences(value: unknown): Values {
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_SHELL_CONFIG");
 	if ("shell.configVersion" in value && value["shell.configVersion"] !== 1) throw new Error("UNSUPPORTED_SHELL_CONFIG");
@@ -297,6 +298,12 @@ export const appearanceSettings = {
 		description: "appearance.glass.desc",
 		default: "off" as GlassLevel,
 	} satisfies SettingDef<GlassLevel>,
+	tabsPosition: {
+		key: "appearance.tabsPosition",
+		label: "appearance.tabsPosition.label",
+		description: "appearance.tabsPosition.desc",
+		default: "bottom",
+	} satisfies SettingDef<"top" | "bottom">,
 	idleClock: {
 		key: "appearance.idleClock",
 		label: "appearance.idleClock.label",
@@ -304,3 +311,9 @@ export const appearanceSettings = {
 		default: true,
 	} satisfies SettingDef,
 };
+
+/** Use the original placement for each style until a position is selected. */
+export function tabsPosition(all: Values, style: IslandStyle): "top" | "bottom" {
+	const value = all[appearanceSettings.tabsPosition.key];
+	return value === "top" || value === "bottom" ? value : style === "windows" ? "bottom" : "top";
+}

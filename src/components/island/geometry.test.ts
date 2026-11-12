@@ -21,3 +21,16 @@ describe("geometry", () => {
 		expect(geometry(v, look, "peek", { width: 560, height: 900 }, undefined).height).toBe(MAX_HEIGHT);
 	});
 });
+
+test("controls can move above or below the workbench in either style without resizing it", () => {
+	for (const style of ["windows", "dynamic"] as const) {
+		for (const tabsPosition of ["top", "bottom"] as const) {
+			const appearance = { style, tabsPosition } as Appearance;
+			const variant = variantOf(appearance);
+			expect(variant.tabsAtBottom).toBe(tabsPosition === "bottom");
+			expect(geometry(variant, appearance, "expanded", { width: 620, height: 300 }, undefined).height).toBe(
+				300 + variant.tabBar,
+			);
+		}
+	}
+});
