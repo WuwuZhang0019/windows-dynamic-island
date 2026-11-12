@@ -556,5 +556,23 @@
 		"name": "LobeHub",
 		"aliases": [],
 		"color": true
+	},
+	{
+		"id": "openclaw",
+		"name": "OpenClaw",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "hermesagent",
+		"name": "Hermes",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "pi",
+		"name": "Pi",
+		"aliases": [],
+		"color": false
 	}
 ]

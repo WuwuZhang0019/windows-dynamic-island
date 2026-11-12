@@ -6,7 +6,6 @@ import { Button } from "../../components/ui/button";
 import { command, isTauri } from "../../core/bridge";
 import type { AppId } from "../../workbench/agent-apps";
 
-import { AIIconLibrary } from "./AIIconLibrary";
 import "./mcp-connections.css";
 
 export type ConnectionStatus = {
@@ -37,6 +36,38 @@ function failure(error: unknown) {
 	return "连接操作未完成，请检查配套服务后重试。";
 }
 type AppStatus = ConnectionStatus & { appId: AppId; name?: string };
+// Date: 2026-11-12. Suggestions are visual shortcuts, not fabricated connection records.
+const suggestedApps = [
+	["claude-code", "Claude Code", "claude"],
+	["claude-desktop", "Claude Desktop", "claude"],
+	["codex", "Codex", "openai"],
+	["gemini-cli", "Gemini CLI", "geminicli"],
+	["grok-build", "Grok Build", "grok"],
+	["opencode", "OpenCode", "opencode"],
+	["openclaw", "OpenClaw", "openclaw"],
+	["hermes", "Hermes", "hermesagent"],
+	["pi", "Pi", "pi"],
+	["minimax-code", "MiniMax Code", "minimax"],
+	["kimi-code", "Kimi Code", "kimi"],
+	["deepseek-harness", "DeepSeek Harness", "deepseek"],
+	["antigravity", "Antigravity", "antigravity"],
+	["oh-my-pi", "Oh My Pi", "pi"],
+	["copilot-cli", "Copilot CLI", "githubcopilot"],
+	["hy4", "Hy4", "hunyuan"],
+	["hy3", "Hy3", "hunyuan"],
+	["deepseek-v4-1-flash", "DeepSeek-V4.1-Flash", "deepseek"],
+	["glm-5-3", "GLM-5.3", "zai"],
+	["glm-5-3-flash", "GLM-5.3 Flash", "zai"],
+	["glm-5-2", "GLM-5.2", "zai"],
+	["minimax-m3-1-flash", "MiniMax-M3.1-Flash", "minimax"],
+	["kimi-k3-1-pro", "Kimi-K3.1-Pro", "kimi"],
+	["kimi-k3", "Kimi-K3", "kimi"],
+	["kimi-k2-8-preview", "Kimi-K2.8-Preview", "kimi"],
+	["deepseek-v4-pro", "DeepSeek-V4-Pro", "deepseek"],
+	["step-5-preview", "Step-5-Preview", "stepfun"],
+	["xiaomi-mimo-v2-6-pro", "Xiaomi MiMo-V2.6-Pro", "xiaomimimo"],
+];
+const appKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 export function WorkbenchConnection() {
 	const [statuses, setStatuses] = useState<AppStatus[]>([]);
 	const [busy, setBusy] = useState<AppId | null>(null);
@@ -107,6 +138,19 @@ export function WorkbenchConnection() {
 			setBusy(null);
 		}
 	}
+	const matched = new Set<string>();
+	const rows = suggestedApps.map(([appId, name, iconId]) => {
+		const actual = statuses.find(
+			(value) => appKey(value.appId) === appKey(appId) || appKey(value.name ?? "") === appKey(name),
+		);
+		if (actual) matched.add(actual.appId);
+		return { ...(actual ?? { appId, name, state: "disabled" as const }), iconId, registered: !!actual };
+	});
+	rows.push(
+		...statuses
+			.filter((value) => !matched.has(value.appId))
+			.map((value) => ({ ...value, iconId: value.appId, registered: true })),
+	);
 	return (
 		<>
 			<p className="text-[13px]/relaxed text-text-dim">复制指令发给任意支持 MCP 的 Agent，配置完成后自动连接。</p>
@@ -114,18 +158,13 @@ export function WorkbenchConnection() {
 				<CopyIcon size={14} />
 				复制接入指令
 			</Button>
-			{!statuses.length && (
-				<p className="text-sm text-text-faint">
-					尚无接入应用。将指令发送到任意支持 MCP 的 Agent 对话中，完成后会自动显示名称与状态。再次复制可添加其他应用。
-				</p>
-			)}
 			<div className="mcp-connection-list">
-				{statuses.map((status) => {
+				{rows.map((status) => {
 					const app = { id: status.appId, name: status.name ?? status.appId };
 					const view = connectionPresentation(status, busy === app.id);
 					return (
 						<div className="mcp-connection-row" key={app.id} data-workbench-connection={app.id}>
-							<AIProviderIcon appId={app.id} name={app.name} size={28} />
+							<AIProviderIcon appId={status.iconId} name={app.name} size={28} />
 							<strong title={app.name}>{app.name}</strong>
 							<button
 								type="button"
@@ -134,7 +173,7 @@ export function WorkbenchConnection() {
 								aria-label={`${app.name}：${view.label}，${view.hint}`}
 								title={view.hint}
 								disabled={!isTauri || busy !== null || uncertain.includes(app.id)}
-								onClick={() => void connect(app.id, view.enabled)}
+								onClick={() => void (status.registered ? connect(app.id, view.enabled) : copySetup())}
 							>
 								<span aria-live="polite">{view.label}</span>
 							</button>
@@ -147,7 +186,6 @@ export function WorkbenchConnection() {
 					{message}
 				</p>
 			)}
-			<AIIconLibrary />
 		</>
 	);
 }
