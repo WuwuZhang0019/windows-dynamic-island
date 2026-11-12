@@ -46,7 +46,7 @@ $stage = Join-Path $target "msix"
 $stagedExe = Join-Path $stage "island-for-windows.exe"
 if (Test-Path $stagedExe) {
 	try { [System.IO.File]::Open($stagedExe, "Open", "ReadWrite", "None").Close() }
-	catch { throw "$stagedExe is in use: quit Island for Windows first" }
+	catch { throw "$stagedExe is in use: quit 任务岛 first" }
 }
 if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 $assets = New-Item -ItemType Directory -Force (Join-Path $stage "Assets")

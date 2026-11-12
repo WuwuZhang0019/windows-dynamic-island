@@ -83,10 +83,10 @@
     quit: "Sair",
     hide: "Ocultar ilha",
     show: "Mostrar ilha",
-    hiddenTooltip: "Island for Windows (oculta): clique para mostrar",
+    hiddenTooltip: "任务岛 (oculta): clique para mostrar",
   },
   window: {
-    settings: "Island Workbench — Configurações",
+    settings: "任务岛 — Configurações",
   },
 
   island: {
@@ -841,7 +841,7 @@
     },
     trust: {
       title: "Plugins de terceiros",
-      body: "Plugins e fontes são feitos por outras pessoas, não pelo Island for Windows. Não os revisamos e não nos responsabilizamos pelo que fazem nem por danos que causem. Só adicione fontes e instale plugins de pessoas em quem você confia.",
+      body: "Plugins e fontes são feitos por outras pessoas, não pelo 任务岛. Não os revisamos e não nos responsabilizamos pelo que fazem nem por danos que causem. Só adicione fontes e instale plugins de pessoas em quem você confia.",
     },
     confirm: {
       persistent: "Ele fica rodando em segundo plano enquanto estiver ligado, o que usa mais memória.",
@@ -849,7 +849,7 @@
       update: "Atualizar {name}?",
       permissions: "Ele vai poder:",
       none: "Ele não pede nada além do próprio isolamento.",
-      warning: "Plugins são feitos por terceiros, não pelo Island for Windows. Não os revisamos e não nos responsabilizamos pelo que fazem. Só instale plugins de pessoas em quem você confia: eles podem fazer tudo o que estas permissões deixam.",
+      warning: "Plugins são feitos por terceiros, não pelo 任务岛. Não os revisamos e não nos responsabilizamos pelo que fazem. Só instale plugins de pessoas em quem você confia: eles podem fazer tudo o que estas permissões deixam.",
       cancel: "Cancelar",
       accept: "Instalar",
     },

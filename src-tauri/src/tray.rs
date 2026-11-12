@@ -73,7 +73,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
 
     let builder = TrayIconBuilder::with_id(TRAY_ID)
         .icon(tray_icon())
-        .tooltip("Island for Windows")
+        .tooltip("任务岛")
         .menu(&menu)
         // Left click: the black hole swallows the island / gives it back. Right click: menu.
         .show_menu_on_left_click(false)
@@ -158,7 +158,7 @@ pub fn sync_hidden(app: &AppHandle) {
     let tooltip = if hidden {
         i18n::t(app, "tray.hiddenTooltip")
     } else {
-        "Island for Windows".to_string()
+        "任务岛".to_string()
     };
     let _ = tray.set_tooltip(Some(tooltip));
 }

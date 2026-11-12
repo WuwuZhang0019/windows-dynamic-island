@@ -15,7 +15,7 @@ export function AboutPage() {
 		<>
 			<div className="flex flex-col items-center gap-2.5 pt-4.5 pb-2.5 [&_svg]:drop-shadow-[0_8px_24px_rgba(143,148,255,0.18)]">
 				<AppLogo size={72} />
-				<div className="mt-1 text-[22px] font-bold tracking-[-0.015em]">Island Workbench</div>
+				<div className="mt-1 text-[22px] font-bold tracking-[-0.015em]">任务岛</div>
 				<span className="rounded-full bg-white/6 px-2.5 py-0.75 text-[12px] font-semibold text-text-dim tabular-nums">
 					{t("settings.about.version", { version: __APP_VERSION__ })}
 				</span>
