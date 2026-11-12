@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import type { Appearance } from "../../core/appearance";
 import { cn } from "../../core/cn";
@@ -42,12 +43,35 @@ export function islandContent(
 	return {
 		key: "compact:workbench",
 		node: (
-			<div className="flex h-full items-center gap-3 px-4">
-				{look.idleClock && (
-					<div className="shrink-0">
-						<IdleClock />
-					</div>
-				)}
+			<div className="flex h-full items-center px-4">
+				<AnimatePresence initial={false}>
+					{look.idleClock && (
+						<motion.div
+							key="idle-clock"
+							data-idle-clock
+							className="h-full shrink-0 overflow-hidden"
+							initial={{ width: 0, opacity: 0, scale: 0.9, filter: "blur(10px)" }}
+							animate={{
+								width: "auto",
+								opacity: 1,
+								scale: 1,
+								filter: "blur(0px)",
+								transition: { duration: 0.32, delay: 0.06, ease: [0.2, 0.9, 0.3, 1] },
+							}}
+							exit={{
+								width: 0,
+								opacity: 0,
+								scale: 0.94,
+								filter: "blur(8px)",
+								transition: { duration: 0.16, ease: "easeIn" },
+							}}
+						>
+							<div className="h-full pr-3 whitespace-nowrap">
+								<IdleClock />
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
 				<WorkbenchSummary
 					envelope={workbench.envelope}
 					scenario={workbench.scenario}
