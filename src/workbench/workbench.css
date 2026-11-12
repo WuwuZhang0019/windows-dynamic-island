@@ -161,7 +161,7 @@
 .wb-route-card[data-selected="true"]:not(:hover):not(:has(:focus-visible)) {
 	border-color: #a6aaf04d;
 }
-/* Date: 2026-11-12. The card button covers blank space; station buttons and rails remain interactive. */
+/* Date: 2026-11-12. Card selection covers blank space; display-only station graphs retain wheel scrolling. */
 .wb .wb-route-select,
 .wb .wb-route-select:hover:not(:disabled) {
 	position: absolute;
@@ -251,7 +251,7 @@
 	color: var(--text-dim);
 	background: transparent;
 }
-.wb-step[aria-pressed="true"] {
+.wb-step[data-selected="true"] {
 	border-color: #b8baff60;
 	background: #8d91ef14;
 }
@@ -648,7 +648,7 @@
 	border: 0;
 	border-radius: 50%;
 }
-.wb-group-graph-compact .wb-graph-step[aria-pressed="true"] {
+.wb-group-graph-compact .wb-graph-step[data-selected="true"] {
 	background: transparent;
 }
 .wb-group-graph-compact .wb-step-track {
@@ -660,41 +660,17 @@
 	height: auto;
 	aspect-ratio: 1;
 }
-.wb-group-graph-compact .wb-graph-step[aria-pressed="true"] .wb-dot {
+.wb-group-graph-compact .wb-graph-step[data-selected="true"] .wb-dot {
 	outline: 1px solid #ffffffb3;
 	outline-offset: 2px;
 }
-.wb-group-graph-compact .wb-step-running[aria-pressed="true"] .wb-dot {
+.wb-group-graph-compact .wb-step-running[data-selected="true"] .wb-dot {
 	outline: none;
-}
-.wb-row-thumbnail {
-	right: 82px;
 }
 .wb-route-heading > .wb-route-actions {
 	display: flex;
 	gap: 4px;
 	pointer-events: auto;
-}
-.wb .wb-group-toggle {
-	position: relative;
-	display: grid;
-	place-items: center;
-	width: 25px;
-	height: 28px;
-	padding: 0;
-	border: 0;
-	border-radius: 6px;
-	background: transparent;
-	color: var(--text-dim);
-}
-.wb-group-toggle svg {
-	transition: transform 200ms;
-}
-.wb-group-toggle[aria-expanded="true"] svg {
-	transform: rotate(180deg);
-}
-.wb-route-heading:not(:has(.wb-group-toggle)) .wb-row-thumbnail {
-	right: 52px;
 }
 @media (max-width: 480px) {
 	.wb-row-thumbnail {
@@ -705,8 +681,7 @@
 	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.wb-route-heading,
-	.wb-group-toggle svg {
+	.wb-route-heading {
 		transition: none;
 	}
 }

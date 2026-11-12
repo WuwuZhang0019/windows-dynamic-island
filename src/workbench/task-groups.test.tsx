@@ -101,13 +101,33 @@ describe("grouped task routes", () => {
 		expect(html.replace(/<[^>]*>/g, "")).toBe("");
 		expect(html).toContain('data-status="running" data-kind="route" data-from="m0" data-to="m1"');
 	});
-	test("the list contains one card per task group without branch-count text", () => {
+	test("the list keeps complete task groups without branch controls or station buttons", () => {
 		const envelope = createScenario("multi-project");
+		const snapshot = envelope.snapshot;
+		if (!snapshot) throw Error("Missing fixture");
+		const groups = taskGroups(snapshot);
 		const html = renderToStaticMarkup(
-			<WorkbenchView envelope={envelope} scenario="group-regression" setScenario={() => {}} refresh={() => {}} />,
+			<WorkbenchView
+				envelope={envelope}
+				scenario="group-regression"
+				setScenario={() => {}}
+				refresh={() => {}}
+				preferences={{
+					collapsed: groups.map((group) => `island/group/${group.key}`),
+					selected: "",
+					focus: [],
+					scroll: {},
+					y: {},
+				}}
+			/>,
 		);
+		const count = groups.reduce((total, group) => total + layoutRoutes(group.routes, snapshot.steps).nodes.length, 0);
+		expect([...html.matchAll(/data-step-key="/g)]).toHaveLength(count * 2);
 		expect([...html.matchAll(/data-route-card="/g)]).toHaveLength(3);
 		expect(html.replace(/<[^>]*>/g, "")).not.toMatch(/\d+\s*条分支/);
-		expect(html).toContain('aria-label="收起分支"');
+		expect(html).not.toContain("wb-group-toggle");
+		expect(html).not.toContain('aria-label="收起分支"');
+		expect(html).not.toMatch(/<button[^>]*data-step-key=/);
+		expect(html).toContain('role="img" class="wb-step wb-graph-step');
 	});
 });

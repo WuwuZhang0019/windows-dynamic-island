@@ -14,8 +14,8 @@ export function GroupRouteGraph({
 	layout,
 	compact,
 	selectedKey,
-	selectedRouteKey,
-	onSelect,
+	// selectedRouteKey,
+	// onSelect,
 }: {
 	layout: RouteGraphLayout;
 	compact: boolean;
@@ -55,18 +55,20 @@ export function GroupRouteGraph({
 					);
 				})}
 			</svg>
-			{layout.nodes.map(({ step, routeKeys, column, lane }) => (
-				<button
+			{/* Date: 2026-11-12. Station clicks are paused. Restore the button, routeKeys and callback bindings to re-enable:
+				onClick={() => onSelect(step.key, routeKeys.includes(selectedRouteKey) ? selectedRouteKey : routeKeys[0])}
+			*/}
+			{layout.nodes.map(({ step, column, lane }) => (
+				<span
 					key={step.key}
-					type="button"
+					role="img"
 					className={`wb-step wb-graph-step wb-step-${step.status}`}
 					data-step-key={step.key}
 					data-status={step.status}
 					aria-label={`${step.code} ${step.title} · ${labels[step.status]}`}
-					aria-pressed={step.key === selectedKey}
+					data-selected={step.key === selectedKey}
 					title={`${step.code} ${step.title} · ${labels[step.status]}`}
 					style={{ left: `${((column + 0.5) / layout.columns) * 100}%`, top: lane * gap + (compact ? 5 : 4) }}
-					onClick={() => onSelect(step.key, routeKeys.includes(selectedRouteKey) ? selectedRouteKey : routeKeys[0])}
 				>
 					<span className="wb-step-track">
 						<span className="wb-dot" />
@@ -78,7 +80,7 @@ export function GroupRouteGraph({
 							<span className="wb-step-state">{labels[step.status]}</span>
 						</>
 					)}
-				</button>
+				</span>
 			))}
 		</div>
 	);

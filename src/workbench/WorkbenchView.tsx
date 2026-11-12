@@ -1,5 +1,4 @@
 // Date: 2026-11-12. Route reader with explicit owner archival; execution states remain service-owned.
-import { ChevronDownIcon } from "lucide-react";
 import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setSetting, taskCardEffect, useSettings } from "../core/settings";
@@ -12,7 +11,7 @@ import { layoutRoutes, orderedTaskGroups, primaryRoute, type TaskGroup, taskGrou
 import { libraryError } from "./task-library";
 import "./workbench.css";
 
-type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number>; collapsed?: string[] };
+type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number> };
 const emptySnapshot: WorkbenchSnapshot = {
 	schemaVersion: "light-1.0",
 	date: "2026-11-11",
@@ -179,12 +178,10 @@ export function WorkbenchView({
 		route: memory?.route,
 		top: memory?.top ?? 0,
 		lanes: memory?.lanes ?? {},
-		collapsed: memory?.collapsed ?? preferences?.collapsed.filter((key) => key.startsWith("island/group/")) ?? [],
 	});
 	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
 	const savedOrder = taskOrder(settings);
 	const entries = orderedTaskGroups(taskGroups(snapshot, archivedKeys), draftOrder ?? savedOrder);
-	const [collapsedKeys, setCollapsedKeys] = useState<string[]>(positions.current.collapsed ?? []);
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [archiveMessage, setArchiveMessage] = useState("");
 
@@ -214,7 +211,6 @@ export function WorkbenchView({
 			readingPositions.get(memoryKey) ??
 			(envelope.mode === "service" && preferences
 				? {
-						collapsed: preferences.collapsed.filter((key) => key.startsWith("island/group/")),
 						selected: preferences.selected,
 						route: preferences.focus.at(-1),
 						top: preferences.y["island/list"] ?? 0,
@@ -244,7 +240,6 @@ export function WorkbenchView({
 			positions.current.selected =
 				currentStep(snapshot.steps.filter((step) => next?.stepKeys.includes(step.key)))?.key ?? "";
 		}
-		setCollapsedKeys(positions.current.collapsed ?? []);
 		setSelectedRouteKey(positions.current.route ?? "");
 		setSelectedKey(positions.current.selected);
 		readingPositions.set(memoryKey, { ...positions.current });
@@ -268,10 +263,7 @@ export function WorkbenchView({
 			const save = () =>
 				void savePreferences({
 					...preferences,
-					collapsed: [
-						...preferences.collapsed.filter((key) => !key.startsWith("island/group/")),
-						...(reading.collapsed ?? []),
-					],
+					collapsed: preferences.collapsed,
 					selected: reading.selected,
 					focus: reading.route ? [reading.route] : [],
 					scroll: {
@@ -304,15 +296,6 @@ export function WorkbenchView({
 			positions.current.route = route.key;
 			remember(true);
 		}
-	}
-	function toggleGroup(key: string) {
-		const token = `island/group/${key}`;
-		const next = collapsedKeys.includes(token)
-			? collapsedKeys.filter((item) => item !== token)
-			: [...collapsedKeys, token];
-		positions.current.collapsed = next;
-		setCollapsedKeys(next);
-		remember(true);
 	}
 	// Archive existing owner entries sequentially, retaining any unconfirmed remainder.
 	async function archiveEntry(group: TaskGroup, title: string) {
@@ -431,11 +414,9 @@ export function WorkbenchView({
 						<AnimatePresence mode="popLayout">
 							{entries.map((group, index) => {
 								const { key, project, plan, routes } = group;
-								const fullLayout = layoutRoutes(routes, snapshot.steps);
-								const steps = fullLayout.nodes.map((node) => node.step);
+								const layout = layoutRoutes(routes, snapshot.steps);
+								const steps = layout.nodes.map((node) => node.step);
 								const main = primaryRoute(routes);
-								const collapsed = collapsedKeys.includes(`island/group/${key}`);
-								const layout = collapsed && main ? layoutRoutes([main], snapshot.steps) : fullLayout;
 								const state = steps.some((step) => step.status === "blocked")
 									? "blocked"
 									: steps.some((step) => step.status === "running")
@@ -508,18 +489,6 @@ export function WorkbenchView({
 												</div>
 											)}
 											<div className="wb-route-actions">
-												{routes.length > 1 && (
-													<button
-														type="button"
-														className="wb-group-toggle"
-														aria-label={collapsed ? "展开分支" : "收起分支"}
-														title={collapsed ? "展开分支" : "收起分支"}
-														aria-expanded={!collapsed}
-														onClick={() => toggleGroup(key)}
-													>
-														<ChevronDownIcon size={14} aria-hidden="true" />
-													</button>
-												)}
 												<RouteArchiveButton
 													title={title}
 													disabled={!archiveTask || !!busyKey || connection.state !== "ready"}
