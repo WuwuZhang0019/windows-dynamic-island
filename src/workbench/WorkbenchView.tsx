@@ -12,7 +12,7 @@ import type {
 } from "./contract/protocol";
 import "./workbench.css";
 
-type Reading = { selected: string; top: number; lanes: Record<string, number> };
+type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number> };
 const emptySnapshot: WorkbenchSnapshot = {
 	schemaVersion: "light-1.0",
 	date: "2026-11-11",
@@ -76,12 +76,14 @@ export function WorkbenchSummary({
 }) {
 	const snapshot = envelope.snapshot ?? emptySnapshot;
 	const byKey = new Map(snapshot.steps.map((step) => [step.key, step]));
-	const remembered = readingPositions.get(`${envelope.mode}/${scenario}`)?.selected;
-	const focus = byKey.get(remembered ?? "") ?? byKey.get(preferences?.selected ?? "") ?? currentStep(snapshot.steps);
+	const remembered = readingPositions.get(`${envelope.mode}/${scenario}`);
+	const explicitRoute = snapshot.routes.find((route) => route.key === (remembered?.route ?? preferences?.focus.at(-1)));
+	const focus =
+		byKey.get(remembered?.selected ?? "") ?? byKey.get(preferences?.selected ?? "") ?? currentStep(snapshot.steps);
 	const routes = snapshot.routes.filter((route) => route.planKey === focus?.planKey).sort((a, b) => a.order - b.order);
 	// Date: 2026-11-12. Resolve one route, following ancestors for unlisted child stages.
 	let anchor = focus;
-	let route = routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
+	let route = explicitRoute ?? routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
 	const visited = new Set<string>();
 	while (!route && anchor?.parentKey && !visited.has(anchor.key)) {
 		visited.add(anchor.key);
@@ -168,9 +170,11 @@ export function WorkbenchView({
 	const memoryKey = `${envelope.mode}/${scenario}`;
 	const memory = readingPositions.get(memoryKey);
 	const [selectedKey, setSelectedKey] = useState(memory?.selected ?? currentStep(snapshot.steps)?.key ?? "");
+	const [selectedRouteKey, setSelectedRouteKey] = useState(memory?.route ?? "");
 	const listRef = useRef<HTMLDivElement>(null);
 	const positions = useRef<Reading>({
 		selected: selectedKey,
+		route: memory?.route,
 		top: memory?.top ?? 0,
 		lanes: memory?.lanes ?? {},
 	});
@@ -184,6 +188,7 @@ export function WorkbenchView({
 			(envelope.mode === "service" && preferences
 				? {
 						selected: preferences.selected,
+						route: preferences.focus.at(-1),
 						top: preferences.y["island/list"] ?? 0,
 						lanes: Object.fromEntries(
 							Object.entries(preferences.scroll)
@@ -195,6 +200,8 @@ export function WorkbenchView({
 		positions.current = saved ?? { selected: currentStep(snapshot.steps)?.key ?? "", top: 0, lanes: {} };
 		if (!snapshot.steps.some((step) => step.key === positions.current.selected))
 			positions.current.selected = currentStep(snapshot.steps)?.key ?? "";
+		if (!snapshot.routes.some((route) => route.key === positions.current.route)) positions.current.route = undefined;
+		setSelectedRouteKey(positions.current.route ?? "");
 		setSelectedKey(positions.current.selected);
 		readingPositions.set(memoryKey, { ...positions.current });
 		const list = listRef.current;
@@ -203,38 +210,52 @@ export function WorkbenchView({
 			for (const lane of list.querySelectorAll<HTMLElement>("[data-route-key]"))
 				lane.scrollLeft = positions.current.lanes[lane.dataset.routeKey ?? ""] ?? 0;
 		}
-	}, [memoryKey, snapshot.steps, preferences, envelope.mode, envelope.snapshot]);
+	}, [memoryKey, snapshot.steps, snapshot.routes, preferences, envelope.mode, envelope.snapshot]);
 	const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	useEffect(() => () => clearTimeout(saveTimer.current), []);
 
-	function remember() {
+	function remember(immediate = false) {
 		const list = listRef.current;
 		if (list) positions.current.top = list.scrollTop;
 		readingPositions.set(memoryKey, { ...positions.current });
 		if (envelope.mode === "service" && preferences && savePreferences && connection.state === "ready") {
 			clearTimeout(saveTimer.current);
 			const reading = structuredClone(positions.current);
-			saveTimer.current = setTimeout(
-				() =>
-					void savePreferences({
-						...preferences,
-						selected: reading.selected,
-						scroll: {
-							...preferences.scroll,
-							...Object.fromEntries(
-								Object.entries(reading.lanes).map(([key, value]) => [`island/route/${key}`, value]),
-							),
-						},
-						y: { ...preferences.y, "island/list": reading.top },
-					}),
-				250,
-			);
+			const save = () =>
+				void savePreferences({
+					...preferences,
+					selected: reading.selected,
+					focus: reading.route ? [reading.route] : [],
+					scroll: {
+						...preferences.scroll,
+						...Object.fromEntries(Object.entries(reading.lanes).map(([key, value]) => [`island/route/${key}`, value])),
+					},
+					y: { ...preferences.y, "island/list": reading.top },
+				});
+			if (immediate) save();
+			else saveTimer.current = setTimeout(save, 250);
 		}
 	}
-	function select(key: string) {
+	function select(key: string, routeKey: string) {
 		setSelectedKey(key);
+		setSelectedRouteKey(routeKey);
 		positions.current.selected = key;
-		remember();
+		positions.current.route = routeKey;
+		remember(true);
+	}
+	// Date: 2026-11-12. Card selection persists the route independently of shared stations.
+	function selectRoute(route: Route) {
+		const steps = route.stepKeys.flatMap((key) => {
+			const step = stepByKey.get(key);
+			return step ? [step] : [];
+		});
+		const anchor = steps.find((step) => step.key === selectedKey) ?? currentStep(steps);
+		if (anchor) select(anchor.key, route.key);
+		else {
+			setSelectedRouteKey(route.key);
+			positions.current.route = route.key;
+			remember(true);
+		}
 	}
 	function name(key: string) {
 		const step = stepByKey.get(key);
@@ -287,7 +308,13 @@ export function WorkbenchView({
 				</div>
 			)}
 			<div className="wb-main">
-				<motion.div className="wb-projects" ref={listRef} onScroll={remember} data-workbench-routes layoutScroll>
+				<motion.div
+					className="wb-projects"
+					ref={listRef}
+					onScroll={() => remember()}
+					data-workbench-routes
+					layoutScroll
+				>
 					{!snapshot.projects.length && (
 						<div className="wb-empty">
 							<span className="wb-empty-orbit">○</span>
@@ -316,6 +343,9 @@ export function WorkbenchView({
 								const context = [...new Set([project.name, plan?.name].filter((name) => name && name !== title))].join(
 									" · ",
 								);
+								const routeSelected = selectedRouteKey
+									? route?.key === selectedRouteKey
+									: steps.some((step) => step.key === selectedKey);
 								const delay = reducedMotion ? 0 : Math.min(index, 5) * 0.07;
 								return (
 									<motion.li
@@ -324,7 +354,7 @@ export function WorkbenchView({
 										data-route-card={route?.key}
 										data-project-key={project.key}
 										data-state={state}
-										data-selected={steps.some((step) => step.key === selectedKey)}
+										data-selected={routeSelected}
 										layout={reducedMotion ? false : "position"}
 										initial={reducedMotion ? false : { opacity: 0, y: 14, scale: 0.97 }}
 										animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -342,6 +372,16 @@ export function WorkbenchView({
 											layout: { duration: reducedMotion ? 0 : 0.25, delay: 0 },
 										}}
 									>
+										{route && (
+											<button
+												type="button"
+												className="wb-route-select"
+												data-route-select={route.key}
+												aria-label={`显示${project.name} · ${title}的路线缩略图`}
+												aria-pressed={routeSelected}
+												onClick={() => selectRoute(route)}
+											/>
+										)}
 										<header className="wb-route-heading">
 											<span className="wb-route-index" aria-hidden="true">
 												{String(index + 1).padStart(2, "0")}
@@ -386,7 +426,7 @@ export function WorkbenchView({
 																key={key}
 																aria-pressed={selectedKey === key}
 																title={`${step.code} ${step.title} · ${labels[step.status]}`}
-																onClick={() => select(key)}
+																onClick={() => select(key, route.key)}
 															>
 																<span
 																	className="wb-step-track"

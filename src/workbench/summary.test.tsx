@@ -32,6 +32,32 @@ describe("single-route thumbnail", () => {
 		}
 	});
 
+	test("explicit route selection wins when routes share a station", () => {
+		const envelope = createScenario("multi-project");
+		const routes = envelope.snapshot?.routes;
+		if (!routes || routes.length < 2) throw Error("Missing routes");
+		const first = routes[0];
+		const shared = { ...first, key: "shared-route", stepKeys: first.stepKeys.slice(0, 2) };
+		routes.push(shared);
+		const value = preferences(first.stepKeys[0]);
+		value.focus = [shared.key];
+		const html = renderToStaticMarkup(<WorkbenchSummary envelope={envelope} preferences={value} />);
+		expect(html).toContain('data-route-key="shared-route"');
+		expect(keys(html)).toEqual(shared.stepKeys);
+	});
+
+	test("an explicitly selected empty route does not display another route", () => {
+		const envelope = createScenario("multi-project");
+		const routes = envelope.snapshot?.routes;
+		if (!routes?.length) throw Error("Missing routes");
+		const empty = { ...routes[0], key: "empty-route", stepKeys: [] };
+		routes.push(empty);
+		const value = preferences(routes[0].stepKeys[0]);
+		value.focus = [empty.key];
+		const html = renderToStaticMarkup(<WorkbenchSummary envelope={envelope} preferences={value} />);
+		expect(keys(html)).toHaveLength(0);
+	});
+
 	test("an unlisted child selects its ancestor's route without adding another lane", () => {
 		const envelope = createScenario("multi-project");
 		const child = envelope.snapshot?.steps.find((step) => step.parentKey);

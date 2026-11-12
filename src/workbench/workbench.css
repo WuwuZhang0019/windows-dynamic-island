@@ -112,6 +112,7 @@
 	list-style: none;
 }
 .wb-route-card {
+	position: relative;
 	min-width: 0;
 	padding: 13px 14px 10px;
 	border: 1px solid #ffffff12;
@@ -131,7 +132,23 @@
 .wb-route-card[data-selected="true"] {
 	border-color: #a6aaf04d;
 }
+/* Date: 2026-11-12. The card button covers blank space; station buttons and rails remain interactive. */
+.wb .wb-route-select,
+.wb .wb-route-select:hover:not(:disabled) {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	padding: 0;
+	border: 0;
+	border-radius: inherit;
+	background: transparent;
+}
+.wb .wb-route-select:focus-visible {
+	outline-offset: -3px;
+}
 .wb-route-heading {
+	position: relative;
+	pointer-events: none;
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -197,6 +214,7 @@
 	color: #eab560;
 }
 .wb-route {
+	pointer-events: none;
 	min-width: 0;
 }
 .wb-route-source {
@@ -207,6 +225,10 @@
 	overflow-wrap: anywhere;
 }
 .wb-lane {
+	position: relative;
+	pointer-events: auto;
+	width: max-content;
+	max-width: 100%;
 	display: flex;
 	overflow: auto;
 	padding: 3px 2px 6px;
