@@ -7,6 +7,7 @@ mod memory;
 mod portable;
 mod settings;
 mod store;
+mod task_library;
 mod tray;
 mod updater;
 mod window;
@@ -47,6 +48,8 @@ pub fn run() {
             workbench_connection::island_workbench_pending_binding,
             workbench_connection::island_workbench_authorize_connection,
             workbench_connection::island_workbench_confirm_binding,
+            task_library::island_task_library_read,
+            task_library::island_task_library_change,
             workbench::island_workbench_read,
             workbench::island_workbench_save_preferences,
             window::set_hit_rects,

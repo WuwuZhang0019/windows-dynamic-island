@@ -1,4 +1,4 @@
-// Date: 2026-11-12. Read-only fixed workbench; no business transitions are performed here.
+// Date: 2026-11-12. Route reader with explicit owner archival; execution states remain service-owned.
 import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setSetting, useSettings } from "../core/settings";
@@ -12,7 +12,9 @@ import type {
 	WorkbenchSnapshot,
 } from "./contract/protocol";
 import { orderedTasks, TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
+import { RouteArchiveButton } from "./RouteArchiveButton";
 import { SortableRouteCard } from "./SortableRouteCard";
+import { libraryError } from "./task-library";
 import "./workbench.css";
 
 type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number> };
@@ -95,18 +97,22 @@ export function WorkbenchSummary({
 	envelope,
 	scenario = "multi-project",
 	preferences,
+	archivedKeys = [],
 }: {
 	envelope: Envelope;
 	scenario?: string;
 	preferences?: Preferences | null;
+	archivedKeys?: string[];
 }) {
+	const hidden = archivedKeys;
 	const snapshot = envelope.snapshot ?? emptySnapshot;
+	const availableRoutes = snapshot.routes.filter((route) => !hidden.includes(route.key));
 	const byKey = new Map(snapshot.steps.map((step) => [step.key, step]));
 	const remembered = readingPositions.get(`${envelope.mode}/${scenario}`);
-	const explicitRoute = snapshot.routes.find((route) => route.key === (remembered?.route ?? preferences?.focus.at(-1)));
+	const explicitRoute = availableRoutes.find((route) => route.key === (remembered?.route ?? preferences?.focus.at(-1)));
 	const focus =
 		byKey.get(remembered?.selected ?? "") ?? byKey.get(preferences?.selected ?? "") ?? currentStep(snapshot.steps);
-	const routes = snapshot.routes.filter((route) => route.planKey === focus?.planKey).sort((a, b) => a.order - b.order);
+	const routes = availableRoutes.filter((route) => route.planKey === focus?.planKey).sort((a, b) => a.order - b.order);
 	// Date: 2026-11-12. Resolve one route, following ancestors for unlisted child stages.
 	let anchor = focus;
 	let route = explicitRoute ?? routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
@@ -118,7 +124,7 @@ export function WorkbenchSummary({
 		anchor = parent;
 		route = routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
 	}
-	route ??= routes[0];
+	route ??= routes[0] ?? availableRoutes[0];
 	const routeSteps = (route?.stepKeys ?? []).flatMap((key) => {
 		const step = byKey.get(key);
 		return step ? [step] : [];
@@ -161,6 +167,8 @@ export interface WorkbenchViewProps {
 	preferences?: Preferences | null;
 	savePreferences?: (value: Preferences) => Promise<void>;
 	preferenceMessage?: string;
+	archivedKeys?: string[];
+	archiveTask?: (key: string) => Promise<void>;
 }
 
 export function WorkbenchView({
@@ -172,6 +180,8 @@ export function WorkbenchView({
 	preferences,
 	savePreferences,
 	preferenceMessage,
+	archivedKeys = [],
+	archiveTask,
 }: WorkbenchViewProps) {
 	const reducedMotion = useReducedMotion();
 	const settings = useSettings();
@@ -192,7 +202,11 @@ export function WorkbenchView({
 	});
 	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
 	const savedOrder = taskOrder(settings);
-	const entries = orderedTasks(routeEntries(snapshot), draftOrder ?? savedOrder);
+	const hidden = archivedKeys;
+	const allEntries = orderedTasks(routeEntries(snapshot), draftOrder ?? savedOrder);
+	const entries = allEntries.filter((entry) => !hidden.includes(entry.key));
+	const [busyKey, setBusyKey] = useState<string | null>(null);
+	const [archiveMessage, setArchiveMessage] = useState("");
 
 	useLayoutEffect(() => {
 		if (!envelope.snapshot) return;
@@ -214,6 +228,21 @@ export function WorkbenchView({
 		if (!snapshot.steps.some((step) => step.key === positions.current.selected))
 			positions.current.selected = currentStep(snapshot.steps)?.key ?? "";
 		if (!snapshot.routes.some((route) => route.key === positions.current.route)) positions.current.route = undefined;
+		const hidden = archivedKeys;
+		const hiddenSelection =
+			hidden.includes(positions.current.route ?? "") ||
+			(snapshot.routes.some(
+				(route) => hidden.includes(route.key) && route.stepKeys.includes(positions.current.selected),
+			) &&
+				!snapshot.routes.some(
+					(route) => !hidden.includes(route.key) && route.stepKeys.includes(positions.current.selected),
+				));
+		if (hiddenSelection) {
+			const next = snapshot.routes.find((route) => !hidden.includes(route.key));
+			positions.current.route = next?.key;
+			positions.current.selected =
+				currentStep(snapshot.steps.filter((step) => next?.stepKeys.includes(step.key)))?.key ?? "";
+		}
 		setSelectedRouteKey(positions.current.route ?? "");
 		setSelectedKey(positions.current.selected);
 		readingPositions.set(memoryKey, { ...positions.current });
@@ -223,7 +252,7 @@ export function WorkbenchView({
 			for (const lane of list.querySelectorAll<HTMLElement>(".wb-lane[data-route-key]"))
 				lane.scrollLeft = positions.current.lanes[lane.dataset.routeKey ?? ""] ?? 0;
 		}
-	}, [memoryKey, snapshot.steps, snapshot.routes, preferences, envelope.mode, envelope.snapshot]);
+	}, [memoryKey, snapshot.steps, snapshot.routes, preferences, envelope.mode, envelope.snapshot, archivedKeys]);
 	const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	useEffect(() => () => clearTimeout(saveTimer.current), []);
 
@@ -268,6 +297,19 @@ export function WorkbenchView({
 			setSelectedRouteKey(route.key);
 			positions.current.route = route.key;
 			remember(true);
+		}
+	}
+	// Date: 2026-11-12. Archive after owner confirmation; failed or unknown writes remain visible.
+	async function archiveEntry(key: string, title: string) {
+		if (!archiveTask || busyKey) return;
+		setBusyKey(key);
+		try {
+			await archiveTask(key);
+			setArchiveMessage(`已归档：${title}，可在设置 → 任务列表中查看`);
+		} catch (error) {
+			setArchiveMessage(libraryError(error));
+		} finally {
+			setBusyKey(null);
 		}
 	}
 	function reorder(keys: string[]) {
@@ -356,6 +398,12 @@ export function WorkbenchView({
 							<span>{envelope.snapshot ? "空快照不代表任务已全部完成" : "当前没有可展示的有效快照"}</span>
 						</div>
 					)}
+					{snapshot.projects.length > 0 && entries.length === 0 && (
+						<div className="wb-empty">
+							<strong>列表中暂无任务</strong>
+							<span>已归档任务可在设置 → 任务列表中查看。</span>
+						</div>
+					)}
 					<Reorder.Group
 						as="ul"
 						axis="y"
@@ -409,17 +457,15 @@ export function WorkbenchView({
 												className="wb-route-select"
 												data-route-select={route.key}
 												aria-label={`显示${project.name} · ${title}的路线缩略图`}
+												title={context ? `${title} — ${context}` : title}
 												aria-pressed={routeSelected}
 												onClick={() => selectRoute(route)}
 											/>
 										)}
 										<header className="wb-route-heading">
-											<span className="wb-route-index" aria-hidden="true">
-												{String(index + 1).padStart(2, "0")}
-											</span>
 											<div className="wb-route-title">
-												<h2>{title}</h2>
-												{context && <p>{context}</p>}
+												<h2 title={title}>{title}</h2>
+												{context && <p title={context}>{context}</p>}
 											</div>
 											{taskSize(settings) === "small" && steps.length > 0 && (
 												<span className="wb-row-thumbnail" data-route-preview={route?.key} aria-hidden="true">
@@ -430,14 +476,13 @@ export function WorkbenchView({
 													/>
 												</span>
 											)}
-											{route && (
-												<div className="wb-route-progress">
-													<span className="wb-route-state">{labels[state]}</span>
-													<small>
-														完成 {completed}/{steps.length}
-													</small>
-												</div>
-											)}
+											<div className="wb-route-actions">
+												<RouteArchiveButton
+													title={title}
+													disabled={!archiveTask || !!busyKey || connection.state !== "ready"}
+													onArchive={() => void archiveEntry(key, title)}
+												/>
+											</div>
 										</header>
 										{route ? (
 											<div className="wb-route">
@@ -494,6 +539,11 @@ export function WorkbenchView({
 					</Reorder.Group>
 				</motion.div>
 			</div>
+			{archiveMessage && (
+				<div className="wb-archive-notice" role="status">
+					{archiveMessage}
+				</div>
+			)}
 		</section>
 	);
 }

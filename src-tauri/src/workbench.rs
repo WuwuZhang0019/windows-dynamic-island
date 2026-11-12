@@ -92,7 +92,7 @@ fn window_allowed(label: &str) -> Result<(), String> {
         Err("FORBIDDEN".into())
     }
 }
-async fn request(data: &Path, value: Option<Value>) -> Result<Value, String> {
+pub(crate) async fn request(data: &Path, value: Option<Value>) -> Result<Value, String> {
     let (endpoint, token, generation) = connection(data)?;
     // The updater enables reqwest's rustls-no-provider feature globally. Match its
     // existing ring provider initialization even though this bridge permits HTTP only.

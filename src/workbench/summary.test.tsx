@@ -9,6 +9,32 @@ const preferences = (selected: string): Preferences => ({ collapsed: [], selecte
 const keys = (html: string) => [...html.matchAll(/data-step-key="([^"]+)"/g)].map((match) => match[1]);
 
 describe("single-route thumbnail", () => {
+	test("archived selection falls back to a visible route and archived cards are removed from the active list", () => {
+		const envelope = createScenario("multi-project");
+		const first = envelope.snapshot?.routes[0];
+		if (!first) throw Error("Missing route");
+		const value = preferences(first.stepKeys[0]);
+		value.focus = [first.key];
+		const html = renderToStaticMarkup(
+			<WorkbenchSummary envelope={envelope} preferences={value} archivedKeys={[first.key]} />,
+		);
+		expect(html).not.toContain(`data-route-key="${first.key}"`);
+		const list = renderToStaticMarkup(
+			<WorkbenchView
+				envelope={envelope}
+				preferences={value}
+				archivedKeys={[first.key]}
+				scenario="archive-test"
+				setScenario={() => {}}
+				refresh={() => {}}
+			/>,
+		);
+		expect(list).not.toContain(`data-route-select="${first.key}"`);
+		expect(list).not.toContain("wb-route-index");
+		expect(list).toContain("wb-route-archive");
+		expect(list).not.toContain("wb-route-delete");
+	});
+
 	test("renders one whole route instead of all routes and unassigned stages", () => {
 		const envelope = createScenario("multi-project");
 		const route = envelope.snapshot?.routes[0];

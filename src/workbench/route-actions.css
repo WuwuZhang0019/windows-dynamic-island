@@ -1,0 +1,94 @@
+/* Date: 2026-11-12. Adapted from Uiverse.io by vinodjangid07, smart-emu-83 (MIT).
+   Keep the animation inside a fixed-width control so route diagrams do not shift. */
+.wb-route-actions {
+	position: relative;
+	pointer-events: auto;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	flex: 0 0 32px;
+}
+.wb-route-delete {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: rgb(20, 20, 20);
+	color: white;
+	box-shadow: 0 0 12px #0000002a;
+	overflow: hidden;
+	transition:
+		background-color 0.3s,
+		border-radius 0.3s;
+}
+.wb-delete-icon {
+	width: 11px;
+	height: 14px;
+	fill: currentColor;
+	transition:
+		width 0.3s,
+		height 0.3s,
+		transform 0.3s;
+}
+.wb-route-delete::before {
+	position: absolute;
+	top: -15px;
+	content: "删除";
+	font-size: 2px;
+	opacity: 0;
+	transition:
+		font-size 0.3s,
+		opacity 0.3s,
+		transform 0.3s;
+}
+.wb-route-delete:is(:hover, :focus-visible):not(:disabled) {
+	border-radius: 9px;
+	background: rgb(255, 69, 69);
+}
+.wb-route-delete:is(:hover, :focus-visible) .wb-delete-icon {
+	width: 28px;
+	height: 28px;
+	transform: translateY(65%);
+}
+.wb-route-delete:is(:hover, :focus-visible)::before {
+	font-size: 11px;
+	opacity: 1;
+	transform: translateY(22px);
+}
+@media (prefers-reduced-motion: reduce) {
+	.wb-route-delete,
+	.wb-delete-icon,
+	.wb-route-delete::before {
+		transition: none;
+	}
+}
+
+.wb-route-archive {
+	display: grid;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: 1px solid #ffffff10;
+	border-radius: 9px;
+	background: #ffffff06;
+	color: #ffffff70;
+	cursor: pointer;
+	transition:
+		color 0.2s,
+		background 0.2s;
+}
+.wb-route-archive:is(:hover, :focus-visible):not(:disabled) {
+	color: #fff;
+	background: #ffffff16;
+}
+.wb-route-archive:disabled,
+.wb-route-delete:disabled {
+	opacity: 0.4;
+	cursor: default;
+}

@@ -1,8 +1,9 @@
-// Date: 2026-11-12. Modules exposes only the task-list display size.
+// Date: 2026-11-12. Task size and archived task management share this settings page.
 import { Card, Row } from "../../components/ui/card";
 import { Segmented } from "../../components/ui/form";
 import { setSetting, type Values } from "../../core/settings";
 import { TASK_SIZE_KEY, taskSize } from "../../workbench/list-preferences";
+import { ArchivedTasks } from "../components/ArchivedTasks";
 import { Title } from "../components/Heading";
 
 export function ModulesPage({ values }: { values: Values }) {
@@ -21,6 +22,7 @@ export function ModulesPage({ values }: { values: Values }) {
 					/>
 				</Row>
 			</Card>
+			<ArchivedTasks />
 		</>
 	);
 }

@@ -76,6 +76,7 @@ export function islandContent(
 					envelope={workbench.envelope}
 					scenario={workbench.scenario}
 					preferences={workbench.preferences}
+					archivedKeys={workbench.archivedKeys}
 				/>
 			</div>
 		),

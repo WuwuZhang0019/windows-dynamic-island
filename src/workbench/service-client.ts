@@ -1,4 +1,5 @@
 // Date: 2026-11-12. Native-only transport; credentials and paths never enter the WebView.
+
 import { invoke } from "@tauri-apps/api/core";
 import {
 	acceptEnvelope,
@@ -7,6 +8,7 @@ import {
 	type WorkbenchClient,
 	type WorkbenchEnvelope,
 } from "./contract/protocol";
+import { checkedArchives, type TaskLibraryPanel } from "./task-library";
 
 export type NativeCall = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 export const blankPreferences = (): Preferences => ({ collapsed: [], selected: "", focus: [], scroll: {}, y: {} });
@@ -14,7 +16,7 @@ const capabilities = {
 	threadJump: false,
 	worktreeOpen: false,
 	businessWrite: false,
-	reason: "当前宿主仅开放读取与阅读偏好；可复制会话标识或工作树路径",
+	reason: "任务状态由执行会话更新；支持任务归档与管理",
 };
 export function failedEnvelope(
 	mode: "service" | "simulation",
@@ -49,6 +51,14 @@ export function failedEnvelope(
 export class ServiceWorkbenchClient implements WorkbenchClient {
 	readonly mode = "service" as const;
 	private current: WorkbenchEnvelope | null = null;
+	private archives: string[] = [];
+	private supportsLibrary = false;
+	get archivedKeys() {
+		return [...this.archives];
+	}
+	get librarySupported() {
+		return this.supportsLibrary;
+	}
 	private readSequence = 0;
 	private savedPreferences: Preferences | null = null;
 	private initializedPreferences = false;
@@ -60,7 +70,7 @@ export class ServiceWorkbenchClient implements WorkbenchClient {
 	async read(): Promise<WorkbenchEnvelope> {
 		const sequence = ++this.readSequence;
 		try {
-			const panel = await this.call<{ snapshot: unknown; preferences: Preferences | null }>("island_workbench_read");
+			const panel = await this.call<TaskLibraryPanel>("island_workbench_read");
 			if (sequence !== this.readSequence)
 				return structuredClone(this.current ?? failedEnvelope(this.mode, "READ_SUPERSEDED"));
 			const incoming = {
@@ -72,7 +82,7 @@ export class ServiceWorkbenchClient implements WorkbenchClient {
 					state: "ready",
 					healthy: true,
 					lastSuccessAt: new Date().toISOString(),
-					message: "真实服务快照；当前仅开放读取与阅读偏好",
+					message: "真实服务任务，可归档后在设置中管理",
 				},
 				pendingOperation: this.current?.pendingOperation ?? null,
 			};
@@ -81,6 +91,8 @@ export class ServiceWorkbenchClient implements WorkbenchClient {
 				this.savedPreferences = checkedPreferences(panel.preferences ?? blankPreferences());
 				this.initializedPreferences = true;
 			}
+			this.archives = checkedArchives(panel.library).map((entry) => entry.key);
+			this.supportsLibrary = panel.librarySupported === true;
 			this.current = next;
 		} catch (error) {
 			if (sequence === this.readSequence) this.current = failedEnvelope(this.mode, error, this.current);

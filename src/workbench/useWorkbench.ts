@@ -1,8 +1,10 @@
 // Date: 2026-11-12. Explicit simulation preview is isolated from the native service client.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { onEvent } from "../core/bridge";
 import { MockWorkbenchClient, type ScenarioId, scenarios } from "./contract/fixtures";
 import { acceptEnvelope, type Preferences, type WorkbenchEnvelope } from "./contract/protocol";
 import { failedEnvelope, ServiceWorkbenchClient } from "./service-client";
+import { changeTaskLibrary } from "./task-library";
 
 export function useWorkbench() {
 	const [client] = useState(() =>
@@ -14,6 +16,8 @@ export function useWorkbench() {
 	const current = useRef<WorkbenchEnvelope | null>(null);
 	const alive = useRef(false);
 	const [envelope, setEnvelope] = useState<WorkbenchEnvelope | null>(null);
+	const [archivedKeys, setArchivedKeys] = useState<string[]>([]);
+	const [librarySupported, setLibrarySupported] = useState(false);
 	const [preferences, setPreferences] = useState<Preferences | null>(null);
 	const [preferenceMessage, setPreferenceMessage] = useState("");
 	const [scenario, updateScenario] = useState<ScenarioId>("multi-project");
@@ -25,7 +29,11 @@ export function useWorkbench() {
 			const next = acceptEnvelope(current.current, incoming);
 			current.current = next;
 			setEnvelope(next);
-			if (client instanceof ServiceWorkbenchClient) setPreferences(client.preferences);
+			if (client instanceof ServiceWorkbenchClient) {
+				setPreferences(client.preferences);
+				setArchivedKeys(client.archivedKeys);
+				setLibrarySupported(client.librarySupported);
+			}
 		} catch (error) {
 			if (token !== request.current || !alive.current) return;
 			const next = failedEnvelope(client.mode, error, current.current);
@@ -63,6 +71,17 @@ export function useWorkbench() {
 		},
 		[client],
 	);
+	const archiveTask = useCallback(
+		async (key: string) => {
+			const revision = current.current?.snapshot?.revision;
+			if (!Number.isSafeInteger(revision) || revision === null || revision === undefined)
+				throw Error("OWNER_UNAVAILABLE");
+			await changeTaskLibrary("archive", key, revision);
+			await read();
+		},
+		[read],
+	);
+	useEffect(() => onEvent("task-library-changed", () => void read()), [read]);
 	useEffect(() => {
 		alive.current = true;
 		void read();
@@ -101,6 +120,8 @@ export function useWorkbench() {
 		preferences,
 		savePreferences,
 		preferenceMessage,
+		archivedKeys,
+		archiveTask: librarySupported ? archiveTask : undefined,
 	};
 }
 export type WorkbenchState = ReturnType<typeof useWorkbench>;
