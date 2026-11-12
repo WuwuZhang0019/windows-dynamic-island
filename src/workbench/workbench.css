@@ -122,14 +122,21 @@
 		0 3px 12px #00000018,
 		inset 0 1px 0 #ffffff03;
 	transition:
-		border-color 180ms,
-		background-color 180ms;
+		border-color 220ms,
+		background-color 220ms,
+		box-shadow 220ms;
 }
-.wb-route-card:hover {
-	border-color: #ffffff28;
-	background-color: #ffffff03;
+/* Date: 2026-11-12. Whole-card button feedback also follows keyboard focus. */
+.wb-route-card:hover,
+.wb-route-card:focus-within {
+	border-color: #a6aaf080;
+	background-color: #a6aaf00b;
+	box-shadow:
+		0 7px 18px #00000038,
+		0 0 14px #a6aaf018,
+		inset 0 1px 0 #ffffff14;
 }
-.wb-route-card[data-selected="true"] {
+.wb-route-card[data-selected="true"]:not(:hover):not(:focus-within) {
 	border-color: #a6aaf04d;
 }
 /* Date: 2026-11-12. The card button covers blank space; station buttons and rails remain interactive. */

@@ -47,6 +47,8 @@ export const SortableRouteCard = forwardRef<HTMLLIElement, Props>(function Sorta
 			layout="position"
 			initial={reducedMotion ? false : { opacity: 0, scale: 0.97 }}
 			animate={{ opacity: 1, scale: 1 }}
+			whileHover={reducedMotion ? undefined : { y: -2 }}
+			whileTap={reducedMotion ? undefined : { y: 0, scale: 0.995 }}
 			exit={{ opacity: 0, transition: { duration: reducedMotion ? 0 : 0.15 } }}
 			transition={{
 				type: "spring",
