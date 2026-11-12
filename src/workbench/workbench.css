@@ -101,58 +101,110 @@
 	scrollbar-color: #ffffff26 transparent;
 	overscroll-behavior: contain;
 }
-.wb-projects {
-	padding-right: 4px;
+/* Date: 2026-11-12. Each route is a stable card in the animated list. */
+.wb-route-list {
+	position: relative;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px;
+	margin: 0;
+	padding: 2px 6px 12px 2px;
+	list-style: none;
 }
-.wb-project {
-	margin-bottom: 17px;
+.wb-route-card {
+	min-width: 0;
+	padding: 13px 14px 10px;
+	border: 1px solid #ffffff12;
+	border-radius: 14px;
+	background: linear-gradient(135deg, #ffffff07, #ffffff02);
+	box-shadow:
+		0 3px 12px #00000018,
+		inset 0 1px 0 #ffffff03;
+	transition:
+		border-color 180ms,
+		background-color 180ms;
 }
-.wb-project-heading {
+.wb-route-card:hover {
+	border-color: #ffffff28;
+	background-color: #ffffff03;
+}
+.wb-route-card[data-selected="true"] {
+	border-color: #a6aaf04d;
+}
+.wb-route-heading {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	margin: 2px 0 8px;
+	gap: 10px;
+	margin-bottom: 12px;
 }
-.wb-project-heading h2 {
-	font-size: 13px;
-	font-weight: 600;
+.wb-route-index {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	flex-shrink: 0;
+	border: 1px solid #ffffff0c;
+	border-radius: 10px;
+	background: #ffffff06;
+	color: var(--text-dim);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+.wb-route-title {
+	flex: 1;
+	min-width: 0;
+}
+.wb-route-title h2 {
 	margin: 0;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
 }
-.wb-project-heading > span {
+.wb-route-title p {
+	margin: 3px 0 0;
 	font-size: 10px;
 	color: var(--text-faint);
+	overflow-wrap: anywhere;
 }
-.wb-plan {
-	padding: 9px 10px 6px;
-	border: 1px solid #ffffff10;
-	border-radius: 10px;
-	background: #ffffff03;
-	margin-bottom: 7px;
+.wb-route-progress {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 4px;
+	flex-shrink: 0;
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
 }
-.wb-plan h3 {
-	font-size: 11px;
-	font-weight: 500;
+.wb-route-progress small {
+	font-size: 9px;
+	color: var(--text-faint);
+}
+.wb-route-state {
+	padding: 2px 7px;
+	border-radius: 6px;
+	background: #ffffff07;
 	color: var(--text-dim);
-	margin: 0 0 10px;
+}
+.wb-route-card:is([data-state="completed"], [data-state="running"]) .wb-route-index,
+.wb-route-card:is([data-state="completed"], [data-state="running"]) .wb-route-state {
+	background: #00c26a12;
+	color: var(--wb-progress-green);
+}
+.wb-route-card[data-state="blocked"] .wb-route-index,
+.wb-route-card[data-state="blocked"] .wb-route-state {
+	background: #eab56012;
+	color: #eab560;
 }
 .wb-route {
-	margin-bottom: 10px;
+	min-width: 0;
 }
-.wb-route-caption {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	color: var(--text-dim);
-	font-size: 10px;
-	margin-bottom: 5px;
-}
-.wb-route-caption small {
+.wb-route-source {
+	display: block;
+	margin-bottom: 6px;
 	color: #a6aaf0;
-	font-size: 9px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	font-size: 10px;
+	overflow-wrap: anywhere;
 }
 .wb-lane {
 	display: flex;
@@ -407,6 +459,9 @@
 	}
 }
 @media (prefers-reduced-motion: reduce) {
+	.wb-route-card {
+		transition: none;
+	}
 	.wb-step-running .wb-dot::after {
 		animation: none;
 	}

@@ -1,6 +1,15 @@
 // Date: 2026-11-12. Read-only fixed workbench; no business transitions are performed here.
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { WorkbenchEnvelope as Envelope, Preferences, Step, WorkbenchSnapshot } from "./contract/protocol";
+import type {
+	WorkbenchEnvelope as Envelope,
+	Plan,
+	Preferences,
+	Project,
+	Route,
+	Step,
+	WorkbenchSnapshot,
+} from "./contract/protocol";
 import "./workbench.css";
 
 type Reading = { selected: string; top: number; lanes: Record<string, number> };
@@ -115,6 +124,22 @@ export function WorkbenchSummary({
 		</div>
 	);
 }
+// Date: 2026-11-12. Stable route identities keep live updates and reading positions intact.
+type RouteEntry = { key: string; project: Project; plan?: Plan; route?: Route };
+function routeEntries(snapshot: WorkbenchSnapshot): RouteEntry[] {
+	const entries: RouteEntry[] = [];
+	for (const project of snapshot.projects) {
+		const plans = snapshot.plans.filter((plan) => plan.projectKey === project.key);
+		if (!plans.length) entries.push({ key: project.key, project });
+		for (const plan of plans) {
+			const routes = snapshot.routes.filter((route) => route.planKey === plan.key).sort((a, b) => a.order - b.order);
+			if (!routes.length) entries.push({ key: plan.key, project, plan });
+			for (const route of routes) entries.push({ key: route.key, project, plan, route });
+		}
+	}
+	return entries;
+}
+
 export interface WorkbenchViewProps {
 	envelope: Envelope;
 	refresh: () => void | Promise<void>;
@@ -137,6 +162,7 @@ export function WorkbenchView({
 	savePreferences,
 	preferenceMessage,
 }: WorkbenchViewProps) {
+	const reducedMotion = useReducedMotion();
 	const { connection, pendingOperation } = envelope;
 	const snapshot = envelope.snapshot ?? emptySnapshot;
 	const memoryKey = `${envelope.mode}/${scenario}`;
@@ -149,6 +175,7 @@ export function WorkbenchView({
 		lanes: memory?.lanes ?? {},
 	});
 	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
+	const entries = routeEntries(snapshot);
 
 	useLayoutEffect(() => {
 		if (!envelope.snapshot) return;
@@ -260,7 +287,7 @@ export function WorkbenchView({
 				</div>
 			)}
 			<div className="wb-main">
-				<div className="wb-projects" ref={listRef} onScroll={remember} data-workbench-routes>
+				<motion.div className="wb-projects" ref={listRef} onScroll={remember} data-workbench-routes layoutScroll>
 					{!snapshot.projects.length && (
 						<div className="wb-empty">
 							<span className="wb-empty-orbit">○</span>
@@ -268,80 +295,124 @@ export function WorkbenchView({
 							<span>{envelope.snapshot ? "空快照不代表任务已全部完成" : "当前没有可展示的有效快照"}</span>
 						</div>
 					)}
-					{snapshot.projects.map((project) => (
-						<section key={project.key} className="wb-project" data-project-key={project.key}>
-							<div className="wb-project-heading">
-								<h2>{project.name}</h2>
-								<span>{snapshot.plans.filter((plan) => plan.projectKey === project.key).length} 个方案</span>
-							</div>
-							{snapshot.plans
-								.filter((plan) => plan.projectKey === project.key)
-								.map((plan) => {
-									const routes = snapshot.routes.filter((route) => route.planKey === plan.key);
-									return (
-										<div className="wb-plan" key={plan.key}>
-											<h3>{plan.name}</h3>
-											{routes.length ? (
-												routes.map((route) => (
-													<div className="wb-route" key={route.key}>
-														<div className="wb-route-caption">
-															<span>{route.label}</span>
-															{route.sourceStepKey && (
-																<small title={name(route.sourceStepKey)}>
-																	↳ 来源 {stepByKey.get(route.sourceStepKey)?.code ?? route.sourceStepKey}
-																</small>
-															)}
-														</div>
-														<div
-															className="wb-lane"
-															data-route-key={route.key}
-															onScroll={(event) => {
-																positions.current.lanes[route.key] = event.currentTarget.scrollLeft;
-																remember();
-															}}
-														>
-															{route.stepKeys.map((key, index) => {
-																const step = stepByKey.get(key);
-																if (!step) return null;
-																return (
-																	<button
-																		type="button"
-																		className={`wb-step wb-step-${step.status}`}
-																		data-step-key={key}
-																		data-status={step.status}
-																		key={key}
-																		aria-pressed={selectedKey === key}
-																		title={`${step.code} ${step.title} · ${labels[step.status]}`}
-																		onClick={() => select(key)}
-																	>
-																		<span
-																			className="wb-step-track"
-																			data-before={index > 0 ? step.status : undefined}
-																			data-after={stepByKey.get(route.stepKeys[index + 1])?.status}
-																		>
-																			<span className="wb-dot" />
-																		</span>
-																		<span className="wb-step-code">{step.code}</span>
-																		<span className="wb-step-title">{step.title}</span>
-																		<span className="wb-step-state">{labels[step.status]}</span>
-																	</button>
-																);
-															})}
-														</div>
-														{route.returnStepKey && (
-															<small className="wb-return">汇入 {name(route.returnStepKey)}</small>
-														)}
-													</div>
-												))
-											) : (
-												<p className="wb-muted">此方案暂无路线</p>
+					<ul className="wb-route-list" aria-label="路线列表" key={memoryKey}>
+						<AnimatePresence mode="popLayout">
+							{entries.map(({ key, project, plan, route }, index) => {
+								const steps = (route?.stepKeys ?? []).flatMap((key) => {
+									const step = stepByKey.get(key);
+									return step ? [step] : [];
+								});
+								const completed = steps.filter((step) => step.status === "completed").length;
+								const state = steps.some((step) => step.status === "blocked")
+									? "blocked"
+									: steps.some((step) => step.status === "running")
+										? "running"
+										: steps.length && completed === steps.length
+											? "completed"
+											: steps.length && steps.every((step) => step.status === "cancelled")
+												? "cancelled"
+												: "pending";
+								const title = route?.label || plan?.name || project.name;
+								const context = [...new Set([project.name, plan?.name].filter((name) => name && name !== title))].join(
+									" · ",
+								);
+								const delay = reducedMotion ? 0 : Math.min(index, 5) * 0.07;
+								return (
+									<motion.li
+										key={key}
+										className="wb-route-card"
+										data-route-card={route?.key}
+										data-project-key={project.key}
+										data-state={state}
+										data-selected={steps.some((step) => step.key === selectedKey)}
+										layout={reducedMotion ? false : "position"}
+										initial={reducedMotion ? false : { opacity: 0, y: 14, scale: 0.97 }}
+										animate={{ opacity: 1, y: 0, scale: 1 }}
+										exit={{
+											opacity: 0,
+											scale: reducedMotion ? 1 : 0.97,
+											transition: { duration: reducedMotion ? 0 : 0.15 },
+										}}
+										transition={{
+											type: "spring",
+											stiffness: 360,
+											damping: 30,
+											delay,
+											opacity: { duration: reducedMotion ? 0 : 0.22, delay },
+											layout: { duration: reducedMotion ? 0 : 0.25, delay: 0 },
+										}}
+									>
+										<header className="wb-route-heading">
+											<span className="wb-route-index" aria-hidden="true">
+												{String(index + 1).padStart(2, "0")}
+											</span>
+											<div className="wb-route-title">
+												<h2>{title}</h2>
+												{context && <p>{context}</p>}
+											</div>
+											{route && (
+												<div className="wb-route-progress">
+													<span className="wb-route-state">{labels[state]}</span>
+													<small>
+														完成 {completed}/{steps.length}
+													</small>
+												</div>
 											)}
-										</div>
-									);
-								})}
-						</section>
-					))}
-				</div>
+										</header>
+										{route ? (
+											<div className="wb-route">
+												{route.sourceStepKey && (
+													<small className="wb-route-source" title={name(route.sourceStepKey)}>
+														↳ 来源 {name(route.sourceStepKey)}
+													</small>
+												)}
+												<div
+													className="wb-lane"
+													data-route-key={route.key}
+													onScroll={(event) => {
+														positions.current.lanes[route.key] = event.currentTarget.scrollLeft;
+														remember();
+													}}
+												>
+													{route.stepKeys.map((key, index) => {
+														const step = stepByKey.get(key);
+														if (!step) return null;
+														return (
+															<button
+																type="button"
+																className={`wb-step wb-step-${step.status}`}
+																data-step-key={key}
+																data-status={step.status}
+																key={key}
+																aria-pressed={selectedKey === key}
+																title={`${step.code} ${step.title} · ${labels[step.status]}`}
+																onClick={() => select(key)}
+															>
+																<span
+																	className="wb-step-track"
+																	data-before={index > 0 ? step.status : undefined}
+																	data-after={stepByKey.get(route.stepKeys[index + 1])?.status}
+																>
+																	<span className="wb-dot" />
+																</span>
+																<span className="wb-step-code">{step.code}</span>
+																<span className="wb-step-title">{step.title}</span>
+																<span className="wb-step-state">{labels[step.status]}</span>
+															</button>
+														);
+													})}
+												</div>
+												{route.returnStepKey && <small className="wb-return">汇入 {name(route.returnStepKey)}</small>}
+											</div>
+										) : (
+											<p className="wb-muted">{plan ? "此方案暂无路线" : "此项目暂无方案"}</p>
+										)}
+									</motion.li>
+								);
+							})}
+						</AnimatePresence>
+					</ul>
+				</motion.div>
 			</div>
 		</section>
 	);
