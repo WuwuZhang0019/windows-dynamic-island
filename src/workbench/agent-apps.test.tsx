@@ -56,6 +56,10 @@ test("top pills retain the original icons, support independent connections, and 
 	const render = () => renderToStaticMarkup(<AgentAppTabs selected="all" onSelect={() => {}} envelope={envelope} />);
 	expect(render().match(/data-connected="true"/g)).toHaveLength(2);
 	expect(render()).not.toContain("任务岛");
+	expect(render()).toContain("/ai-icons/openai.svg");
+	expect(render()).toContain("/ai-icons/claude-color.svg");
+	envelope.agentApps.push({ appId: "dsh", name: "dsh", enabled: false, connected: false, lastSeenAt: null });
+	expect(render()).not.toContain('data-agent-filter="dsh"');
 	envelope.connection.state = "offline";
 	expect(render()).not.toContain('data-connected="true"');
 });

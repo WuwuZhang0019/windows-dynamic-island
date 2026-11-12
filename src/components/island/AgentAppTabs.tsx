@@ -14,11 +14,13 @@ export function AgentAppTabs({
 	envelope: WorkbenchEnvelope;
 }) {
 	const tabs = [
-		...(envelope.agentApps ?? []).map((app) => ({
-			id: app.appId,
-			name: app.name,
-			color: agentApps.find((known) => known.id === app.appId)?.color ?? "#a8b7cc",
-		})),
+		...(envelope.connection.state === "ready" ? (envelope.agentApps ?? []).filter((app) => app.connected) : []).map(
+			(app) => ({
+				id: app.appId,
+				name: app.name,
+				color: agentApps.find((known) => known.id === app.appId)?.color ?? "#a8b7cc",
+			}),
+		),
 	] as const;
 	return (
 		<fieldset className="agent-app-tabs" aria-label="按应用筛选任务" data-agent-app-tabs data-no-drag>
@@ -46,7 +48,11 @@ export function AgentAppTabs({
 							onSelect(selected === app.id ? "all" : app.id);
 						}}
 					>
-						<AIProviderIcon appId={app.id} name={app.name} size={14} />
+						<AIProviderIcon
+							appId={app.id === "codex" ? "openai" : app.id === "claude-code" ? "claude" : app.id}
+							name={app.name}
+							size={14}
+						/>
 						{app.name}
 						{
 							<span

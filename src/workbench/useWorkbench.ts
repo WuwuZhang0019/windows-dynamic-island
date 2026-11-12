@@ -114,7 +114,11 @@ export function useWorkbench() {
 	}, [read]);
 	return {
 		envelope,
-		selectedApp,
+		selectedApp:
+			envelope?.connection.state === "ready" &&
+			envelope.agentApps?.some((app) => app.appId === selectedApp && app.connected)
+				? selectedApp
+				: "all",
 		setSelectedApp,
 		scenario,
 		setScenario,
