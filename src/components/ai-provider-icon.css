@@ -1,0 +1,12 @@
+/* Date: 2026-11-12. Monochrome external SVGs need explicit contrast on the dark shell. */
+.ai-provider-icon {
+	flex-shrink: 0;
+	object-fit: contain;
+}
+.ai-provider-icon-mono {
+	filter: brightness(0) invert(0.92);
+}
+.ai-provider-fallback {
+	flex-shrink: 0;
+	color: #b7bdca;
+}

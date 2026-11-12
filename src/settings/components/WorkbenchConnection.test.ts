@@ -1,18 +1,30 @@
-// Date: 2026-11-12. Only a live Codex MCP lease may produce the connected presentation.
+// Date: 2026-11-12. A saved setting is not a live connection; buttons expose four truthful states.
 import { expect, test } from "bun:test";
-import { type ConnectionStatus, connectionPresentation } from "./WorkbenchConnection";
+import { connectionPresentation } from "./WorkbenchConnection";
 
-test("enabled service and saved configuration do not imply a Codex connection", () => {
-	for (const state of ["disabled", "waiting", "disconnected", "legacy", "unavailable", "preview"] as const) {
-		expect(connectionPresentation({ state }).title).not.toBe("已连接 Codex");
+test("only a live lease produces a green connection button", () => {
+	for (const state of [
+		"disabled",
+		"waiting",
+		"checking",
+		"disconnected",
+		"legacy",
+		"unavailable",
+		"preview",
+	] as const) {
+		expect(connectionPresentation({ state }).tone).not.toBe("connected");
 	}
-	expect(connectionPresentation({ state: "connected" }).title).toBe("已连接 Codex");
+	expect(connectionPresentation({ state: "connected" })).toMatchObject({ tone: "connected", enabled: false });
 });
-test("one action opens automatic connection and can revoke it", () => {
-	for (const state of ["disabled", "legacy", "unavailable"] as const) {
-		expect(connectionPresentation({ state }).enabled).toBe(true);
+test("gray connects, yellow cancels, red retries, and pending commands remain yellow", () => {
+	for (const state of ["disabled", "legacy", "preview"] as const) {
+		expect(connectionPresentation({ state })).toMatchObject({ tone: "idle", enabled: true });
 	}
-	for (const state of ["connected", "waiting", "disconnected"] as const) {
-		expect(connectionPresentation({ state } as ConnectionStatus).enabled).toBe(false);
+	for (const state of ["checking", "waiting"] as const) {
+		expect(connectionPresentation({ state })).toMatchObject({ tone: "connecting", enabled: false });
 	}
+	for (const state of ["disconnected", "unavailable"] as const) {
+		expect(connectionPresentation({ state })).toMatchObject({ tone: "failed", enabled: true });
+	}
+	expect(connectionPresentation({ state: "connected", enabled: true }, true).tone).toBe("connecting");
 });

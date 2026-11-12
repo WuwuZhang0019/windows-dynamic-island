@@ -1,0 +1,560 @@
+[
+	{
+		"id": "openai",
+		"name": "OpenAI",
+		"aliases": ["ChatGPT", "GPT"],
+		"color": false
+	},
+	{
+		"id": "codex",
+		"name": "Codex",
+		"aliases": ["OpenAI Codex"],
+		"color": true
+	},
+	{
+		"id": "anthropic",
+		"name": "Anthropic",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "claude",
+		"name": "Claude",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "claudecode",
+		"name": "Claude Code",
+		"aliases": ["claude-code"],
+		"color": true
+	},
+	{
+		"id": "google",
+		"name": "Google",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "gemini",
+		"name": "Gemini",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "geminicli",
+		"name": "Gemini CLI",
+		"aliases": ["gemini-cli"],
+		"color": true
+	},
+	{
+		"id": "deepmind",
+		"name": "Google DeepMind",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "meta",
+		"name": "Meta",
+		"aliases": ["Llama"],
+		"color": true
+	},
+	{
+		"id": "mistral",
+		"name": "Mistral",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "cohere",
+		"name": "Cohere",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "perplexity",
+		"name": "Perplexity",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "xai",
+		"name": "xAI",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "grok",
+		"name": "Grok",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "nvidia",
+		"name": "NVIDIA",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "microsoft",
+		"name": "Microsoft",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "azureai",
+		"name": "Azure AI",
+		"aliases": ["azure"],
+		"color": true
+	},
+	{
+		"id": "aws",
+		"name": "AWS",
+		"aliases": ["Amazon"],
+		"color": true
+	},
+	{
+		"id": "bedrock",
+		"name": "Amazon Bedrock",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "github",
+		"name": "GitHub",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "githubcopilot",
+		"name": "GitHub Copilot",
+		"aliases": ["copilot"],
+		"color": false
+	},
+	{
+		"id": "huggingface",
+		"name": "Hugging Face",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "stability",
+		"name": "Stability AI",
+		"aliases": ["Stable Diffusion"],
+		"color": true
+	},
+	{
+		"id": "midjourney",
+		"name": "Midjourney",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "runway",
+		"name": "Runway",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "adobefirefly",
+		"name": "Adobe Firefly",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "elevenlabs",
+		"name": "ElevenLabs",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "groq",
+		"name": "Groq",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "together",
+		"name": "Together AI",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "fireworks",
+		"name": "Fireworks AI",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "replicate",
+		"name": "Replicate",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "cerebras",
+		"name": "Cerebras",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "sambanova",
+		"name": "SambaNova",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "vercel",
+		"name": "Vercel",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "ollama",
+		"name": "Ollama",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "lmstudio",
+		"name": "LM Studio",
+		"aliases": ["lm-studio"],
+		"color": false
+	},
+	{
+		"id": "cursor",
+		"name": "Cursor",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "windsurf",
+		"name": "Windsurf",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "antigravity",
+		"name": "Antigravity",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "opencode",
+		"name": "OpenCode",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "cline",
+		"name": "Cline",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "roocode",
+		"name": "Roo Code",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "kiro",
+		"name": "Kiro",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "devin",
+		"name": "Devin",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "replit",
+		"name": "Replit",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "openrouter",
+		"name": "OpenRouter",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "deepseek",
+		"name": "DeepSeek",
+		"aliases": ["深度求索"],
+		"color": true
+	},
+	{
+		"id": "qwen",
+		"name": "Qwen",
+		"aliases": ["通义千问", "通义"],
+		"color": true
+	},
+	{
+		"id": "alibabacloud",
+		"name": "Alibaba Cloud",
+		"aliases": ["阿里云"],
+		"color": true
+	},
+	{
+		"id": "bailian",
+		"name": "Bailian",
+		"aliases": ["百炼"],
+		"color": true
+	},
+	{
+		"id": "bytedance",
+		"name": "ByteDance",
+		"aliases": ["字节跳动"],
+		"color": true
+	},
+	{
+		"id": "doubao",
+		"name": "Doubao",
+		"aliases": ["豆包"],
+		"color": true
+	},
+	{
+		"id": "zhipu",
+		"name": "Zhipu",
+		"aliases": ["智谱"],
+		"color": true
+	},
+	{
+		"id": "zai",
+		"name": "Z.ai",
+		"aliases": ["z-ai"],
+		"color": false
+	},
+	{
+		"id": "chatglm",
+		"name": "ChatGLM",
+		"aliases": ["GLM"],
+		"color": true
+	},
+	{
+		"id": "moonshot",
+		"name": "Moonshot AI",
+		"aliases": ["月之暗面"],
+		"color": false
+	},
+	{
+		"id": "kimi",
+		"name": "Kimi",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "minimax",
+		"name": "MiniMax",
+		"aliases": ["稀宇"],
+		"color": true
+	},
+	{
+		"id": "hailuo",
+		"name": "Hailuo",
+		"aliases": ["海螺"],
+		"color": true
+	},
+	{
+		"id": "baichuan",
+		"name": "Baichuan",
+		"aliases": ["百川"],
+		"color": true
+	},
+	{
+		"id": "baidu",
+		"name": "Baidu",
+		"aliases": ["百度"],
+		"color": true
+	},
+	{
+		"id": "wenxin",
+		"name": "Wenxin",
+		"aliases": ["文心", "文心一言"],
+		"color": true
+	},
+	{
+		"id": "tencent",
+		"name": "Tencent",
+		"aliases": ["腾讯"],
+		"color": true
+	},
+	{
+		"id": "hunyuan",
+		"name": "Hunyuan",
+		"aliases": ["混元"],
+		"color": true
+	},
+	{
+		"id": "yuanbao",
+		"name": "Yuanbao",
+		"aliases": ["元宝"],
+		"color": true
+	},
+	{
+		"id": "spark",
+		"name": "Spark",
+		"aliases": ["讯飞星火"],
+		"color": true
+	},
+	{
+		"id": "iflytekcloud",
+		"name": "iFlytek",
+		"aliases": ["科大讯飞", "讯飞"],
+		"color": true
+	},
+	{
+		"id": "yi",
+		"name": "Yi",
+		"aliases": ["零一万物"],
+		"color": true
+	},
+	{
+		"id": "sensenova",
+		"name": "SenseNova",
+		"aliases": ["商汤日日新"],
+		"color": true
+	},
+	{
+		"id": "stepfun",
+		"name": "StepFun",
+		"aliases": ["阶跃星辰"],
+		"color": true
+	},
+	{
+		"id": "siliconcloud",
+		"name": "SiliconCloud",
+		"aliases": ["硅基流动", "SiliconFlow"],
+		"color": true
+	},
+	{
+		"id": "modelscope",
+		"name": "ModelScope",
+		"aliases": ["魔搭"],
+		"color": true
+	},
+	{
+		"id": "internlm",
+		"name": "InternLM",
+		"aliases": ["书生"],
+		"color": true
+	},
+	{
+		"id": "huawei",
+		"name": "Huawei",
+		"aliases": ["华为"],
+		"color": true
+	},
+	{
+		"id": "huaweicloud",
+		"name": "Huawei Cloud",
+		"aliases": ["华为云"],
+		"color": true
+	},
+	{
+		"id": "volcengine",
+		"name": "Volcengine",
+		"aliases": ["火山引擎"],
+		"color": true
+	},
+	{
+		"id": "trae",
+		"name": "Trae",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "codebuddy",
+		"name": "CodeBuddy",
+		"aliases": ["代码助手"],
+		"color": true
+	},
+	{
+		"id": "workbuddy",
+		"name": "WorkBuddy",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "qoder",
+		"name": "Qoder",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "manus",
+		"name": "Manus",
+		"aliases": [],
+		"color": false
+	},
+	{
+		"id": "longcat",
+		"name": "LongCat",
+		"aliases": ["龙猫"],
+		"color": true
+	},
+	{
+		"id": "xiaomimimo",
+		"name": "Xiaomi MiMo",
+		"aliases": ["MiMo", "小米"],
+		"color": false
+	},
+	{
+		"id": "ling",
+		"name": "Ling",
+		"aliases": ["蚂蚁百灵"],
+		"color": true
+	},
+	{
+		"id": "kling",
+		"name": "Kling",
+		"aliases": ["可灵"],
+		"color": true
+	},
+	{
+		"id": "jimeng",
+		"name": "Jimeng",
+		"aliases": ["即梦"],
+		"color": true
+	},
+	{
+		"id": "tiangong",
+		"name": "Tiangong",
+		"aliases": ["天工"],
+		"color": true
+	},
+	{
+		"id": "skywork",
+		"name": "Skywork",
+		"aliases": ["天工超级智能体"],
+		"color": true
+	},
+	{
+		"id": "giteeai",
+		"name": "Gitee AI",
+		"aliases": ["gitee-ai"],
+		"color": false
+	},
+	{
+		"id": "coze",
+		"name": "Coze",
+		"aliases": ["扣子"],
+		"color": false
+	},
+	{
+		"id": "dify",
+		"name": "Dify",
+		"aliases": [],
+		"color": true
+	},
+	{
+		"id": "lobehub",
+		"name": "LobeHub",
+		"aliases": [],
+		"color": true
+	}
+]
