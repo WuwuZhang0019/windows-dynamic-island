@@ -129,7 +129,6 @@ export interface WorkbenchViewProps {
 
 export function WorkbenchView({
 	envelope,
-	refresh,
 	scenario,
 	setScenario,
 	scenarios = defaultScenarios,
@@ -150,7 +149,6 @@ export function WorkbenchView({
 		lanes: memory?.lanes ?? {},
 	});
 	const stepByKey = new Map(snapshot.steps.map((step) => [step.key, step]));
-	const latestEvent = snapshot.events[snapshot.events.length - 1];
 
 	useLayoutEffect(() => {
 		if (!envelope.snapshot) return;
@@ -211,16 +209,6 @@ export function WorkbenchView({
 		positions.current.selected = key;
 		remember();
 	}
-	function locate(key?: string) {
-		const step = key ? stepByKey.get(key) : currentStep(snapshot.steps);
-		if (!step) return;
-		select(step.key);
-		const target = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-step-key]") ?? []).find(
-			(node) => node.dataset.stepKey === step.key,
-		);
-		target?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
-		target?.focus({ preventScroll: true });
-	}
 	function name(key: string) {
 		const step = stepByKey.get(key);
 		return step ? `${step.code} ${step.title}` : key;
@@ -233,22 +221,8 @@ export function WorkbenchView({
 			data-no-drag
 			aria-label={envelope.mode === "simulation" ? "模拟工作台" : "真实工作台"}
 		>
-			<div className="wb-toolbar">
-				<div>
-					<span className="wb-simulation">{envelope.mode === "simulation" ? "模拟数据" : "真实服务"}</span>
-					<span className="wb-version">只读工作台 · revision {snapshot.revision ?? "—"}</span>
-				</div>
-				<div className="wb-actions">
-					<button type="button" onClick={() => locate()} disabled={!snapshot.steps.length}>
-						定位当前
-					</button>
-					<button type="button" onClick={() => void refresh()}>
-						刷新
-					</button>
-				</div>
-			</div>
-			<div className="wb-scenario-row">
-				{envelope.mode === "simulation" && (
+			{envelope.mode === "simulation" && (
+				<div className="wb-scenario-row">
 					<label>
 						演示场景{" "}
 						<select aria-label="演示场景" value={scenario} onChange={(event) => setScenario(event.currentTarget.value)}>
@@ -259,22 +233,14 @@ export function WorkbenchView({
 							))}
 						</select>
 					</label>
-				)}
-				<span className={`wb-connection wb-connection-${connection.state}`} data-connection={connection.state}>
-					{connectionLabels[connection.state]}
-				</span>
-			</div>
-			<div className={`wb-notice ${connection.state !== "ready" ? "wb-notice-warning" : ""}`} role="status">
-				{connection.message ||
-					(envelope.mode === "simulation" ? "本页使用独立模拟快照，不连接正式业务服务" : "真实服务连接")}
-				{connection.state !== "ready" && <span> · 保留快照仅供参考</span>}
-				<span className="wb-last-success">
-					{envelope.mode === "simulation" ? "模拟读取：" : "最近成功同步："}
-					{connection.lastSuccessAt
-						? new Date(connection.lastSuccessAt).toLocaleTimeString("zh-CN", { hour12: false })
-						: "尚无"}
-				</span>
-			</div>
+				</div>
+			)}
+			{connection.state !== "ready" && (
+				<div className="wb-notice wb-notice-warning" role="status" data-connection={connection.state}>
+					{connectionLabels[connection.state]} · {connection.message}
+					{envelope.snapshot && <span> · 保留快照仅供参考</span>}
+				</div>
+			)}
 			{preferenceMessage && (
 				<p className="wb-notice wb-notice-warning" role="status">
 					{preferenceMessage}
@@ -292,18 +258,6 @@ export function WorkbenchView({
 						</button>
 					)}
 				</div>
-			)}
-			{latestEvent && (
-				<button
-					className="wb-event"
-					type="button"
-					data-event-id={latestEvent.eventId}
-					onClick={() => locate(latestEvent.stepKey ?? undefined)}
-					title="定位事件对应阶段"
-				>
-					最近事件 · {latestEvent.reason}
-					<span>定位 →</span>
-				</button>
 			)}
 			<div className="wb-main">
 				<div className="wb-projects" ref={listRef} onScroll={remember} data-workbench-routes>
