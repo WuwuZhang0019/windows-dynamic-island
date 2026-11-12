@@ -603,3 +603,35 @@
 	outline: 1px solid #ffffffb3;
 	outline-offset: 2px;
 }
+
+/* Date: 2026-11-12. A short border beam loops only around running stage dots. */
+.wb-step-running .wb-dot {
+	position: relative;
+}
+.wb-step-running .wb-dot::after {
+	content: "";
+	position: absolute;
+	inset: -5px;
+	border-radius: 50%;
+	padding: 1.5px;
+	background: conic-gradient(from 0deg, transparent 0deg 240deg, #34d399 290deg, #e0fff4 350deg, transparent 360deg);
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	mask-composite: exclude;
+	pointer-events: none;
+	animation: wb-dot-border-beam 1.8s linear infinite;
+}
+.wb-mini-stop.wb-step-running[data-current="true"] .wb-dot {
+	outline: none;
+}
+@keyframes wb-dot-border-beam {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.wb-step-running .wb-dot::after {
+		animation: none;
+	}
+}
