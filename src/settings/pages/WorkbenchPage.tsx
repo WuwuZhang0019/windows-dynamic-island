@@ -1,11 +1,11 @@
-// Date: 2026-11-12. Dedicated settings destination for workbench connection and binding confirmation.
+// Date: 2026-11-12. MCP settings retain the existing service authorization and binding flow.
 import { Title } from "../components/Heading";
 import { WorkbenchConnection } from "../components/WorkbenchConnection";
 
 export function WorkbenchPage() {
 	return (
 		<>
-			<Title>工作台</Title>
+			<Title>MCP</Title>
 			<WorkbenchConnection />
 		</>
 	);

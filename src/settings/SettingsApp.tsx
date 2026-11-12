@@ -1,7 +1,7 @@
-import { InfoIcon, ListTodoIcon, MousePointerClickIcon, PaletteIcon, SettingsIcon } from "lucide-react";
+import { BookOpenIcon, InfoIcon, MousePointerClickIcon, PaletteIcon, PlugIcon, SettingsIcon } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import { MemoryRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import { useSyncLocale, useT } from "../core/i18n";
 import { useSettings, useSettingsError } from "../core/settings";
 import { NavItem, NavSection } from "./components/NavItem";
@@ -10,10 +10,11 @@ import { AboutPage } from "./pages/AboutPage";
 import { AppearancePage } from "./pages/AppearancePage";
 import { BehaviorPage } from "./pages/BehaviorPage";
 import { GeneralPage } from "./pages/GeneralPage";
+import { SkillPage } from "./pages/SkillPage";
 import { WorkbenchPage } from "./pages/WorkbenchPage";
 
 /**
- * Date: 2026-11-12. Workbench authorization has its own settings page.
+ * Date: 2026-11-12. MCP connection and Skill guidance have separate settings pages.
  */
 export function SettingsApp() {
 	const values = useSettings();
@@ -37,7 +38,8 @@ export function SettingsApp() {
 						<NavItem to="/appearance" icon={<PaletteIcon size={15} />} label={t("appearance.title")} />
 						<NavItem to="/behavior" icon={<MousePointerClickIcon size={15} />} label={t("behavior.title")} />
 						<NavSection label={t("settings.section.island")} />
-						<NavItem to="/workbench" icon={<ListTodoIcon size={15} />} label="工作台" />
+						<NavItem to="/mcp" icon={<PlugIcon size={15} />} label="MCP" />
+						<NavItem to="/skill" icon={<BookOpenIcon size={15} />} label="Skill" />
 						<div className="flex-1" />
 						<NavItem to="/about" icon={<InfoIcon size={15} />} label={t("settings.about.title")} />
 					</nav>
@@ -47,7 +49,9 @@ export function SettingsApp() {
 								<Route index element={<GeneralPage values={values} />} />
 								<Route path="appearance" element={<AppearancePage values={values} />} />
 								<Route path="behavior" element={<BehaviorPage values={values} />} />
-								<Route path="workbench" element={<WorkbenchPage />} />
+								<Route path="mcp" element={<WorkbenchPage />} />
+								<Route path="workbench" element={<Navigate to="/mcp" replace />} />
+								<Route path="skill" element={<SkillPage />} />
 								<Route path="about" element={<AboutPage />} />
 								<Route path="*" element={<GeneralPage values={values} />} />
 							</Routes>

@@ -129,13 +129,13 @@ export function WorkbenchConnection() {
 	return (
 		<Card>
 			<details className="p-4 text-sm" data-workbench-connection>
-				<summary className="cursor-pointer font-medium">工作台连接与绑定确认</summary>
+				<summary className="cursor-pointer font-medium">MCP 连接与绑定确认</summary>
 				{!isTauri ? (
 					<p className="mt-3 text-text-dim">浏览器预览无法签发授权，请使用桌面设置。</p>
 				) : (
 					<div className="mt-4 flex flex-col gap-4">
 						<p className="text-text-dim">
-							连接独立工作台服务，无需旧工作台。只向下方项目、会话及工作树授权；确认前请核对各项范围。
+							配置任务岛配套服务的连接与授权，供 MCP 接入使用。请核对下方项目、会话及工作树范围后再确认。
 						</p>
 						<form
 							className="flex flex-col gap-3"
