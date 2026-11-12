@@ -139,7 +139,7 @@ export function WorkbenchConnection() {
 		<>
 			<p className="text-[13px]/relaxed text-text-dim">复制指令发给任意支持 MCP 的 Agent，配置完成后自动连接。</p>
 			<Button
-				className="mcp-copy-button h-13 min-w-60 self-center justify-center rounded-2xl px-9 text-base"
+				className="mcp-copy-button h-13 min-w-60 self-center justify-center px-9 text-base"
 				disabled={!isTauri || busy !== null}
 				onClick={() => void copySetup()}
 			>
