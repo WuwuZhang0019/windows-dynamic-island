@@ -6,11 +6,14 @@ import { useT } from "../../core/i18n";
 
 const REPO_URL = "https://github.com/WuwuZhang0019/windows-dynamic-island";
 const UPSTREAM_URL = "https://github.com/HeyyCzer/windows-dynamic-island";
+const LICENSE_URL = `${UPSTREAM_URL}/blob/e286d9045746837bf1960e0d13b7ed572b8d9e50/LICENSE`;
 export function AboutPage() {
 	const t = useT();
 	const openRepo = () => (isTauri ? command("open_repo") : window.open(REPO_URL, "_blank", "noopener"));
 	const openUpstream = () =>
 		isTauri ? command("open_external", { url: UPSTREAM_URL }) : window.open(UPSTREAM_URL, "_blank", "noopener");
+	const openLicense = () =>
+		isTauri ? command("open_external", { url: LICENSE_URL }) : window.open(LICENSE_URL, "_blank", "noopener");
 	return (
 		<>
 			<div className="flex flex-col items-center gap-2.5 pt-4.5 pb-2.5 [&_svg]:drop-shadow-[0_8px_24px_rgba(143,148,255,0.18)]">
@@ -30,8 +33,9 @@ export function AboutPage() {
 				<Row label={t("settings.about.updates.label")} desc="更新暂不可用：自有发布源尚未配置" />
 				<Row
 					label={t("settings.about.license")}
-					desc="GPL-3.0-or-later · © HeyyCzer / Vorssaint · 修改日期：2026-11-11"
+					desc="GPL-3.0-or-later · © HeyyCzer · 致谢 Vorssaint · 修改日期：2026-11-12"
 				>
+					<Button onClick={openLicense}>许可证</Button>
 					<Button onClick={openUpstream}>上游来源</Button>
 				</Row>
 			</Card>

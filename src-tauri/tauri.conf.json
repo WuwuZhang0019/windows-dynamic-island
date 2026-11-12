@@ -8,7 +8,7 @@
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist",
-	"removeUnusedCommands": true
+    "removeUnusedCommands": true
   },
   "app": {
     "windows": [
@@ -38,13 +38,15 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/task-island/32x32.png",
+      "icons/task-island/128x128.png",
+      "icons/task-island/128x128@2x.png",
+      "icons/task-island/icon.ico"
     ],
     "windows": {
       "nsis": {
@@ -52,7 +54,12 @@
         "installerHooks": "./windows/hooks.nsh"
       }
     },
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": false,
+    "resources": {
+      "../LICENSE": "licenses/LICENSE",
+      "../THIRD-PARTY-NOTICES.txt": "licenses/THIRD-PARTY-NOTICES.txt",
+      "../SOURCE.md": "licenses/SOURCE.md"
+    }
   },
   "plugins": {
     "updater": {

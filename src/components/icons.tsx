@@ -1,4 +1,4 @@
-import { type SVGProps, useId } from "react";
+import type { SVGProps } from "react";
 
 type P = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -10,30 +10,15 @@ const base = ({ size = 16, ...rest }: P) => ({
 	...rest,
 });
 
-/** The app icon (same artwork as `src-tauri/app-icon.svg`). */
+/** Date: 2026-11-12. Original task-node icon, matching src-tauri/app-icon.svg. */
 export function AppLogo({ size = 16, ...rest }: P) {
-	const gradient = useId();
 	return (
-		<svg width={size} height={size} viewBox="64 64 896 896" aria-hidden {...rest}>
-			<defs>
-				<linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-					<stop offset="0" stopColor="#2b2d5c" />
-					<stop offset="1" stopColor="#0d0e1c" />
-				</linearGradient>
-			</defs>
-			<rect x="64" y="64" width="896" height="896" rx="220" fill={`url(#${gradient})`} />
-			<rect
-				x="212"
-				y="400"
-				width="600"
-				height="224"
-				rx="112"
-				fill="#000"
-				stroke="#8f94ff"
-				strokeWidth="24"
-				strokeOpacity=".7"
-			/>
-			<circle cx="324" cy="512" r="56" fill="#d97757" />
+		<svg width={size} height={size} viewBox="0 0 1024 1024" aria-hidden {...rest}>
+			<rect x="64" y="64" width="896" height="896" rx="220" fill="#15171d" />
+			<rect x="160" y="288" width="704" height="448" rx="224" fill="none" stroke="#e6ebf2" strokeWidth="48" />
+			<circle cx="320" cy="512" r="64" fill="#e6ebf2" />
+			<circle cx="512" cy="512" r="64" fill="#38d9d0" />
+			<circle cx="704" cy="512" r="64" fill="#e6ebf2" />
 		</svg>
 	);
 }
