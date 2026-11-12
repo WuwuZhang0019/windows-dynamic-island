@@ -38,14 +38,9 @@ function failure(error: unknown) {
 type AppStatus = ConnectionStatus & { appId: AppId; name?: string };
 // Date: 2026-11-12. Suggestions are visual shortcuts, not fabricated connection records.
 const suggestedApps = [
-	["claude-code", "Claude Code", "claude"],
 	["claude-desktop", "Claude Desktop", "claude"],
 	["codex", "Codex", "openai"],
-	["gemini-cli", "Gemini CLI", "geminicli"],
-	["grok-build", "Grok Build", "grok"],
 	["opencode", "OpenCode", "opencode"],
-	["openclaw", "OpenClaw", "openclaw"],
-	["hermes", "Hermes", "hermesagent"],
 	["pi", "Pi", "pi"],
 	["minimax-code", "MiniMax Code", "minimax"],
 	["kimi-code", "Kimi Code", "kimi"],
@@ -53,7 +48,9 @@ const suggestedApps = [
 	["antigravity", "Antigravity", "antigravity"],
 	["oh-my-pi", "Oh My Pi", "pi"],
 	["copilot-cli", "Copilot CLI", "githubcopilot"],
+	["zcode", "Zcode", "zai"],
 ];
+const hiddenApps = new Set(["claude-code", "gemini-cli", "grok-build", "openclaw", "hermes"]);
 const appKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 export function WorkbenchConnection() {
 	const [statuses, setStatuses] = useState<AppStatus[]>([]);
@@ -135,7 +132,7 @@ export function WorkbenchConnection() {
 	});
 	rows.push(
 		...statuses
-			.filter((value) => !matched.has(value.appId))
+			.filter((value) => !matched.has(value.appId) && !hiddenApps.has(value.appId))
 			.map((value) => ({ ...value, iconId: value.appId, registered: true })),
 	);
 	return (
