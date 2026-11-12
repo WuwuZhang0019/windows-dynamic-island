@@ -68,6 +68,29 @@ function currentStep(steps: Step[]) {
 	);
 }
 
+// Date: 2026-11-12. Compact rows and the collapsed island share station states and markers.
+function RouteThumbnail({ routeKey, steps, currentKey }: { routeKey?: string; steps: Step[]; currentKey?: string }) {
+	if (!steps.length) return null;
+	return (
+		<span className="wb-mini-route" data-route-key={routeKey}>
+			{steps.map((step, index) => (
+				<Fragment key={step.key}>
+					{index > 0 && <span className="wb-route-segment" data-status={step.status} aria-hidden="true" />}
+					<span
+						className={`wb-mini-stop wb-step-${step.status}`}
+						data-step-key={step.key}
+						data-status={step.status}
+						data-current={step.key === currentKey}
+						title={`${step.code} ${step.title} · ${labels[step.status]}`}
+					>
+						<span className="wb-dot" />
+					</span>
+				</Fragment>
+			))}
+		</span>
+	);
+}
+
 export function WorkbenchSummary({
 	envelope,
 	scenario = "multi-project",
@@ -108,24 +131,7 @@ export function WorkbenchSummary({
 			data-connection={envelope.connection.state}
 			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${routeSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
 		>
-			{routeSteps.length > 0 && (
-				<span className="wb-mini-route" data-route-key={route?.key}>
-					{routeSteps.map((step, index) => (
-						<Fragment key={step.key}>
-							{index > 0 && <span className="wb-route-segment" data-status={step.status} aria-hidden="true" />}
-							<span
-								className={`wb-mini-stop wb-step-${step.status}`}
-								data-step-key={step.key}
-								data-status={step.status}
-								data-current={step.key === anchor?.key}
-								title={`${step.code} ${step.title} · ${labels[step.status]}`}
-							>
-								<span className="wb-dot" />
-							</span>
-						</Fragment>
-					))}
-				</span>
-			)}
+			<RouteThumbnail routeKey={route?.key} steps={routeSteps} currentKey={anchor?.key} />
 		</div>
 	);
 }
@@ -214,7 +220,7 @@ export function WorkbenchView({
 		const list = listRef.current;
 		if (list) {
 			list.scrollTop = positions.current.top;
-			for (const lane of list.querySelectorAll<HTMLElement>("[data-route-key]"))
+			for (const lane of list.querySelectorAll<HTMLElement>(".wb-lane[data-route-key]"))
 				lane.scrollLeft = positions.current.lanes[lane.dataset.routeKey ?? ""] ?? 0;
 		}
 	}, [memoryKey, snapshot.steps, snapshot.routes, preferences, envelope.mode, envelope.snapshot]);
@@ -415,6 +421,15 @@ export function WorkbenchView({
 												<h2>{title}</h2>
 												{context && <p>{context}</p>}
 											</div>
+											{taskSize(settings) === "small" && steps.length > 0 && (
+												<span className="wb-row-thumbnail" data-route-preview={route?.key} aria-hidden="true">
+													<RouteThumbnail
+														routeKey={route?.key}
+														steps={steps}
+														currentKey={routeSelected ? selectedKey : undefined}
+													/>
+												</span>
+											)}
 											{route && (
 												<div className="wb-route-progress">
 													<span className="wb-route-state">{labels[state]}</span>

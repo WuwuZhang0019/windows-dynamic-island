@@ -557,3 +557,27 @@
 	top: 50%;
 	transform: translateY(-50%);
 }
+
+/* Date: 2026-11-12. Reserve the compact row's center for its full route thumbnail. */
+.wb[data-task-size="small"] .wb-route-heading:has(> .wb-row-thumbnail) .wb-route-title {
+	flex: 0 1 190px;
+	max-width: 27%;
+}
+.wb[data-task-size="small"] .wb-row-thumbnail {
+	display: flex;
+	align-items: center;
+	flex: 1 1 140px;
+	min-width: 0;
+	padding: 0 10px;
+	margin: 0 5px;
+	pointer-events: none;
+}
+@media (max-width: 640px) {
+	.wb[data-task-size="small"] .wb-route-progress small {
+		display: none;
+	}
+	.wb[data-task-size="small"] .wb-row-thumbnail {
+		margin: 0;
+		padding: 0 6px;
+	}
+}
