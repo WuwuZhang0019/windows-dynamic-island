@@ -38,8 +38,8 @@ function failure(error: unknown) {
 type AppStatus = ConnectionStatus & { appId: AppId; name?: string };
 // Date: 2026-11-12. Suggestions are visual shortcuts, not fabricated connection records.
 const suggestedApps = [
-	["claude-desktop", "Claude Desktop", "claude"],
 	["codex", "Codex", "openai"],
+	["claude-desktop", "Claude Desktop", "claude"],
 	["opencode", "OpenCode", "opencode"],
 	["pi", "Pi", "pi"],
 	["minimax-code", "MiniMax Code", "minimax"],
@@ -50,7 +50,7 @@ const suggestedApps = [
 	["copilot-cli", "Copilot CLI", "githubcopilot"],
 	["zcode", "Zcode", "zai"],
 ];
-const hiddenApps = new Set(["claude-code", "gemini-cli", "grok-build", "openclaw", "hermes"]);
+const hiddenApps = new Set(["claude-code", "gemini-cli", "grok-build", "openclaw", "hermes", "dsh"]);
 const appKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 export function WorkbenchConnection() {
 	const [statuses, setStatuses] = useState<AppStatus[]>([]);
