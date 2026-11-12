@@ -189,7 +189,7 @@ export function WorkbenchView({
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [archiveMessage, setArchiveMessage] = useState("");
 
-	// Date: 2026-11-12. Only overflowing route diagrams consume wheel input; card gutters scroll the list.
+	// Date: 2026-11-12. Display-only graphs select their card without blocking native lane scrolling.
 	useEffect(() => {
 		const list = listRef.current;
 		if (!list) return;
@@ -204,9 +204,24 @@ export function WorkbenchView({
 			event.stopPropagation();
 			lane.scrollLeft += delta * unit;
 		}
+		function selectCard(event: MouseEvent) {
+			if (
+				event.defaultPrevented ||
+				!(event.target instanceof Element) ||
+				event.target.closest("button, a, input, select, textarea")
+			)
+				return;
+			const card = event.target.closest("[data-route-card]");
+			if (card && list?.contains(card)) card.querySelector<HTMLButtonElement>("[data-route-select]")?.click();
+		}
 		// React wheel listeners are passive, so cancellation must use a native listener.
 		list.addEventListener("wheel", scrollRoute, { passive: false });
-		return () => list.removeEventListener("wheel", scrollRoute);
+		// Reuse the card's accessible button for display surfaces above its selection overlay.
+		list.addEventListener("click", selectCard);
+		return () => {
+			list.removeEventListener("wheel", scrollRoute);
+			list.removeEventListener("click", selectCard);
+		};
 	}, []);
 
 	useLayoutEffect(() => {
