@@ -21,8 +21,8 @@ describe("taskCardEffect", () => {
 			expect(loaded["tasks.cardEffect"]).toBe(effect);
 			expect(taskCardEffect(loaded)).toBe(effect);
 		}
-		expect(taskCardEffect({})).toBe("emerald");
-		expect(taskCardEffect({ "tasks.cardEffect": "unknown" })).toBe("emerald");
+		expect(taskCardEffect({})).toBe("minimal");
+		expect(taskCardEffect({ "tasks.cardEffect": "unknown" })).toBe("minimal");
 	});
 });
 

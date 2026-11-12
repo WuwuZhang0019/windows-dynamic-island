@@ -186,7 +186,7 @@ export type CloseTrigger = "leave" | "clickOutside";
 export type TaskCardEffect = "emerald" | "minimal";
 
 export function taskCardEffect(all: Values): TaskCardEffect {
-	return all["tasks.cardEffect"] === "minimal" ? "minimal" : "emerald";
+	return all["tasks.cardEffect"] === "emerald" ? "emerald" : "minimal";
 }
 
 /** How the island reacts to the pointer (the settings' Behavior page). */
@@ -195,7 +195,7 @@ export const behaviorSettings = {
 		key: "tasks.cardEffect",
 		label: "behavior.cardEffect.label",
 		description: "behavior.cardEffect.desc",
-		default: "emerald" as TaskCardEffect,
+		default: "minimal" as TaskCardEffect,
 	} satisfies SettingDef<TaskCardEffect>,
 	openOn: {
 		key: "island.openOn",

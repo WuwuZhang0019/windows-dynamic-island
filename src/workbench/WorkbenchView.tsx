@@ -188,6 +188,26 @@ export function WorkbenchView({
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [archiveMessage, setArchiveMessage] = useState("");
 
+	// Date: 2026-11-12. Only overflowing route diagrams consume wheel input; card gutters scroll the list.
+	useEffect(() => {
+		const list = listRef.current;
+		if (!list) return;
+		function scrollRoute(event: WheelEvent) {
+			if (event.ctrlKey || !(event.target instanceof Element)) return;
+			const lane = event.target.closest(".wb-route-card")?.querySelector<HTMLElement>(".wb-lane");
+			if (!lane || lane.closest("[inert]") || !list?.contains(lane) || lane.scrollWidth <= lane.clientWidth) return;
+			const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+			if (!delta) return;
+			const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? lane.clientWidth : 1;
+			event.preventDefault();
+			event.stopPropagation();
+			lane.scrollLeft += delta * unit;
+		}
+		// React wheel listeners are passive, so cancellation must use a native listener.
+		list.addEventListener("wheel", scrollRoute, { passive: false });
+		return () => list.removeEventListener("wheel", scrollRoute);
+	}, []);
+
 	useLayoutEffect(() => {
 		if (!envelope.snapshot) return;
 		const saved =

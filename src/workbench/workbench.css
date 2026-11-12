@@ -96,12 +96,16 @@
 }
 .wb-projects {
 	min-width: 0;
-	overflow: auto;
-	scrollbar-width: thin;
-	scrollbar-color: #ffffff26 transparent;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scrollbar-width: none;
 	overscroll-behavior: contain;
-	scrollbar-gutter: stable;
 	overflow-anchor: none;
+}
+/* Date: 2026-11-12. Hide both scrollbar rails while retaining wheel, touch and keyboard scrolling. */
+.wb-projects::-webkit-scrollbar,
+.wb-lane::-webkit-scrollbar {
+	display: none;
 }
 /* Date: 2026-11-12. Each route is a stable card in the animated list. */
 .wb-route-list {
@@ -232,8 +236,7 @@
 	display: flex;
 	overflow: auto;
 	padding: 3px 2px 6px;
-	scrollbar-width: thin;
-	scrollbar-color: #ffffff1d transparent;
+	scrollbar-width: none;
 }
 .wb-step {
 	position: relative;
