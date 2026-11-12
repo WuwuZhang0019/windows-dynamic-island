@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { WorkbenchEnvelope as Envelope, Preferences, Step, WorkbenchSnapshot } from "./contract/protocol";
 import "./workbench.css";
 
-type Status = Step["status"];
 type Reading = { selected: string; top: number; detailTop: number; lanes: Record<string, number> };
 const emptySnapshot: WorkbenchSnapshot = {
 	schemaVersion: "light-1.0",
@@ -58,54 +57,50 @@ function currentStep(steps: Step[]) {
 }
 
 export function WorkbenchSummary({ envelope }: { envelope: Envelope }) {
-	const { connection } = envelope;
 	const snapshot = envelope.snapshot ?? emptySnapshot;
 	const active = currentStep(snapshot.steps);
-	const project = snapshot.projects.find((item) => item.key === active?.projectKey);
-	// Date: 2026-11-12. Show the active route as a compact, read-only metro map.
-	const route = snapshot.routes.find((item) => item.stepKeys.includes(active?.key ?? ""));
-	const routeSteps = (route?.stepKeys ?? [])
-		.map((key) => snapshot.steps.find((step) => step.key === key))
-		.filter((step): step is Step => Boolean(step));
-	const count = (status: Status) => snapshot.steps.filter((item) => item.status === status).length;
+	const planSteps = snapshot.steps.filter((step) => step.planKey === active?.planKey);
+	const byKey = new Map(planSteps.map((step) => [step.key, step]));
+	const shown = new Set<string>();
+	// Date: 2026-11-12. Render every station in the active plan, not just its active route.
+	const lanes = snapshot.routes
+		.filter((route) => route.planKey === active?.planKey)
+		.map((route) => ({
+			key: route.key,
+			steps: route.stepKeys.flatMap((key) => {
+				const step = byKey.get(key);
+				if (!step || shown.has(key)) return [];
+				shown.add(key);
+				return [step];
+			}),
+		}))
+		.filter((route) => route.steps.length > 0);
+	const unassigned = planSteps.filter((step) => !shown.has(step.key));
+	if (unassigned.length) lanes.push({ key: "unassigned", steps: unassigned });
 	return (
 		<div
 			className="wb-summary"
-			role="status"
+			role="img"
 			data-workbench-summary
-			title={`${project?.name ?? "工作台"} · ${active ? `${active.code} ${active.title} · ${labels[active.status]}` : "暂无阶段"}`}
-			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}工作台：${active ? `${active.code} ${active.title}` : "暂无阶段"}`}
+			data-connection={envelope.connection.state}
+			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${planSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
 		>
-			<span className="wb-simulation">{envelope.mode === "simulation" ? "模拟" : "真实"}</span>
-			<span className="wb-summary-title" title={active ? `${active.code} ${active.title}` : project?.name}>
-				{project?.name ?? "工作台"}
-				{active ? ` · ${active.code}` : ""}
-			</span>
-			<span className="wb-summary-counts">
-				{connection.state === "ready"
-					? `执行 ${count("running")} · 阻塞 ${count("blocked")} · 待处理 ${count("pending")}`
-					: connectionLabels[connection.state]}
-			</span>
-			{routeSteps.length > 0 && (
-				<span
-					className="wb-mini-route"
-					role="img"
-					aria-label={`${route?.label ?? "路线"}：${routeSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
-				>
-					{routeSteps.map((step) => (
+			{lanes.map((route) => (
+				<span className="wb-mini-route" key={route.key} data-route-key={route.key}>
+					{route.steps.map((step) => (
 						<span
 							key={step.key}
 							className={`wb-mini-stop wb-mini-${step.status}`}
+							data-step-key={step.key}
 							data-current={step.key === active?.key}
 							title={`${step.code} ${step.title} · ${labels[step.status]}`}
 						/>
 					))}
 				</span>
-			)}
+			))}
 		</div>
 	);
 }
-
 export interface WorkbenchViewProps {
 	envelope: Envelope;
 	refresh: () => void | Promise<void>;
