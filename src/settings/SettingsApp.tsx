@@ -59,7 +59,7 @@ export function SettingsApp() {
 								<Route index element={<GeneralPage values={values} />} />
 								<Route path="appearance" element={<AppearancePage values={values} />} />
 								<Route path="behavior" element={<BehaviorPage values={values} />} />
-								<Route path="modules" element={<ModulesPage values={values} />} />
+								<Route path="modules" element={<ModulesPage />} />
 								<Route path="mcp" element={<WorkbenchPage />} />
 								<Route path="workbench" element={<Navigate to="/mcp" replace />} />
 								<Route path="skill" element={<SkillPage />} />

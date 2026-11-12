@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { tv } from "tailwind-variants";
 import { command } from "../../core/bridge";
 import { useT } from "../../core/i18n";
+import { TaskSizeToggle } from "./TaskSizeToggle";
 
 const controls = tv({
 	slots: {
@@ -16,13 +17,14 @@ const controls = tv({
 	},
 });
 
-/** 固定业务视图只保留原设置与固定按钮，不提供模块导航或启动器。 */
+/** Date: 2026-11-12. Display size, settings and pin controls for the fixed workbench. */
 export function Tabs({ bottom, pinned, onPin }: { bottom: boolean; pinned: boolean; onPin: (value: boolean) => void }) {
 	const t = useT();
 	const s = controls({ bottom });
 	return (
 		<div className={s.base()} data-no-drag data-island-controls>
 			<span className="mr-auto flex items-center text-sm text-text-dim">任务岛</span>
+			<TaskSizeToggle />
 			<motion.button
 				type="button"
 				className={s.gear()}
