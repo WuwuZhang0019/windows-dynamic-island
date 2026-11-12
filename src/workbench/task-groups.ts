@@ -184,6 +184,42 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		}
 		place();
 	}
+	// Date: 2026-11-13. Center shared runs between their declared incoming/outgoing branches.
+	const originalLanes = new Map([...nodes].map(([key, node]) => [key, node.lane]));
+	const placedRuns = new Set<string>();
+	for (const startNode of nodes.values()) {
+		const predecessors = incoming.get(startNode.step.key) ?? [];
+		if (!visited.has(startNode.step.key) || placedRuns.has(startNode.step.key)) continue;
+		if (predecessors.length === 1 && (outgoing.get(predecessors[0])?.length ?? 0) === 1) continue;
+		const run: RouteGraphNode[] = [];
+		let current: RouteGraphNode | undefined = startNode;
+		while (current && !placedRuns.has(current.step.key)) {
+			run.push(current);
+			placedRuns.add(current.step.key);
+			const targets: string[] = outgoing.get(current.step.key) ?? [];
+			const target: string | undefined = targets.length === 1 ? targets[0] : undefined;
+			current = target && incoming.get(target)?.length === 1 && visited.has(target) ? nodes.get(target) : undefined;
+		}
+		const branchLanes = run.flatMap((node) => {
+			const sources = incoming.get(node.step.key) ?? [];
+			const targets = outgoing.get(node.step.key) ?? [];
+			return [...(sources.length > 1 ? sources : []), ...(targets.length > 1 ? targets : [])].flatMap((key) => {
+				const lane = originalLanes.get(key);
+				return lane === undefined ? [] : [lane];
+			});
+		});
+		if (branchLanes.length < 2) continue;
+		const low = Math.min(...branchLanes),
+			high = Math.max(...branchLanes);
+		if (low === high) continue;
+		const center = (low + high) / 2;
+		const members = new Set(run.map((node) => node.step.key));
+		const collision = [...nodes.values()].some(
+			(node) => !members.has(node.step.key) && node.lane === center && run.some((item) => item.column === node.column),
+		);
+		if (!collision) for (const node of run) node.lane = center;
+	}
+
 	return {
 		nodes: [...nodes.values()],
 		edges: [...edges.values()],

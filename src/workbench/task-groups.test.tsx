@@ -69,6 +69,20 @@ describe("grouped task routes", () => {
 		expect(new Set(graph.nodes.map((node) => node.step.key)).size).toBe(steps.length);
 		expect(new Set(graph.nodes.map((node) => `${node.column}:${node.lane}`)).size).toBe(steps.length);
 	});
+
+	test("shared steps between two forks sit halfway between upper and lower branches", () => {
+		const { routes, steps } = graphFixture();
+		const graph = layoutRoutes([routes[0], routes[1], routes[3]], steps);
+		const nodes = new Map(graph.nodes.map((node) => [node.step.key, node]));
+		const upper = nodes.get("m1")?.lane ?? -1;
+		const lower = nodes.get("a1")?.lane ?? -1;
+		expect(lower).toBeGreaterThan(upper);
+		for (const key of ["m2", "m3", "m4"]) expect(nodes.get(key)?.lane).toBe((upper + lower) / 2);
+		expect(nodes.get("c0")?.lane).toBe(lower);
+		expect(graph.edges.filter((edge) => edge.to === "m2").map((edge) => edge.from)).toEqual(["m1", "a1"]);
+		expect(graph.edges.filter((edge) => edge.from === "m4").map((edge) => edge.to)).toEqual(["m5", "c0"]);
+		expect(new Set(graph.nodes.map((node) => `${node.column}:${node.lane}`)).size).toBe(graph.nodes.length);
+	});
 	test("overlapping branch routes do not duplicate shared stations or fabricate unspecified joins", () => {
 		const { routes, steps } = graphFixture();
 		routes[1].stepKeys = ["m0", "a0", "a1", "m2"];
