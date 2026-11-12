@@ -112,7 +112,10 @@ export function WorkbenchConnection() {
 			if (!operating.current) {
 				try {
 					const result = await command<AppStatus[]>("island_agent_connections");
-					if (!stopped && revision === generation.current) setStatuses(result);
+					if (!stopped && revision === generation.current) {
+						setStatuses(result);
+						setMessage((previous) => (previous === "连接服务暂不可用，请确认服务已启动。" ? "" : previous));
+					}
 				} catch {
 					if (!stopped && revision === generation.current) setMessage("连接服务暂不可用，请确认服务已启动。");
 				}
