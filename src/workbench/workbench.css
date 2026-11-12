@@ -535,59 +535,54 @@
 	color: #b3b6f5;
 	font-size: 10px;
 }
-/* Date: 2026-11-12. Text-free thumbnail shows every route and station. */
+/* Date: 2026-11-12. One complete route, sharing the expanded view's station states. */
 .wb-summary {
 	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	justify-content: space-evenly;
+	align-items: center;
 	flex: 1;
 	min-width: 0;
-	gap: 1px;
-	padding: 4px 0;
+	padding: 0 4px;
 }
 .wb-mini-route {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	width: 100%;
 	min-width: 0;
-	height: 4px;
-	flex: 1;
-	min-height: 0;
+	height: 18px;
 	position: relative;
-	gap: 0;
 }
 .wb-mini-route::before {
 	content: "";
 	position: absolute;
-	left: 3px;
-	right: 3px;
-	height: 2px;
-	background: #73788b;
-	opacity: 0.65;
+	left: 4.5px;
+	right: 4.5px;
+	height: 1px;
+	background: #ffffff28;
+}
+.wb-mini-route:has(.wb-mini-stop:only-child) {
+	justify-content: center;
+}
+.wb-mini-route:has(.wb-mini-stop:only-child)::before {
+	display: none;
 }
 .wb-mini-stop {
 	position: relative;
-	width: 4px;
-	height: 4px;
-	flex: 0 1 4px;
-	min-width: 1px;
-	border-radius: 50%;
-	background: #9196a6;
-	border: 1px solid #15161c;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 9px;
+	height: 12px;
+	flex: 0 1 9px;
+	min-width: 0;
 }
-.wb-mini-completed {
-	background: #51d8b2;
+.wb-mini-stop .wb-dot {
+	width: 100%;
+	max-width: 9px;
+	height: auto;
+	aspect-ratio: 1;
 }
-.wb-mini-running {
-	background: #78aaff;
-}
-.wb-mini-blocked {
-	background: #ffb765;
-}
-.wb-mini-cancelled {
-	background: #565969;
-}
-.wb-mini-stop[data-current="true"] {
-	box-shadow: 0 0 0 1px #fff;
+.wb-mini-stop[data-current="true"] .wb-dot {
+	outline: 1px solid #ffffffb3;
+	outline-offset: 2px;
 }

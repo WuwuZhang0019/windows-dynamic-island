@@ -56,48 +56,60 @@ function currentStep(steps: Step[]) {
 	);
 }
 
-export function WorkbenchSummary({ envelope }: { envelope: Envelope }) {
+export function WorkbenchSummary({
+	envelope,
+	scenario = "multi-project",
+	preferences,
+}: {
+	envelope: Envelope;
+	scenario?: string;
+	preferences?: Preferences | null;
+}) {
 	const snapshot = envelope.snapshot ?? emptySnapshot;
-	const active = currentStep(snapshot.steps);
-	const planSteps = snapshot.steps.filter((step) => step.planKey === active?.planKey);
-	const byKey = new Map(planSteps.map((step) => [step.key, step]));
-	const shown = new Set<string>();
-	// Date: 2026-11-12. Render every station in the active plan, not just its active route.
-	const lanes = snapshot.routes
-		.filter((route) => route.planKey === active?.planKey)
-		.map((route) => ({
-			key: route.key,
-			steps: route.stepKeys.flatMap((key) => {
-				const step = byKey.get(key);
-				if (!step || shown.has(key)) return [];
-				shown.add(key);
-				return [step];
-			}),
-		}))
-		.filter((route) => route.steps.length > 0);
-	const unassigned = planSteps.filter((step) => !shown.has(step.key));
-	if (unassigned.length) lanes.push({ key: "unassigned", steps: unassigned });
+	const byKey = new Map(snapshot.steps.map((step) => [step.key, step]));
+	const remembered = readingPositions.get(`${envelope.mode}/${scenario}`)?.selected;
+	const focus = byKey.get(remembered ?? "") ?? byKey.get(preferences?.selected ?? "") ?? currentStep(snapshot.steps);
+	const routes = snapshot.routes.filter((route) => route.planKey === focus?.planKey).sort((a, b) => a.order - b.order);
+	// Date: 2026-11-12. Resolve one route, following ancestors for unlisted child stages.
+	let anchor = focus;
+	let route = routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
+	const visited = new Set<string>();
+	while (!route && anchor?.parentKey && !visited.has(anchor.key)) {
+		visited.add(anchor.key);
+		const parent = byKey.get(anchor.parentKey);
+		if (parent?.planKey !== focus?.planKey) break;
+		anchor = parent;
+		route = routes.find((item) => item.stepKeys.includes(anchor?.key ?? ""));
+	}
+	route ??= routes[0];
+	const routeSteps = (route?.stepKeys ?? []).flatMap((key) => {
+		const step = byKey.get(key);
+		return step ? [step] : [];
+	});
 	return (
 		<div
 			className="wb-summary"
 			role="img"
 			data-workbench-summary
 			data-connection={envelope.connection.state}
-			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${planSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
+			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${routeSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
 		>
-			{lanes.map((route) => (
-				<span className="wb-mini-route" key={route.key} data-route-key={route.key}>
-					{route.steps.map((step) => (
+			{routeSteps.length > 0 && (
+				<span className="wb-mini-route" data-route-key={route?.key}>
+					{routeSteps.map((step) => (
 						<span
 							key={step.key}
-							className={`wb-mini-stop wb-mini-${step.status}`}
+							className={`wb-mini-stop wb-step-${step.status}`}
 							data-step-key={step.key}
-							data-current={step.key === active?.key}
+							data-status={step.status}
+							data-current={step.key === anchor?.key}
 							title={`${step.code} ${step.title} · ${labels[step.status]}`}
-						/>
+						>
+							<span className="wb-dot" />
+						</span>
 					))}
 				</span>
-			))}
+			)}
 		</div>
 	);
 }

@@ -46,7 +46,11 @@ export function islandContent(
 				<div className="shrink-0">
 					<IdleClock />
 				</div>
-				<WorkbenchSummary envelope={workbench.envelope} />
+				<WorkbenchSummary
+					envelope={workbench.envelope}
+					scenario={workbench.scenario}
+					preferences={workbench.preferences}
+				/>
 			</div>
 		),
 	};
