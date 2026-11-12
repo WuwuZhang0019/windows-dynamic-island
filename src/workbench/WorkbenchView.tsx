@@ -1,7 +1,7 @@
 // Date: 2026-11-12. Route reader with explicit owner archival; execution states remain service-owned.
 import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { setSetting, useSettings } from "../core/settings";
+import { setSetting, taskCardEffect, useSettings } from "../core/settings";
 import type {
 	WorkbenchEnvelope as Envelope,
 	Plan,
@@ -448,6 +448,7 @@ export function WorkbenchView({
 										selected={routeSelected}
 										delay={delay}
 										reducedMotion={!!reducedMotion}
+										cardEffect={taskCardEffect(settings)}
 										onSortEnd={finishReorder}
 										onMove={moveRoute}
 									>

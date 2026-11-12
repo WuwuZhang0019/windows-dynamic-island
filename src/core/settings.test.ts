@@ -10,7 +10,21 @@ import {
 	shellPreferences,
 	startSettings,
 	tabsPosition,
+	taskCardEffect,
 } from "./settings";
+
+// Date: 2026-11-12. A saved card effect must survive the browser allowlist too.
+describe("taskCardEffect", () => {
+	test("keeps both effects on reload and defaults safely for older or invalid settings", () => {
+		for (const effect of ["emerald", "minimal"] as const) {
+			const loaded = shellPreferences({ "tasks.cardEffect": effect });
+			expect(loaded["tasks.cardEffect"]).toBe(effect);
+			expect(taskCardEffect(loaded)).toBe(effect);
+		}
+		expect(taskCardEffect({})).toBe("emerald");
+		expect(taskCardEffect({ "tasks.cardEffect": "unknown" })).toBe("emerald");
+	});
+});
 
 describe("openTrigger", () => {
 	test("defaults to hover", () => {

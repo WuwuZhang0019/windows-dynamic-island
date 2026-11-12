@@ -34,6 +34,7 @@ fn shell_key(key: &str) -> bool {
             | "appearance.tabsPosition"
             | "tasks.displaySize"
             | "tasks.routeOrder"
+            | "tasks.cardEffect"
             | "island.hidden"
             | "island.openOn"
             | "island.closeOn"
@@ -419,6 +420,21 @@ mod tests {
                 reloaded.get("appearance.tabsPosition"),
                 Some(Value::from(position))
             );
+        }
+    }
+
+    // Date: 2026-11-12. Both card effects must survive native process restarts.
+    #[test]
+    fn task_card_effect_survives_restart() {
+        let root = Profile::new();
+        let path = root.0.join("settings.json");
+        for effect in ["emerald", "minimal"] {
+            let settings = Settings::from_paths(Some(path.clone()), None);
+            settings
+                .store_value("tasks.cardEffect", Value::from(effect))
+                .unwrap();
+            let reloaded = Settings::from_paths(Some(path.clone()), None);
+            assert_eq!(reloaded.get("tasks.cardEffect"), Some(Value::from(effect)));
         }
     }
 

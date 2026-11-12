@@ -5,6 +5,25 @@
 本项目GPL-3.0-or-later全文另附LICENSE。以下第三方代码保留各自许可和版权。
 对于没有随crate打包的许可文件，采用该crate .cargo_vcs_info.json 精确Git提交的官方仓库原文；selectors按明确源码许可头补标准MPL-2.0正文。
 
+
+===== Uiverse task card hover adaptations =====
+Date: 2026-11-12
+Sources:
+https://uiverse.io/cssbuttons-io/stale-rattlesnake-87
+https://uiverse.io/e-coders/new-shrimp-32
+Official source: https://github.com/uiverse-io/galaxy/tree/main/Buttons
+Modified for dark task cards, preserved status colors, reduced motion and Motion reorder transforms.
+
+MIT License
+Copyright - 2026 cssbuttons-io (cssbuttons.io)
+Copyright - 2026 e-coders (E - Coders (Aasheesh Agarwal))
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ===== npm @biomejs/biome@2.6.4 =====
 许可声明："MIT OR Apache-2.0"；开发/构建或平台可选依赖。
 来源：installed @biomejs/biome@2.6.4

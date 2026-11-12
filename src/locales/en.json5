@@ -110,6 +110,13 @@
 
   // Settings' Behavior page: how the island opens and closes
   behavior: {
+    // Date: 2026-11-12. Hover styles adapted for dark task cards.
+    cardEffect: {
+      label: "Task card animation",
+      desc: "Hover over a task card to animate it. Applies immediately to both list sizes and is saved automatically.",
+      emerald: "Emerald lift",
+      minimal: "Ink lift",
+    },
     title: "Behavior",
     openOn: {
       label: "Open the island",

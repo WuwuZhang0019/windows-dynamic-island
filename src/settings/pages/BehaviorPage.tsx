@@ -11,6 +11,8 @@ import {
 	positionSettings,
 	readSetting,
 	setSetting,
+	type TaskCardEffect,
+	taskCardEffect,
 } from "../../core/settings";
 import { Title } from "../components/Heading";
 import { ToggleRow } from "../components/Toggle";
@@ -49,6 +51,18 @@ export function BehaviorPage({ values }: { values: Record<string, unknown> }) {
 					value={readSetting(values, positionSettings.returnDelay)}
 					disabled={!readSetting(values, positionSettings.returnToCenter)}
 				/>
+			</Card>
+			{/* Date: 2026-11-12. Keep task-card feedback after the movement preferences. */}
+			<Card>
+				<Row as="label" label={t(behaviorSettings.cardEffect.label)} desc={t(behaviorSettings.cardEffect.description)}>
+					<Select
+						value={taskCardEffect(values)}
+						onChange={(e) => setSetting(behaviorSettings.cardEffect, e.target.value as TaskCardEffect)}
+					>
+						<option value="emerald">{t("behavior.cardEffect.emerald")}</option>
+						<option value="minimal">{t("behavior.cardEffect.minimal")}</option>
+					</Select>
+				</Row>
 			</Card>
 		</>
 	);

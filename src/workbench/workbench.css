@@ -108,7 +108,7 @@
 	grid-template-columns: minmax(0, 1fr);
 	gap: 12px;
 	margin: 0;
-	padding: 2px 6px 12px 2px;
+	padding: 10px 10px 20px;
 	list-style: none;
 }
 .wb-route-card {
@@ -122,21 +122,34 @@
 		0 3px 12px #00000018,
 		inset 0 1px 0 #ffffff03;
 	transition:
-		border-color 220ms,
-		background-color 220ms,
-		box-shadow 220ms;
+		border-color 300ms var(--wb-card-ease, ease),
+		background-color 300ms var(--wb-card-ease, ease),
+		box-shadow 300ms var(--wb-card-ease, ease);
 }
-/* Date: 2026-11-12. Whole-card button feedback also follows keyboard focus. */
+/* Date: 2026-11-12. Adapted from Uiverse; see THIRD-PARTY-NOTICES.txt.
+   Dark emerald keeps green progress states readable. Focus uses keyboard-only
+   focus-visible so clicking a card never leaves its hover surface stuck on. */
 .wb-route-card:hover,
-.wb-route-card:focus-within {
-	border-color: #a6aaf080;
-	background-color: #a6aaf00b;
-	box-shadow:
-		0 7px 18px #00000038,
-		0 0 14px #a6aaf018,
-		inset 0 1px 0 #ffffff14;
+.wb-route-card:has(:focus-visible) {
+	z-index: 1;
 }
-.wb-route-card[data-selected="true"]:not(:hover):not(:focus-within) {
+.wb-route-card[data-card-effect="emerald"]:is(:hover, :has(:focus-visible)) {
+	border-color: #23c483;
+	background-color: #123f32;
+	box-shadow: 0 15px 20px #2ee59d40;
+}
+.wb-route-card[data-card-effect="minimal"] {
+	--wb-card-ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.wb-route-card[data-card-effect="minimal"]:is(:hover, :has(:focus-visible)) {
+	border-color: #ffffff38;
+	background-color: #1a1a1a;
+	box-shadow: 0 8px 15px #00000040;
+}
+.wb-route-card[data-card-effect="minimal"]:active {
+	box-shadow: none;
+}
+.wb-route-card[data-selected="true"]:not(:hover):not(:has(:focus-visible)) {
 	border-color: #a6aaf04d;
 }
 /* Date: 2026-11-12. The card button covers blank space; station buttons and rails remain interactive. */

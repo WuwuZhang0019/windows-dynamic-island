@@ -3,6 +3,7 @@ import { GripVerticalIcon } from "lucide-react";
 import { Reorder, useDragControls } from "motion/react";
 import { forwardRef, type ReactNode, useEffect } from "react";
 import { useIsland } from "../core/island";
+import type { TaskCardEffect } from "../core/settings";
 import type { StepStatus } from "./contract/protocol";
 
 type Props = {
@@ -14,13 +15,27 @@ type Props = {
 	selected: boolean;
 	delay: number;
 	reducedMotion: boolean;
+	cardEffect: TaskCardEffect;
 	children: ReactNode;
 	onSortEnd: () => void;
 	onMove: (key: string, direction: number) => void;
 };
 
 export const SortableRouteCard = forwardRef<HTMLLIElement, Props>(function SortableRouteCard(
-	{ itemKey, routeKey, projectKey, title, state, selected, delay, reducedMotion, children, onSortEnd, onMove },
+	{
+		itemKey,
+		routeKey,
+		projectKey,
+		title,
+		state,
+		selected,
+		delay,
+		reducedMotion,
+		cardEffect,
+		children,
+		onSortEnd,
+		onMove,
+	},
 	ref,
 ) {
 	const drag = useDragControls();
@@ -36,6 +51,7 @@ export const SortableRouteCard = forwardRef<HTMLLIElement, Props>(function Sorta
 			data-route-card={routeKey}
 			data-project-key={projectKey}
 			data-state={state}
+			data-card-effect={cardEffect}
 			data-selected={selected}
 			dragListener={false}
 			dragControls={drag}
@@ -46,15 +62,22 @@ export const SortableRouteCard = forwardRef<HTMLLIElement, Props>(function Sorta
 			}}
 			layout="position"
 			initial={reducedMotion ? false : { opacity: 0, scale: 0.97 }}
-			animate={{ opacity: 1, scale: 1 }}
-			whileHover={reducedMotion ? undefined : { y: -2 }}
-			whileTap={reducedMotion ? undefined : { y: 0, scale: 0.995 }}
+			animate={{ opacity: 1, scale: 1, y: 0 }}
+			// Date: 2026-11-12. Uiverse lift distances; Motion owns transforms during reorder.
+			whileHover={reducedMotion ? undefined : { y: cardEffect === "emerald" ? -7 : -2 }}
+			whileTap={reducedMotion ? undefined : { y: cardEffect === "emerald" ? -1 : 0 }}
 			exit={{ opacity: 0, transition: { duration: reducedMotion ? 0 : 0.15 } }}
 			transition={{
 				type: "spring",
 				stiffness: 360,
 				damping: 30,
 				delay,
+				y: {
+					type: "tween",
+					duration: reducedMotion ? 0 : 0.3,
+					ease: cardEffect === "emerald" ? "easeOut" : [0.23, 1, 0.32, 1],
+					delay: 0,
+				},
 				opacity: { duration: reducedMotion ? 0 : 0.22, delay },
 				layout: { duration: reducedMotion ? 0 : 0.25, delay: 0 },
 			}}

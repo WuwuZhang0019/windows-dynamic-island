@@ -55,6 +55,7 @@ const SHELL_KEYS = new Set([
 	"appearance.tabsPosition",
 	"tasks.displaySize",
 	"tasks.routeOrder",
+	"tasks.cardEffect",
 	"island.hidden",
 	"island.openOn",
 	"island.closeOn",
@@ -181,8 +182,21 @@ export type OpenTrigger = "hover" | "click";
 /** What closes the island: the pointer leaving it, or a click anywhere else. */
 export type CloseTrigger = "leave" | "clickOutside";
 
+// Date: 2026-11-12. Shared by the Behavior selector and both task list sizes.
+export type TaskCardEffect = "emerald" | "minimal";
+
+export function taskCardEffect(all: Values): TaskCardEffect {
+	return all["tasks.cardEffect"] === "minimal" ? "minimal" : "emerald";
+}
+
 /** How the island reacts to the pointer (the settings' Behavior page). */
 export const behaviorSettings = {
+	cardEffect: {
+		key: "tasks.cardEffect",
+		label: "behavior.cardEffect.label",
+		description: "behavior.cardEffect.desc",
+		default: "emerald" as TaskCardEffect,
+	} satisfies SettingDef<TaskCardEffect>,
 	openOn: {
 		key: "island.openOn",
 		label: "behavior.openOn.label",

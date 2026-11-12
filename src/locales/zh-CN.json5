@@ -106,6 +106,13 @@
 
   // Settings' Behavior page: how the island opens and closes
   behavior: {
+    // Date: 2026-11-12. Hover styles adapted for dark task cards.
+    cardEffect: {
+      label: "任务卡片动效",
+      desc: "鼠标悬停时触发，适用于大小两种列表。切换立即生效并自动保存。",
+      emerald: "翠绿浮起",
+      minimal: "墨色浮起",
+    },
     title: "行为",
     openOn: {
       label: "展开灵动岛",
