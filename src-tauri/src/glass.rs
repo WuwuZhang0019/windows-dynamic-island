@@ -183,7 +183,7 @@ pub fn restack() {}
 mod imp {
     use std::cell::{Cell, RefCell};
     use std::sync::Mutex;
-    use std::sync::atomic::{AtomicIsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 
     use tauri::{AppHandle, Manager};
     use windows::Foundation::{IPropertyValue, PropertyValue};
@@ -244,6 +244,13 @@ mod imp {
     static ISLAND: AtomicIsize = AtomicIsize::new(0);
     /// Last frame applied (window rect + outline), so unchanged frames cost nothing.
     static LAST: Mutex<Option<Frame>> = Mutex::new(None);
+    // 日期：2026-11-12。E 临时诊断仅显式启用时输出安全原生状态，首帧限流。
+    static DIAGNOSTIC_APPLY_SEEN: AtomicBool = AtomicBool::new(false);
+    static DIAGNOSTIC_OUTLINE_ERROR_SEEN: AtomicBool = AtomicBool::new(false);
+
+    fn diagnostics_enabled() -> bool {
+        std::env::var_os("ISLAND_GLASS_DIAGNOSTICS").is_some()
+    }
 
     #[derive(PartialEq)]
     struct Frame {
@@ -273,23 +280,38 @@ mod imp {
     /// thread: its messages are pumped by the app's event loop.
     pub fn setup(app: &AppHandle) {
         let Some(island) = app.get_webview_window(ISLAND_LABEL) else {
+            if diagnostics_enabled() {
+                eprintln!("glass diagnostics: setup failed; island window unavailable");
+            }
             return;
         };
         let Ok(island) = island.hwnd() else {
+            if diagnostics_enabled() {
+                eprintln!("glass diagnostics: setup failed; island HWND unavailable");
+            }
             return;
         };
         ISLAND.store(island.0 as isize, Ordering::Relaxed);
         let Some(hwnd) = (unsafe { create_window() }) else {
             log::warn!("glass: could not create the backdrop window");
+            if diagnostics_enabled() {
+                eprintln!("glass diagnostics: setup failed; backdrop HWND unavailable");
+            }
             return;
         };
         match unsafe { create_scene(hwnd) } {
             Ok(scene) => {
                 SCENE.with(|s| *s.borrow_mut() = Some(scene));
                 GLASS.store(hwnd.0 as isize, Ordering::Relaxed);
+                if diagnostics_enabled() {
+                    eprintln!("glass diagnostics: setup succeeded; native scene created");
+                }
             }
             Err(e) => {
                 log::warn!("glass: frosted glass unavailable: {e}");
+                if diagnostics_enabled() {
+                    eprintln!("glass diagnostics: setup failed; {e}");
+                }
                 unsafe {
                     let _ = DestroyWindow(hwnd);
                 }
@@ -476,15 +498,36 @@ mod imp {
         SCENE.with(|scene| {
             let scene = scene.borrow();
             let Some(scene) = scene.as_ref() else {
+                if diagnostics_enabled() {
+                    eprintln!("glass diagnostics: set_level {level:?} failed; native scene unavailable");
+                }
                 return;
             };
             let deviation = level.extra_blur() * scale;
-            let brush = if deviation > 0.0 {
+            // 日期：2026-11-12。仅 debug 的精确 solid 诊断值替换画刷，用于分层定位而非修复。
+            let solid_diagnostic = cfg!(debug_assertions)
+                && std::env::var("ISLAND_GLASS_DIAGNOSTICS").as_deref() == Ok("solid");
+            let brush = if solid_diagnostic {
+                eprintln!("glass diagnostics: SOLID layer probe; bright green brush; native clip and z-order unchanged");
+                scene
+                    .compositor
+                    .CreateColorBrushWithColor(windows::UI::Color {
+                        A: 255,
+                        R: 0,
+                        G: 255,
+                        B: 0,
+                    })
+                    .and_then(|brush| brush.cast())
+            } else if deviation > 0.0 {
                 blurred(scene, deviation)
             } else {
                 scene.backdrop.cast()
             };
-            if let Err(e) = brush.and_then(|b| scene.sprite.SetBrush(&b)) {
+            let result = brush.and_then(|b| scene.sprite.SetBrush(&b));
+            if diagnostics_enabled() {
+                eprintln!("glass diagnostics: set_level {level:?}; scale={scale}; deviation={deviation}; result={result:?}");
+            }
+            if let Err(e) = result {
                 log::warn!("glass: could not change the blur: {e}");
             }
             // A Gaussian blur reaches about 3 deviations out.
@@ -679,7 +722,22 @@ mod imp {
         else {
             return hide(glass);
         };
+        let input_shapes = shapes.len();
         let shapes = to_physical(shapes, scale);
+        let diagnose_apply = diagnostics_enabled()
+            && visible
+            && !shapes.is_empty()
+            && !DIAGNOSTIC_APPLY_SEEN.swap(true, Ordering::Relaxed);
+        if diagnose_apply {
+            eprintln!(
+                "glass diagnostics: first apply; visible={visible}; scale={scale}; input_shapes={input_shapes}; physical_shapes={}; rect=({},{},{},{})",
+                shapes.len(),
+                pos.x,
+                pos.y,
+                size.width,
+                size.height
+            );
+        }
         if !visible || shapes.is_empty() {
             return hide(glass);
         }
@@ -694,7 +752,14 @@ mod imp {
         }
         let shaped = SCENE.with(|scene| match scene.borrow().as_ref() {
             Some(scene) => unsafe { set_outline(scene, &next.shapes) }
-                .inspect_err(|e| log::warn!("glass: could not shape the backdrop: {e}"))
+                .inspect_err(|e| {
+                    log::warn!("glass: could not shape the backdrop: {e}");
+                    if diagnostics_enabled()
+                        && !DIAGNOSTIC_OUTLINE_ERROR_SEEN.swap(true, Ordering::Relaxed)
+                    {
+                        eprintln!("glass diagnostics: set_outline failed; {e}");
+                    }
+                })
                 .is_ok(),
             None => false,
         });
@@ -708,7 +773,7 @@ mod imp {
             // changes, the window doesn't, so the two can't drift apart.
             if last.as_ref().is_none_or(|l| l.rect != next.rect) {
                 let (x, y, w, h) = next.rect;
-                let _ = SetWindowPos(
+                let result = SetWindowPos(
                     glass,
                     Some(island()),
                     x,
@@ -717,6 +782,25 @@ mod imp {
                     h,
                     SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_SHOWWINDOW,
                 );
+                if diagnose_apply {
+                    eprintln!("glass diagnostics: first apply SetWindowPos result={result:?}");
+                    let mut glass_rect = windows::Win32::Foundation::RECT::default();
+                    let mut island_rect = windows::Win32::Foundation::RECT::default();
+                    let glass_rect_result = windows::Win32::UI::WindowsAndMessaging::GetWindowRect(
+                        glass,
+                        &mut glass_rect,
+                    );
+                    let island_rect_result = windows::Win32::UI::WindowsAndMessaging::GetWindowRect(
+                        island(),
+                        &mut island_rect,
+                    );
+                    eprintln!(
+                        "glass diagnostics: first apply windows; glass_visible={}; island_visible={}; glass_rect={glass_rect:?}; glass_rect_result={glass_rect_result:?}; island_rect={island_rect:?}; island_rect_result={island_rect_result:?}",
+                        windows::Win32::UI::WindowsAndMessaging::IsWindowVisible(glass).as_bool(),
+                        windows::Win32::UI::WindowsAndMessaging::IsWindowVisible(island())
+                            .as_bool()
+                    );
+                }
             }
         }
         *last = Some(next);
