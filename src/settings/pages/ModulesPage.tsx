@@ -8,7 +8,7 @@ import { Title } from "../components/Heading";
 export function ModulesPage({ values }: { values: Values }) {
 	return (
 		<>
-			<Title>模块</Title>
+			<Title>任务列表</Title>
 			<Card>
 				<Row label="任务显示大小" desc="大：完整路线图卡片；小：紧凑列表行。">
 					<Segmented
