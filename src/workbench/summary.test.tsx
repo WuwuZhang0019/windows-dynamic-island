@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createScenario } from "./contract/fixtures";
 import type { Preferences } from "./contract/protocol";
-import { WorkbenchSummary } from "./WorkbenchView";
+import { WorkbenchSummary, WorkbenchView } from "./WorkbenchView";
 
 const preferences = (selected: string): Preferences => ({ collapsed: [], selected, focus: [], scroll: {}, y: {} });
 const keys = (html: string) => [...html.matchAll(/data-step-key="([^"]+)"/g)].map((match) => match[1]);
@@ -54,5 +54,35 @@ describe("single-route thumbnail", () => {
 		const html = renderToStaticMarkup(<WorkbenchSummary envelope={createScenario("empty")} />);
 		expect(keys(html)).toHaveLength(0);
 		expect(html).not.toContain('class="wb-mini-route"');
+	});
+
+	test("connects adjacent stations using the destination state, with no leading or trailing segment", () => {
+		const envelope = createScenario("long-route");
+		const route = envelope.snapshot?.routes[0];
+		if (!route) throw Error("Missing fixture route");
+		route.stepKeys = route.stepKeys.slice(0, 6);
+		const html = renderToStaticMarkup(<WorkbenchSummary envelope={envelope} />);
+		const segments = [...html.matchAll(/class="wb-route-segment" data-status="([^"]+)"/g)].map((match) => match[1]);
+		expect(segments).toEqual(["completed", "running", "blocked", "pending", "cancelled"]);
+		expect(keys(html)).toEqual(route.stepKeys);
+	});
+
+	test("expanded tracks use the same state on both halves of each connection", () => {
+		const envelope = createScenario("long-route");
+		const route = envelope.snapshot?.routes[0];
+		if (!route) throw Error("Missing fixture route");
+		route.stepKeys = route.stepKeys.slice(0, 6);
+		const html = renderToStaticMarkup(
+			<WorkbenchView envelope={envelope} scenario="long-route" setScenario={() => {}} refresh={() => {}} />,
+		);
+		const tracks = [...html.matchAll(/class="wb-step-track"([^>]*)>/g)].map((match) => match[1]);
+		expect(tracks).toHaveLength(6);
+		expect(tracks[0]).not.toContain("data-before");
+		expect(tracks[tracks.length - 1]).not.toContain("data-after");
+		const expected = ["completed", "running", "blocked", "pending", "cancelled"];
+		for (const [index, state] of expected.entries()) {
+			expect(tracks[index]).toContain(`data-after="${state}"`);
+			expect(tracks[index + 1]).toContain(`data-before="${state}"`);
+		}
 	});
 });

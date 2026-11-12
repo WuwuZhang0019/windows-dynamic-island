@@ -1,5 +1,5 @@
 // Date: 2026-11-12. Read-only fixed workbench; no business transitions are performed here.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { WorkbenchEnvelope as Envelope, Preferences, Step, WorkbenchSnapshot } from "./contract/protocol";
 import "./workbench.css";
 
@@ -96,17 +96,19 @@ export function WorkbenchSummary({
 		>
 			{routeSteps.length > 0 && (
 				<span className="wb-mini-route" data-route-key={route?.key}>
-					{routeSteps.map((step) => (
-						<span
-							key={step.key}
-							className={`wb-mini-stop wb-step-${step.status}`}
-							data-step-key={step.key}
-							data-status={step.status}
-							data-current={step.key === anchor?.key}
-							title={`${step.code} ${step.title} · ${labels[step.status]}`}
-						>
-							<span className="wb-dot" />
-						</span>
+					{routeSteps.map((step, index) => (
+						<Fragment key={step.key}>
+							{index > 0 && <span className="wb-route-segment" data-status={step.status} aria-hidden="true" />}
+							<span
+								className={`wb-mini-stop wb-step-${step.status}`}
+								data-step-key={step.key}
+								data-status={step.status}
+								data-current={step.key === anchor?.key}
+								title={`${step.code} ${step.title} · ${labels[step.status]}`}
+							>
+								<span className="wb-dot" />
+							</span>
+						</Fragment>
 					))}
 				</span>
 			)}
@@ -376,7 +378,7 @@ export function WorkbenchView({
 																remember();
 															}}
 														>
-															{route.stepKeys.map((key) => {
+															{route.stepKeys.map((key, index) => {
 																const step = stepByKey.get(key);
 																if (!step) return null;
 																return (
@@ -390,7 +392,11 @@ export function WorkbenchView({
 																		title={`${step.code} ${step.title} · ${labels[step.status]}`}
 																		onClick={() => select(key)}
 																	>
-																		<span className="wb-step-track">
+																		<span
+																			className="wb-step-track"
+																			data-before={index > 0 ? step.status : undefined}
+																			data-after={stepByKey.get(route.stepKeys[index + 1])?.status}
+																		>
 																			<span className="wb-dot" />
 																		</span>
 																		<span className="wb-step-code">{step.code}</span>

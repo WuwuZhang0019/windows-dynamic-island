@@ -1,4 +1,10 @@
 /* Date: 2026-11-11. Styles are scoped to the fixed workbench; shell animation stays upstream. */
+/* Date: 2026-11-12. User-approved shared station and route palette. */
+.wb,
+.wb-summary {
+	--wb-progress-green: rgb(0, 194, 106);
+	--wb-route-gray: #ffffff28;
+}
 .wb {
 	display: flex;
 	flex-direction: column;
@@ -229,20 +235,34 @@
 	justify-content: center;
 	position: relative;
 }
-.wb-step-track::before {
-	content: "";
-	height: 1px;
+.wb-step-track::before,
+.wb-step-track::after {
+	height: 0;
 	position: absolute;
-	left: 0;
-	right: 0;
 	top: 11px;
-	background: #ffffff28;
+	border-top: 1px solid var(--wb-route-gray);
 }
-.wb-step:first-child .wb-step-track::before {
-	left: 50%;
-}
-.wb-step:last-child .wb-step-track::before {
+.wb-step-track[data-before]::before {
+	content: "";
+	left: 0;
 	right: 50%;
+}
+.wb-step-track[data-after]::after {
+	content: "";
+	left: 50%;
+	right: 0;
+}
+/* A connection uses its destination station's state in both views. */
+.wb-route-segment[data-status="completed"],
+.wb-step-track[data-before="completed"]::before,
+.wb-step-track[data-after="completed"]::after {
+	border-top-color: var(--wb-progress-green);
+}
+.wb-route-segment[data-status="running"],
+.wb-step-track[data-before="running"]::before,
+.wb-step-track[data-after="running"]::after {
+	border-top-color: var(--wb-progress-green);
+	border-top-style: dashed;
 }
 .wb-dot {
 	width: 9px;
@@ -253,13 +273,12 @@
 	background: #080808;
 }
 .wb-step-running .wb-dot {
-	border-color: #53cf8a;
-	background: #53cf8a;
-	box-shadow: 0 0 9px #53cf8a33;
+	border-color: var(--wb-progress-green);
+	background: #080808;
 }
 .wb-step-completed .wb-dot {
-	border-color: #f06e74;
-	background: #f06e74;
+	border-color: var(--wb-progress-green);
+	background: var(--wb-progress-green);
 }
 .wb-step-blocked .wb-dot {
 	border-color: #eab560;
@@ -287,7 +306,10 @@
 	margin-top: 3px;
 }
 .wb-step-running .wb-step-state {
-	color: #6ed99a;
+	color: var(--wb-progress-green);
+}
+.wb-step-completed .wb-step-state {
+	color: var(--wb-progress-green);
 }
 .wb-step-blocked .wb-step-state {
 	color: #eab560;
@@ -315,13 +337,13 @@
 	color: var(--text);
 }
 .wb-status.wb-step-running {
-	color: #6ed99a;
+	color: var(--wb-progress-green);
 }
 .wb-status.wb-step-blocked {
 	color: #eab560;
 }
 .wb-status.wb-step-completed {
-	color: #f49398;
+	color: var(--wb-progress-green);
 }
 .wb-detail h2 {
 	font-size: 15px;
@@ -552,19 +574,14 @@
 	height: 18px;
 	position: relative;
 }
-.wb-mini-route::before {
-	content: "";
-	position: absolute;
-	left: 4.5px;
-	right: 4.5px;
-	height: 1px;
-	background: #ffffff28;
+.wb-route-segment {
+	flex: 1 1 2px;
+	min-width: 0;
+	height: 0;
+	border-top: 1px solid var(--wb-route-gray);
 }
 .wb-mini-route:has(.wb-mini-stop:only-child) {
 	justify-content: center;
-}
-.wb-mini-route:has(.wb-mini-stop:only-child)::before {
-	display: none;
 }
 .wb-mini-stop {
 	position: relative;
