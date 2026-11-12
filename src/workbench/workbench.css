@@ -251,10 +251,6 @@
 	color: var(--text-dim);
 	background: transparent;
 }
-.wb-step[data-selected="true"] {
-	border-color: #b8baff60;
-	background: #8d91ef14;
-}
 .wb-step-track {
 	width: calc(100% + 8px);
 	height: 22px;
