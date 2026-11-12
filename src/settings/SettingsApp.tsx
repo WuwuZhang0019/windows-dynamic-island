@@ -47,7 +47,7 @@ export function SettingsApp() {
 						<NavItem to="/appearance" icon={<PaletteIcon size={15} />} label={t("appearance.title")} />
 						<NavItem to="/behavior" icon={<MousePointerClickIcon size={15} />} label={t("behavior.title")} />
 						<NavSection label={t("settings.section.island")} />
-						<NavItem to="/modules" icon={<Grid2X2Icon size={15} />} label="任务列表" />
+						<NavItem to="/modules" icon={<Grid2X2Icon size={15} />} label="已归档任务" />
 						<NavItem to="/mcp" icon={<PlugIcon size={15} />} label="MCP" />
 						<NavItem to="/skill" icon={<BookOpenIcon size={15} />} label="Skill" />
 						<div className="flex-1" />

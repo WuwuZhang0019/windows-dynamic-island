@@ -1,10 +1,14 @@
 // Date: 2026-11-12. Archived data stays server-owned; only an explicit archived-row confirmation deletes it.
-import { ArchiveIcon, RotateCcwIcon } from "lucide-react";
+import { ArchiveIcon, GripVerticalIcon, RotateCcwIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "../../components/ui/card";
 import { isTauri, onEvent } from "../../core/bridge";
+import { GroupRouteGraph } from "../../workbench/GroupRouteGraph";
 import { RouteDeleteButton } from "../../workbench/RouteDeleteButton";
+import { layoutRoutes } from "../../workbench/task-groups";
 import { changeTaskLibrary, libraryError, readTaskLibrary } from "../../workbench/task-library";
+import "../../workbench/workbench.css";
+import "./archived-tasks.css";
 
 type Library = Awaited<ReturnType<typeof readTaskLibrary>>;
 export function ArchivedTasks() {
@@ -55,7 +59,7 @@ export function ArchivedTasks() {
 		}
 	}
 	return (
-		<Card className="mt-1" aria-label="已归档任务">
+		<Card className="wb wb-archived mt-1" data-task-size="small" aria-label="已归档任务">
 			<div className="flex items-center gap-2 py-3">
 				<ArchiveIcon size={16} className="text-text-dim" aria-hidden="true" />
 				<h2 className="flex-1 text-[14px] font-semibold">已归档任务{library ? ` · ${library.archived.length}` : ""}</h2>
@@ -83,40 +87,53 @@ export function ArchivedTasks() {
 					正在读取归档任务…
 				</p>
 			)}
-			<ul className="divide-y divide-hairline">
+			<ul className="wb-route-list">
 				{library?.archived.map((entry) => {
 					const snapshot = library.snapshot;
 					const route = snapshot.routes.find((item) => item.key === entry.key);
 					const plan = snapshot.plans.find((item) => item.key === (route?.planKey ?? entry.key));
 					const project = snapshot.projects.find((item) => item.key === (plan?.projectKey ?? entry.key));
 					const title = route?.label ?? plan?.name ?? project?.name ?? entry.key;
+					const routes = route
+						? [route]
+						: snapshot.routes.filter((item) =>
+								plan
+									? item.planKey === plan.key
+									: snapshot.plans.some(
+											(candidate) => candidate.projectKey === project?.key && candidate.key === item.planKey,
+										),
+							);
+					const layout = layoutRoutes(routes, snapshot.steps);
 					const count = snapshot.steps.filter((item) =>
 						route
 							? route.stepKeys.includes(item.key) || route.stepKeys.includes(item.parentKey ?? "")
 							: item.planKey === plan?.key,
 					).length;
 					return (
-						<li key={entry.key} className="py-3" data-archived-task={entry.key}>
-							<div className="flex min-w-0 items-center gap-3">
-								<div className="min-w-0 flex-1">
-									<h3 className="truncate text-[13px] font-semibold" title={title}>
-										{title}
-									</h3>
-									<p className="mt-1 truncate text-[11px] text-text-faint" title={project?.name}>
-										{project?.name} · {count} 个步骤 · {new Date(entry.archivedAt).toLocaleDateString()}
-									</p>
+						<li key={entry.key} className="wb-route-card" data-archived-task={entry.key}>
+							<div className="wb-route-heading" style={{ minHeight: Math.max(32, 22 + (layout.lanes - 1) * 18) }}>
+								<GripVerticalIcon size={12} className="shrink-0 text-text-faint" aria-hidden="true" />
+								<div className="wb-route-title">
+									<h2 title={title}>{title}</h2>
 								</div>
-								<button
-									type="button"
-									disabled={busy}
-									className="grid size-7 shrink-0 place-items-center rounded-md text-text-dim hover:bg-white/8"
-									aria-label={`恢复：${title}`}
-									title="恢复到任务列表"
-									onClick={() => void change("restore", entry.key)}
-								>
-									<RotateCcwIcon size={14} aria-hidden="true" />
-								</button>
-								<RouteDeleteButton title={title} disabled={busy} onDelete={() => setConfirmKey(entry.key)} />
+								{layout.nodes.length > 0 && (
+									<div className="wb-row-thumbnail" data-archived-preview={entry.key}>
+										<GroupRouteGraph layout={layout} compact selectedKey="" selectedRouteKey="" onSelect={() => {}} />
+									</div>
+								)}
+								<div className="wb-route-actions">
+									<button
+										type="button"
+										disabled={busy}
+										className="grid size-7 shrink-0 place-items-center rounded-md text-text-dim hover:bg-white/8"
+										aria-label={`恢复：${title}`}
+										title="恢复到任务列表"
+										onClick={() => void change("restore", entry.key)}
+									>
+										<RotateCcwIcon size={14} aria-hidden="true" />
+									</button>
+									<RouteDeleteButton title={title} disabled={busy} onDelete={() => setConfirmKey(entry.key)} />
+								</div>
 							</div>
 							{confirmKey === entry.key && (
 								<div

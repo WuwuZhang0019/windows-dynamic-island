@@ -1,0 +1,17 @@
+/* Date: 2026-11-13. Archive rows reuse compact route styling with two action slots. */
+.wb.wb-archived {
+	height: auto;
+}
+.wb-archived .wb-route-list {
+	list-style: none;
+	padding: 0 0 12px;
+	margin: 0;
+}
+.wb-archived .wb-row-thumbnail {
+	right: 94px;
+}
+.wb-archived .wb-route-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}

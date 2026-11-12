@@ -5,7 +5,7 @@ import { Title } from "../components/Heading";
 export function ModulesPage() {
 	return (
 		<>
-			<Title>任务列表</Title>
+			<Title>已归档任务</Title>
 			<ArchivedTasks />
 		</>
 	);
