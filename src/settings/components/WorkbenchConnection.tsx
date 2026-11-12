@@ -144,19 +144,30 @@ export function WorkbenchConnection() {
 		}
 	}
 	async function copySetup(appId: AppId) {
+		if (operating.current) return;
+		operating.current = true;
+		setBusy(appId);
 		try {
-			const setup = await command<Record<string, unknown>>("island_agent_connection_setup", { appId });
-			await navigator.clipboard.writeText(JSON.stringify(setup, null, 2));
-			setMessage("已复制连接配置。在对应应用的 MCP 设置中添加后即可接入；配置中不包含连接令牌。");
+			const setup = await command<string>("island_agent_onboarding_instructions", { appId });
+			await navigator.clipboard.writeText(setup);
+			setMessage("已复制接入指令。请在 30 分钟内发送到对应应用的对话窗口，Agent 配置完成后会自动开启连接。");
 		} catch {
-			setMessage("未能复制连接配置，请先确认任务工作台运行组件已安装。");
+			setMessage("未能复制接入指令，请确认配套服务及接入组件已更新。");
+		} finally {
+			operating.current = false;
+			setBusy(null);
 		}
 	}
 	return (
 		<>
-			<p className="text-[13px]/relaxed text-text-dim">各应用可以同时连接，分别管理。开启后自动关联聊天和工作目录。</p>
+			<p className="text-[13px]/relaxed text-text-dim">
+				复制接入指令，发送给对应应用的 Agent。它完成安装与配置后会自动开启连接，无需回来点击。
+			</p>
 			{agentApps.map((app) => {
-				const status = statuses.find((value) => value.appId === app.id) ?? { state: isTauri ? "checking" : "preview" };
+				const status = statuses.find((value) => value.appId === app.id) ?? {
+					state: isTauri ? "checking" : "preview",
+					enabled: false,
+				};
 				const view = connectionPresentation(status, app.name);
 				return (
 					<Card key={app.id}>
@@ -170,27 +181,21 @@ export function WorkbenchConnection() {
 							</div>
 							<p className="text-[13px]/relaxed text-text-dim">{view.description}</p>
 							<div className="flex flex-wrap gap-2">
-								<Button
-									disabled={busy !== null || uncertain.includes(app.id) || status.state === "checking" || !isTauri}
-									onClick={() => void connect(app.id, view.enabled)}
-								>
-									<PlugIcon size={15} />
-									{busy === app.id ? "正在处理…" : view.action}
+								<Button disabled={!isTauri || busy !== null} onClick={() => void copySetup(app.id)}>
+									<CopyIcon size={14} />
+									复制接入指令
 								</Button>
-								{app.id !== "codex" && (
-									<Button disabled={!isTauri} onClick={() => void copySetup(app.id)}>
-										<CopyIcon size={14} />
-										复制连接配置
+								{status.enabled && (
+									<Button
+										disabled={busy !== null || uncertain.includes(app.id)}
+										onClick={() => void connect(app.id, false)}
+									>
+										<PlugIcon size={15} />
+										{busy === app.id ? "正在处理…" : "断开连接"}
 									</Button>
 								)}
 							</div>
-							{app.id === "codex" ? (
-								<p className="text-xs text-text-faint">通过已安装的“任务工作台”插件接入。</p>
-							) : (
-								<p className="text-xs text-text-faint">
-									在此应用中添加本地 MCP 配置。{app.id === "dsh" ? "需先确认当前 dsh 版本支持本地 MCP。" : ""}
-								</p>
-							)}
+							<p className="text-xs text-text-faint">将指令发到 {app.name} 的对话中，由它完成接入并验证工具。</p>
 						</div>
 					</Card>
 				);

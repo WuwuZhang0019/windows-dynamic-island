@@ -65,7 +65,7 @@ fn unique_name(prefix: &str) -> String {
         NEXT_FILE.fetch_add(1, Ordering::SeqCst)
     )
 }
-fn protect_directory(directory: &Path) -> Result<(), String> {
+pub(crate) fn protect_directory(directory: &Path) -> Result<(), String> {
     fs::create_dir_all(directory).map_err(|_| "CONFIG_DIRECTORY_UNAVAILABLE")?;
     #[cfg(windows)]
     {
@@ -125,7 +125,7 @@ fn prepare_config(directory: &Path) -> Result<Option<Vec<u8>>, String> {
     }
     Ok(None)
 }
-fn atomic_save(file: &Path, bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn atomic_save(file: &Path, bytes: &[u8]) -> Result<(), String> {
     let directory = file.parent().ok_or("CONFIG_DIRECTORY_UNAVAILABLE")?;
     let temporary = directory.join(format!("{}.tmp", unique_name("connection")));
     write_new(&temporary, bytes)?;
@@ -167,6 +167,7 @@ pub(crate) async fn manager_post(data: &Path, route: &str, value: Value) -> Resu
             | "api/light-access/confirm-binding"
             | "api/light-access/connect"
             | "api/light-access/connection-status"
+            | "api/light-access/prepare-onboarding"
     ) {
         return Err("FORBIDDEN".into());
     }

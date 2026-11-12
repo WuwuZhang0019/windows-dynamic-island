@@ -48,7 +48,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             agent_connections::island_agent_connections,
             agent_connections::island_agent_set_connection,
-            agent_connections::island_agent_connection_setup,
+            agent_connections::island_agent_onboarding_instructions,
             workbench_connection::island_workbench_connection_status,
             workbench_connection::island_workbench_set_connection,
             workbench_connection::island_workbench_pending_binding,
