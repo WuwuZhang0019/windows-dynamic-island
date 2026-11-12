@@ -158,8 +158,9 @@
 .wb-route-card[data-card-effect="minimal"]:active {
 	box-shadow: none;
 }
-.wb-route-card[data-selected="true"]:not(:hover):not(:has(:focus-visible)) {
-	border-color: #a6aaf04d;
+.wb-route-card[data-selected="true"],
+.wb-route-card[data-selected="true"]:is(:hover, :has(:focus-visible)) {
+	border-color: #b1b7ff;
 }
 /* Date: 2026-11-12. Card selection covers blank space; display-only station graphs retain wheel scrolling. */
 .wb .wb-route-select,
@@ -655,13 +656,6 @@
 	width: 100%;
 	height: auto;
 	aspect-ratio: 1;
-}
-.wb-group-graph-compact .wb-graph-step[data-selected="true"] .wb-dot {
-	outline: 1px solid #ffffffb3;
-	outline-offset: 2px;
-}
-.wb-group-graph-compact .wb-step-running[data-selected="true"] .wb-dot {
-	outline: none;
 }
 .wb-route-heading > .wb-route-actions {
 	display: flex;
