@@ -62,6 +62,11 @@ export function WorkbenchSummary({ envelope }: { envelope: Envelope }) {
 	const snapshot = envelope.snapshot ?? emptySnapshot;
 	const active = currentStep(snapshot.steps);
 	const project = snapshot.projects.find((item) => item.key === active?.projectKey);
+	// Date: 2026-11-12. Show the active route as a compact, read-only metro map.
+	const route = snapshot.routes.find((item) => item.stepKeys.includes(active?.key ?? ""));
+	const routeSteps = (route?.stepKeys ?? [])
+		.map((key) => snapshot.steps.find((step) => step.key === key))
+		.filter((step): step is Step => Boolean(step));
 	const count = (status: Status) => snapshot.steps.filter((item) => item.status === status).length;
 	return (
 		<div
@@ -81,6 +86,22 @@ export function WorkbenchSummary({ envelope }: { envelope: Envelope }) {
 					? `执行 ${count("running")} · 阻塞 ${count("blocked")} · 待处理 ${count("pending")}`
 					: connectionLabels[connection.state]}
 			</span>
+			{routeSteps.length > 0 && (
+				<span
+					className="wb-mini-route"
+					role="img"
+					aria-label={`${route?.label ?? "路线"}：${routeSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
+				>
+					{routeSteps.map((step) => (
+						<span
+							key={step.key}
+							className={`wb-mini-stop wb-mini-${step.status}`}
+							data-current={step.key === active?.key}
+							title={`${step.code} ${step.title} · ${labels[step.status]}`}
+						/>
+					))}
+				</span>
+			)}
 		</div>
 	);
 }

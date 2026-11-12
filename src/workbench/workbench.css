@@ -535,3 +535,57 @@
 	color: #b3b6f5;
 	font-size: 10px;
 }
+/* Date: 2026-11-12. Two-row summary keeps time and route visible at rest. */
+.wb-summary {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	grid-template-rows: auto 10px;
+	flex: 1;
+	min-width: 0;
+	gap: 2px 7px;
+	padding: 4px 0;
+}
+.wb-mini-route {
+	grid-column: 1 / -1;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-width: 0;
+	height: 10px;
+	position: relative;
+	gap: 2px;
+}
+.wb-mini-route::before {
+	content: "";
+	position: absolute;
+	left: 3px;
+	right: 3px;
+	height: 2px;
+	background: #73788b;
+	opacity: 0.65;
+}
+.wb-mini-stop {
+	position: relative;
+	width: 6px;
+	height: 6px;
+	flex: 0 1 6px;
+	min-width: 2px;
+	border-radius: 50%;
+	background: #9196a6;
+	border: 1px solid #15161c;
+}
+.wb-mini-completed {
+	background: #51d8b2;
+}
+.wb-mini-running {
+	background: #78aaff;
+}
+.wb-mini-blocked {
+	background: #ffb765;
+}
+.wb-mini-cancelled {
+	background: #565969;
+}
+.wb-mini-stop[data-current="true"] {
+	box-shadow: 0 0 0 1px #fff;
+}

@@ -11,7 +11,7 @@ import { Tabs } from "./Tabs";
 // Date: 2026-11-12. Fixed workbench content uses the original shell transition.
 export function islandContent(
 	ctl: IslandController,
-	look: Appearance,
+	_look: Appearance,
 	v: Variant,
 	workbench: WorkbenchState,
 ): { key: string; node: ReactNode } {
@@ -43,11 +43,9 @@ export function islandContent(
 		key: "compact:workbench",
 		node: (
 			<div className="flex h-full items-center gap-3 px-4">
-				{look.style === "windows" && look.idleClock && (
-					<div className="shrink-0">
-						<IdleClock />
-					</div>
-				)}
+				<div className="shrink-0">
+					<IdleClock />
+				</div>
 				<WorkbenchSummary envelope={workbench.envelope} />
 			</div>
 		),
