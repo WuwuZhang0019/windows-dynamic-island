@@ -1,6 +1,7 @@
 // Date: 2026-11-12. Native-only transport; credentials and paths never enter the WebView.
 
 import { invoke } from "@tauri-apps/api/core";
+import { type ContinuousRun, checkedContinuous } from "./continuous";
 import {
 	acceptEnvelope,
 	type EventResult,
@@ -56,6 +57,14 @@ export class ServiceWorkbenchClient implements WorkbenchClient {
 	private current: WorkbenchEnvelope | null = null;
 	private archives: string[] = [];
 	private supportsLibrary = false;
+	private continuous: ContinuousRun[] = [];
+	private supportsContinuous = false;
+	get continuousRuns() {
+		return structuredClone(this.continuous);
+	}
+	get continuousSupported() {
+		return this.supportsContinuous;
+	}
 	get archivedKeys() {
 		return [...this.archives];
 	}
@@ -100,6 +109,8 @@ export class ServiceWorkbenchClient implements WorkbenchClient {
 				this.savedPreferences = followNewPlan(this.current?.snapshot ?? null, next.snapshot, this.savedPreferences);
 			this.archives = checkedArchives(panel.library).map((entry) => entry.key);
 			this.supportsLibrary = panel.librarySupported === true;
+			this.continuous = checkedContinuous(panel.continuousRuns);
+			this.supportsContinuous = panel.continuousSupported === true;
 			this.current = next;
 		} catch (error) {
 			if (sequence === this.readSequence) this.current = failedEnvelope(this.mode, error, this.current);

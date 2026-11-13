@@ -1,6 +1,7 @@
 // 修改日期：2026-11-12。固定工作台外壳仅启动窗口及设置服务。
 mod agent_connections;
 mod autostart;
+mod continuous;
 mod display;
 mod glass;
 mod i18n;
@@ -54,6 +55,7 @@ pub fn run() {
             workbench_connection::island_workbench_pending_binding,
             workbench_connection::island_workbench_authorize_connection,
             workbench_connection::island_workbench_confirm_binding,
+            continuous::island_continuous_change,
             task_library::island_task_library_read,
             task_library::island_task_library_change,
             workbench::island_workbench_read,

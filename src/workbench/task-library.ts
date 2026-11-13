@@ -10,6 +10,8 @@ export type TaskLibraryPanel = {
 	preferences: Preferences | null;
 	library?: unknown;
 	librarySupported?: boolean;
+	continuousRuns?: unknown;
+	continuousSupported?: boolean;
 };
 export function checkedArchives(value: unknown): ArchivedTask[] {
 	if (value === undefined) return [];

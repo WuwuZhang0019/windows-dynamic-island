@@ -3,6 +3,8 @@ import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setSetting, taskCardEffect, useSettings } from "../core/settings";
 import { type AppFilter, matchesApp } from "./agent-apps";
+import { ContinuousButton } from "./ContinuousButton";
+import type { ContinuousRun } from "./continuous";
 import type { WorkbenchEnvelope as Envelope, Preferences, Route, Step, WorkbenchSnapshot } from "./contract/protocol";
 import { GroupRouteGraph } from "./GroupRouteGraph";
 import { TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
@@ -150,6 +152,8 @@ export interface WorkbenchViewProps {
 	preferenceMessage?: string;
 	archivedKeys?: string[];
 	archiveTask?: (key: string) => Promise<void>;
+	continuousRuns?: ContinuousRun[];
+	toggleContinuous?: (planKey: string) => Promise<void>;
 }
 
 export function WorkbenchView({
@@ -164,6 +168,8 @@ export function WorkbenchView({
 	preferenceMessage,
 	archivedKeys = [],
 	archiveTask,
+	continuousRuns = [],
+	toggleContinuous,
 }: WorkbenchViewProps) {
 	const reducedMotion = useReducedMotion();
 	const settings = useSettings();
@@ -330,6 +336,18 @@ export function WorkbenchView({
 			setArchiveMessage(`已归档：${title}，可在设置 → 任务列表中查看`);
 		} catch (error) {
 			setArchiveMessage(`${completed ? "部分路线已归档，其余仍保留在列表。" : ""}${libraryError(error)}`);
+		} finally {
+			setBusyKey(null);
+		}
+	}
+	async function continuousEntry(key: string) {
+		if (!toggleContinuous || busyKey) return;
+		setBusyKey(key);
+		try {
+			await toggleContinuous(key);
+			setArchiveMessage("");
+		} catch (error) {
+			setArchiveMessage(`连续执行操作未完成：${String(error)}；请刷新核对后重试`);
 		} finally {
 			setBusyKey(null);
 		}
@@ -516,6 +534,14 @@ export function WorkbenchView({
 												</div>
 											)}
 											<div className="wb-route-actions">
+												{group.plan && (
+													<ContinuousButton
+														title={title}
+														run={continuousRuns.find((r) => r.planKey === group.plan?.key)}
+														disabled={!toggleContinuous || !!busyKey || connection.state !== "ready"}
+														onToggle={() => void continuousEntry(group.plan?.key ?? "")}
+													/>
+												)}
 												<RouteArchiveButton
 													title={title}
 													disabled={!archiveTask || !!busyKey || connection.state !== "ready"}

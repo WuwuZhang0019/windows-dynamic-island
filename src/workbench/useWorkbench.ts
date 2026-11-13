@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onEvent } from "../core/bridge";
 import type { AppFilter } from "./agent-apps";
+import { type ContinuousRun, changeContinuous } from "./continuous";
 import { MockWorkbenchClient, type ScenarioId, scenarios } from "./contract/fixtures";
 import { acceptEnvelope, type Preferences, type WorkbenchEnvelope } from "./contract/protocol";
 import { failedEnvelope, ServiceWorkbenchClient } from "./service-client";
@@ -20,6 +21,8 @@ export function useWorkbench() {
 	const [envelope, setEnvelope] = useState<WorkbenchEnvelope | null>(null);
 	const [archivedKeys, setArchivedKeys] = useState<string[]>([]);
 	const [librarySupported, setLibrarySupported] = useState(false);
+	const [continuousRuns, setContinuousRuns] = useState<ContinuousRun[]>([]);
+	const [continuousSupported, setContinuousSupported] = useState(false);
 	const [preferences, setPreferences] = useState<Preferences | null>(null);
 	const [preferenceMessage, setPreferenceMessage] = useState("");
 	const [scenario, updateScenario] = useState<ScenarioId>("multi-project");
@@ -45,6 +48,8 @@ export function useWorkbench() {
 				setPreferences(client.preferences);
 				setArchivedKeys(client.archivedKeys);
 				setLibrarySupported(client.librarySupported);
+				setContinuousRuns(client.continuousRuns);
+				setContinuousSupported(client.continuousSupported);
 			}
 		} catch (error) {
 			if (token !== request.current || !alive.current) return;
@@ -93,6 +98,19 @@ export function useWorkbench() {
 		},
 		[read],
 	);
+	const toggleContinuous = useCallback(
+		async (planKey: string) => {
+			const snapshot = current.current?.snapshot;
+			const plan = snapshot?.plans.find((p) => p.key === planKey);
+			const project = snapshot?.projects.find((p) => p.key === plan?.projectKey);
+			if (!project || project.revision === null) throw Error("OWNER_UNAVAILABLE");
+			const run = continuousRuns.find((r) => r.planKey === planKey);
+			const action = run?.status === "running" ? "pause" : run ? "resume" : "start";
+			await changeContinuous(planKey, action, project.revision);
+			await read();
+		},
+		[continuousRuns, read],
+	);
 	useEffect(() => onEvent("task-library-changed", () => void read()), [read]);
 	useEffect(() => {
 		alive.current = true;
@@ -140,6 +158,8 @@ export function useWorkbench() {
 		preferenceMessage,
 		archivedKeys,
 		archiveTask: librarySupported ? archiveTask : undefined,
+		continuousRuns,
+		toggleContinuous: continuousSupported ? toggleContinuous : undefined,
 	};
 }
 export type WorkbenchState = ReturnType<typeof useWorkbench>;
