@@ -85,3 +85,8 @@
 .wb-route-heading:has(.wb-continuous) .wb-row-thumbnail {
 	right: 164px;
 }
+
+.wb .wb-continuous[aria-checked="false"],
+.wb .wb-continuous[aria-checked="false"]:hover:not(:disabled) {
+	background: #313033;
+}

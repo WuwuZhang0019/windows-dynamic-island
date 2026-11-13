@@ -12,8 +12,12 @@ export function ContinuousButton({
 	disabled: boolean;
 	onToggle: () => void;
 }) {
-	const active = run?.status === "running" || run?.status === "pausing";
-	const hint = run?.reason || (active ? "当前阶段完成后暂停接续" : "按阶段新建会话并连续执行至方案结束");
+	// The switch reflects future dispatch, even while the current stage is draining.
+	const active = run?.status === "running";
+	const hint =
+		run?.status === "pausing"
+			? "连续执行已关闭，当前阶段完成后暂停"
+			: run?.reason || (active ? "当前阶段完成后暂停接续" : "按阶段新建会话并连续执行至方案结束");
 	return (
 		<button
 			type="button"
