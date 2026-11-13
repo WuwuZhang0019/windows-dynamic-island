@@ -95,7 +95,10 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
 	const nodes: RoadmapNode[] = layout.nodes.map((node) => ({
 		...node,
-		x: (node.column + 0.5) * columnWidth,
+		// Date: 2026-11-13. Place the merge station at the former junction rather than after a blank tail.
+		x: Number(
+			((node.column + 0.5) * columnWidth - ((incoming.get(node.step.key) ?? 0) > 1 ? columnWidth * 0.4 : 0)).toFixed(3),
+		),
 		y: offset + node.lane * laneHeight,
 		merge: (incoming.get(node.step.key) ?? 0) > 1,
 		forkDown: false,
@@ -114,11 +117,9 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 		const direction = to.x > from.x ? 1 : -1;
 		let points: Point[] = [from, to];
 		if (from.y !== to.y) {
-			const inset = Math.min(columnWidth * 0.4, Math.abs(to.x - from.x) / 2);
-			// Date: 2026-11-13. Forks leave the source vertically; joins retain their destination bend.
-			const bend = to.merge ? to.x - direction * inset : from.x;
+			// Curves meet the merge station directly; forks leave their source vertically.
 			if (!to.merge && to.y > from.y) from.forkDown = true;
-			points = [from, { x: bend, y: from.y }, { x: bend, y: to.y }, to];
+			points = to.merge ? [from, { x: to.x, y: from.y }, to] : [from, { x: from.x, y: to.y }, to];
 		} else if (
 			nodes.some(
 				(node) =>

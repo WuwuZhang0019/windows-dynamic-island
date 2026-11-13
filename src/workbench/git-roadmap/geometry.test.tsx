@@ -13,6 +13,19 @@ function fixture() {
 }
 
 describe("source-adapted Git roadmap", () => {
+	test("merge stations occupy their junction and incoming curves end on that station", () => {
+		const snapshot = fixture();
+		for (const compact of [false, true]) {
+			const graph = roadmapGeometry(layoutRoutes(snapshot.routes, snapshot.steps), compact);
+			const join = graph.nodes.find((node) => node.step.code === "A5");
+			if (!join) throw Error("Missing merge fixture");
+			expect(join.x).toBe((join.column + 0.5) * 108 - 43.2);
+			const incoming = graph.edges.filter((edge) => edge.to === join.step.key);
+			expect(incoming).toHaveLength(3);
+			for (const edge of incoming) expect(edge.path).toEndWith(`L ${join.x} ${join.y}`);
+			for (const node of graph.nodes.filter((node) => !node.merge)) expect(node.x).toBe((node.column + 0.5) * 108);
+		}
+	});
 	test("forks leave the exact source x vertically in both sizes, keeping a source label corridor", () => {
 		const snapshot = fixture();
 		for (const compact of [false, true]) {

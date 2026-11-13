@@ -740,6 +740,14 @@
 	stroke-linejoin: round;
 	opacity: 0.38;
 }
+/* Date: 2026-11-13. Merge captions sit beside the junction, clear of incoming vertical lines. */
+.wb-graph-step[data-merge="true"] :is(.wb-step-code, .wb-step-title, .wb-step-state) {
+	position: relative;
+	left: calc(50% + 6px);
+	align-self: flex-start;
+	width: 82px;
+	text-align: left;
+}
 .wb-graph-lines path[data-status="completed"] {
 	opacity: 0.95;
 }
