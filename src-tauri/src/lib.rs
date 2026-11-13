@@ -7,6 +7,7 @@ mod glass;
 mod i18n;
 mod memory;
 mod portable;
+mod service_bootstrap;
 mod settings;
 mod store;
 mod task_library;
@@ -45,6 +46,9 @@ pub fn run() {
                 display::place(&win)?;
                 win.set_ignore_cursor_events(!input_test)?;
                 win.show()?;
+            }
+            if !input_test {
+                service_bootstrap::spawn(&handle);
             }
             memory::sync_island(&handle);
             glass::setup(&handle);

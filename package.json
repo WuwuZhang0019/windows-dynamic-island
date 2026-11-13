@@ -16,7 +16,8 @@
 		"app:build:runtime": "tauri build --no-bundle --config src-tauri/tauri.nosign.conf.json",
 		"package:store": "pwsh -NoProfile -File scripts/package-msix.ps1",
 		"v": "bun pm version",
-		"version": "bun scripts/sync-cargo-version.ts"
+		"version": "bun scripts/sync-cargo-version.ts",
+		"prepare:runtime": "bun scripts/prepare-workbench-runtime.mjs"
 	},
 	"dependencies": {
 		"@tauri-apps/api": "^2.12.4",
