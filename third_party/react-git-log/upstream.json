@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-13",
+  "repository": "https://github.com/TomPlum/react-git-log",
+  "commit": "1b9eb87f25917f435335f665e0b082a7fa99a096",
+  "license": "Apache-2.0",
+  "files": [
+    {
+      "source": "packages/library/src/modules/Graph/strategies/Grid/components/CurvedEdge/CurvedEdge.tsx",
+      "snapshot": "upstream/CurvedEdge.tsx",
+      "sha256": "992ff8940d13bae88c3bdc22caa705dedbc0774d4f703e0a9e583facb85209c2"
+    },
+    {
+      "source": "packages/library/src/modules/Graph/strategies/Canvas/CanvasRenderer.ts",
+      "snapshot": "upstream/CanvasRenderer.ts",
+      "sha256": "4394471146c53a7bb891172ec4e9301a941997855ee352dc6367d0624beb3e8b"
+    }
+  ]
+}

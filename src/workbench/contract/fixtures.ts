@@ -1,4 +1,4 @@
-// Deterministic simulation only. Date: 2026-11-11. Never connects to a service.
+// Deterministic simulation only. Date: 2026-11-13. Never connects to a service.
 
 import type {
 	EventResult,
@@ -14,6 +14,7 @@ import { acceptEnvelope, PROTOCOL_VERSION, SNAPSHOT_VERSION } from "./protocol";
 export const scenarios = [
 	{ id: "multi-project", label: "多项目与五状态" },
 	{ id: "long-route", label: "长路线 · 60 阶段" },
+	{ id: "fork-join", label: "分叉与合流 · 多线协作" },
 	{ id: "deep-branch", label: "深分支 · 四层关联" },
 	{ id: "empty", label: "空数据" },
 	{ id: "offline", label: "服务离线（模拟）" },
@@ -244,6 +245,99 @@ export function createScenario(id: ScenarioId): WorkbenchEnvelope {
 		s.supplements = s.supplements.filter((x) => keys.has(x.sourceStepKey));
 		s.events = s.events.filter((x) => x.stepKey === null || keys.has(x.stepKey));
 	}
+	// Date: 2026-11-13. Explicit fork/join sample for the source-adapted roadmap, without service writes.
+	if (id === "fork-join") {
+		const project = s.projects[0];
+		const plan = { ...s.plans[0], key: "sim/plan/fork-join", name: "多线协作 · 分叉与合流" };
+		const template = s.steps[0];
+		const routeTemplate = s.routes[0];
+		const definitions: [string, string, StepStatus][] = [
+			["A1", "确认目标与验收条件", "completed"],
+			["A2", "接口契约冻结", "completed"],
+			["A3", "主流程实现", "completed"],
+			["A4", "主流程回归", "running"],
+			["A5", "三线合流验收", "pending"],
+			["A6", "准备交付", "pending"],
+			["A7", "安装与恢复验证", "pending"],
+			["A8", "交付收口", "pending"],
+			["B1", "路线图开发", "completed"],
+			["B2", "缩略岛同步", "completed"],
+			["C1", "服务事件接入", "running"],
+			["C2", "真实环境核验", "blocked"],
+			["D1", "独立交付复核", "pending"],
+			["D2", "交付证据核对", "pending"],
+		];
+		const stepKey = (code: string) => `${plan.key}/step/${code}`;
+		s.projects = [{ ...project, planKeys: [plan.key] }];
+		s.steps = definitions.map(([code, title, status], order) => ({
+			...template,
+			key: stepKey(code),
+			planKey: plan.key,
+			code,
+			originalCode: code,
+			title,
+			order,
+			status,
+			dependsOn: [],
+			acceptance: status === "completed" ? "passed" : "pending",
+			conditions: [],
+			evidence: [],
+			bindingKey: null,
+			executionKey: null,
+			blockers:
+				status === "blocked"
+					? [
+							{
+								blockerId: "sim/native-review",
+								reason: "等待原生环境核验",
+								waitingFor: ["原生桌面"],
+								releaseConditions: ["提供当前版本证据"],
+								resolved: false,
+							},
+						]
+					: [],
+		}));
+		plan.stageKeys = s.steps.map((step) => step.key);
+		plan.stageCount = s.steps.length;
+		s.plans = [plan];
+		const route = (
+			key: string,
+			label: string,
+			codes: string[],
+			order: number,
+			source: string | null,
+			target: string | null,
+		): Route => ({
+			...routeTemplate,
+			key: `${plan.key}/route/${key}`,
+			planKey: plan.key,
+			label,
+			order,
+			stepKeys: codes.map(stepKey),
+			sourceStepKey: source ? stepKey(source) : null,
+			returnStepKey: target ? stepKey(target) : null,
+		});
+		s.routes = [
+			route("main", "主路线", ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"], 0, null, null),
+			route("ui", "界面开发", ["B1", "B2"], 1, "A2", "A5"),
+			route("service", "服务接入", ["C1", "C2"], 2, "A2", "A5"),
+			route("review", "交付复核", ["D1", "D2"], 3, "A6", "A8"),
+		];
+		for (const route of s.routes) {
+			for (const [index, key] of route.stepKeys.entries()) {
+				const step = s.steps.find((item) => item.key === key);
+				const predecessor = index ? route.stepKeys[index - 1] : route.sourceStepKey;
+				if (step && predecessor) step.dependsOn.push(predecessor);
+			}
+			const target = s.steps.find((step) => step.key === route.returnStepKey);
+			if (target) target.dependsOn.push(route.stepKeys[route.stepKeys.length - 1]);
+		}
+		s.bindings = [];
+		s.executions = [];
+		s.supplements = [];
+		s.events = [];
+	}
+
 	if (id === "empty") {
 		s.projects = [];
 		s.plans = [];

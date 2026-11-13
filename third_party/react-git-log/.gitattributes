@@ -1,0 +1,3 @@
+# Date: 2026-11-13. Preserve exact upstream Git blob bytes on every platform.
+upstream/** -text
+LICENSE -text

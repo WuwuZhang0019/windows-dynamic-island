@@ -1,4 +1,4 @@
-// Date: 2026-11-12. Route reader with explicit owner archival; execution states remain service-owned.
+// Date: 2026-11-13. Source-adapted roadmap. Route reader with explicit owner archival; execution states remain service-owned.
 import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setSetting, taskCardEffect, useSettings } from "../core/settings";
@@ -50,6 +50,7 @@ const connectionLabels: Record<string, string> = {
 const defaultScenarios = [
 	{ id: "multi-project", label: "多项目" },
 	{ id: "long-route", label: "长路线" },
+	{ id: "fork-join", label: "分叉与合流" },
 	{ id: "deep-branch", label: "深分支" },
 	{ id: "empty", label: "空数据" },
 	{ id: "offline", label: "离线" },
@@ -511,7 +512,7 @@ export function WorkbenchView({
 										)}
 										<header
 											className="wb-route-heading"
-											style={{ minHeight: compact ? Math.max(32, 22 + (layout.lanes - 1) * 18) : 32 }}
+											style={{ minHeight: compact ? Math.max(32, 24 + (layout.lanes - 1) * 18) : 32 }}
 										>
 											<div className="wb-route-title">
 												<h2 title={title}>{title}</h2>
@@ -526,6 +527,7 @@ export function WorkbenchView({
 												>
 													<GroupRouteGraph
 														layout={layout}
+														routes={routes}
 														compact
 														selectedKey={selectedKey}
 														selectedRouteKey={selectedRouteKey}
@@ -562,6 +564,7 @@ export function WorkbenchView({
 													>
 														<GroupRouteGraph
 															layout={layout}
+															routes={routes}
 															compact={false}
 															selectedKey={selectedKey}
 															selectedRouteKey={selectedRouteKey}

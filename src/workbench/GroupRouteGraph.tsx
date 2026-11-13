@@ -1,5 +1,8 @@
-// Date: 2026-11-12. One shared graph renders task forks, joins and reused lanes.
+// Date: 2026-11-13. Source-adapted Git curves with the workbench's declared route topology.
 import type { CSSProperties } from "react";
+import type { Route } from "./contract/protocol";
+import { CurvedEdge } from "./git-roadmap/CurvedEdge";
+import { roadmapGeometry } from "./git-roadmap/geometry";
 import type { RouteGraphLayout } from "./task-groups";
 
 const labels: Record<string, string> = {
@@ -14,74 +17,95 @@ export function GroupRouteGraph({
 	layout,
 	compact,
 	selectedKey,
-	// selectedRouteKey,
-	// onSelect,
+	routes = [],
 }: {
 	layout: RouteGraphLayout;
 	compact: boolean;
 	selectedKey: string;
 	selectedRouteKey: string;
 	onSelect: (key: string, route: string) => void;
+	routes?: Route[];
 }) {
-	const gap = compact ? 18 : 84;
-	const offset = compact ? 11 : 18;
-	const height = compact ? 22 + (layout.lanes - 1) * gap : 88 + (layout.lanes - 1) * gap;
-	const width = layout.columns * 92;
-	const nodes = new Map(layout.nodes.map((node) => [node.step.key, node]));
+	const graph = roadmapGeometry(layout, compact);
 	return (
-		<div
-			className={`wb-group-graph${compact ? " wb-group-graph-compact" : ""}`}
-			data-graph-lanes={layout.lanes}
-			style={{ height, minWidth: compact ? undefined : width, "--wb-graph-columns": layout.columns } as CSSProperties}
-		>
-			<svg className="wb-graph-lines" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-				{layout.edges.map((edge) => {
-					const from = nodes.get(edge.from),
-						to = nodes.get(edge.to);
-					if (!from || !to) return null;
-					return (
-						<line
-							key={edge.key}
-							x1={(from.column + 0.5) * 92}
-							y1={offset + from.lane * gap}
-							x2={(to.column + 0.5) * 92}
-							y2={offset + to.lane * gap}
-							data-status={to.step.status}
-							data-kind={edge.kind}
-							data-from={edge.from}
-							data-to={edge.to}
-							vectorEffect="non-scaling-stroke"
-						/>
-					);
-				})}
-			</svg>
-			{/* Date: 2026-11-12. Station clicks are paused. Restore the button, routeKeys and callback bindings to re-enable:
-				onClick={() => onSelect(step.key, routeKeys.includes(selectedRouteKey) ? selectedRouteKey : routeKeys[0])}
-			*/}
-			{layout.nodes.map(({ step, column, lane }) => (
-				<span
-					key={step.key}
-					role="img"
-					className={`wb-step wb-graph-step wb-step-${step.status}`}
-					data-step-key={step.key}
-					data-status={step.status}
-					aria-label={`${step.code} ${step.title} · ${labels[step.status]}`}
-					data-selected={step.key === selectedKey}
-					title={`${step.code} ${step.title} · ${labels[step.status]}`}
-					style={{ left: `${((column + 0.5) / layout.columns) * 100}%`, top: lane * gap + (compact ? 5 : 4) }}
+		<>
+			<div
+				className={`wb-group-graph${compact ? " wb-group-graph-compact" : ""}`}
+				data-graph-lanes={layout.lanes}
+				data-graph-renderer="react-git-log-adapted"
+				style={
+					{
+						height: graph.height,
+						minWidth: compact ? undefined : graph.width,
+						"--wb-graph-columns": layout.columns,
+					} as CSSProperties
+				}
+			>
+				<svg
+					className="wb-graph-lines"
+					viewBox={`0 0 ${graph.width} ${graph.height}`}
+					preserveAspectRatio="none"
+					aria-hidden="true"
 				>
-					<span className="wb-step-track">
-						<span className="wb-dot" />
+					{graph.edges.map((edge) => (
+						<CurvedEdge
+							key={edge.key}
+							id={edge.key}
+							colour={edge.colour}
+							path={edge.path}
+							dashed={edge.status === "running"}
+							status={edge.status}
+							kind={edge.kind}
+							from={edge.from}
+							to={edge.to}
+						/>
+					))}
+				</svg>
+				{/* Station actions remain paused; card selection and wheel scrolling are handled by WorkbenchView. */}
+				{graph.nodes.map(({ step, x, y, merge, colour }) => (
+					<span
+						key={step.key}
+						role="img"
+						className={`wb-step wb-graph-step wb-step-${step.status}`}
+						data-step-key={step.key}
+						data-status={step.status}
+						data-merge={merge}
+						aria-label={`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}`}
+						data-selected={step.key === selectedKey}
+						title={`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}`}
+						style={
+							{
+								left: `${(x / graph.width) * 100}%`,
+								top: y - (compact ? 6 : 14),
+								"--wb-branch-colour": colour,
+							} as CSSProperties
+						}
+					>
+						<span className="wb-step-track">
+							<span className="wb-dot" />
+						</span>
+						{!compact && (
+							<>
+								<span className="wb-step-code">{step.code}</span>
+								<span className="wb-step-title">{step.title}</span>
+								<span className="wb-step-state">{labels[step.status]}</span>
+							</>
+						)}
 					</span>
-					{!compact && (
-						<>
-							<span className="wb-step-code">{step.code}</span>
-							<span className="wb-step-title">{step.title}</span>
-							<span className="wb-step-state">{labels[step.status]}</span>
-						</>
-					)}
-				</span>
-			))}
-		</div>
+				))}
+			</div>
+			{!compact && layout.lanes > 1 && routes.length > 1 && (
+				<ul className="wb-graph-legend" aria-label="路线分支">
+					{routes
+						.filter((route) => route.stepKeys.some((key) => graph.nodes.some((node) => node.step.key === key)))
+						.map((route) => (
+							<li key={route.key} title={route.label}>
+								<i style={{ background: graph.palette.get(route.key) }} aria-hidden="true" />
+								{route.label}
+							</li>
+						))}
+				</ul>
+			)}
+		</>
 	);
 }
