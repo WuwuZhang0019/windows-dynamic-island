@@ -35,6 +35,7 @@ fn shell_key(key: &str) -> bool {
             | "tasks.displaySize"
             | "tasks.routeOrder"
             | "tasks.cardEffect"
+            | "tasks.continuousMode"
             | "island.hidden"
             | "island.openOn"
             | "island.closeOn"
@@ -48,8 +49,15 @@ fn shell_key(key: &str) -> bool {
     )
 }
 
+// Date: 2026-11-13. Only the two supported dispatch modes may be persisted.
+fn valid_continuous_mode(value: &Value) -> bool {
+    matches!(value.as_str(), Some("stages" | "current_thread"))
+}
+
 fn shell_preferences(mut data: Map<String, Value>) -> Map<String, Value> {
-    data.retain(|key, _| shell_key(key));
+    data.retain(|key, value| {
+        shell_key(key) && (key != "tasks.continuousMode" || valid_continuous_mode(value))
+    });
     data.insert(CONFIG_VERSION_KEY.into(), Value::from(CONFIG_VERSION));
     data
 }
@@ -176,7 +184,7 @@ impl Settings {
     }
 
     fn store_value(&self, key: &str, value: Value) -> io::Result<Map<String, Value>> {
-        if !shell_key(key) {
+        if !shell_key(key) || (key == "tasks.continuousMode" && !valid_continuous_mode(&value)) {
             return Err(io::Error::other("unsupported shell setting"));
         }
         let mut data = self.data.lock().unwrap();
@@ -436,6 +444,34 @@ mod tests {
             let reloaded = Settings::from_paths(Some(path.clone()), None);
             assert_eq!(reloaded.get("tasks.cardEffect"), Some(Value::from(effect)));
         }
+    }
+
+    // Date: 2026-11-13. Mode selection survives restarts and invalid values cannot replace it.
+    #[test]
+    fn continuous_modes_survive_restart_and_reject_invalid_values() {
+        let root = Profile::new();
+        let path = root.0.join("settings.json");
+        for mode in ["stages", "current_thread"] {
+            let settings = Settings::from_paths(Some(path.clone()), None);
+            settings
+                .store_value("tasks.continuousMode", Value::from(mode))
+                .unwrap();
+            assert!(
+                settings
+                    .store_value("tasks.continuousMode", Value::from("unsupported"))
+                    .is_err()
+            );
+            let reloaded = Settings::from_paths(Some(path.clone()), None);
+            assert_eq!(
+                reloaded.get("tasks.continuousMode"),
+                Some(Value::from(mode))
+            );
+        }
+        let imported = shell_preferences(
+            serde_json::from_value(serde_json::json!({"tasks.continuousMode": "unsupported"}))
+                .unwrap(),
+        );
+        assert!(!imported.contains_key("tasks.continuousMode"));
     }
 
     // Date: 2026-11-12. Size and local task order must survive native process restarts.

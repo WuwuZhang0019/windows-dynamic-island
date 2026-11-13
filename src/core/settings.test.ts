@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	continuousMode,
 	getSettings,
 	LEGACY_BACKUP_KEY,
 	LEGACY_LOCAL_KEY,
@@ -23,6 +24,20 @@ describe("taskCardEffect", () => {
 		}
 		expect(taskCardEffect({})).toBe("minimal");
 		expect(taskCardEffect({ "tasks.cardEffect": "unknown" })).toBe("minimal");
+	});
+});
+
+// Date: 2026-11-13. Both modes survive browser reloads; invalid stored modes fall back safely.
+describe("continuousMode", () => {
+	test("retains only supported modes and keeps the stage default for older profiles", () => {
+		for (const mode of ["stages", "current_thread"] as const) {
+			const loaded = shellPreferences({ "tasks.continuousMode": mode });
+			expect(loaded["tasks.continuousMode"]).toBe(mode);
+			expect(continuousMode(loaded)).toBe(mode);
+		}
+		expect(continuousMode({})).toBe("stages");
+		expect(continuousMode({ "tasks.continuousMode": "invalid" })).toBe("stages");
+		expect(shellPreferences({ "tasks.continuousMode": "invalid" })["tasks.continuousMode"]).toBeUndefined();
 	});
 });
 

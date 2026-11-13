@@ -90,3 +90,44 @@
 .wb .wb-continuous[aria-checked="false"]:hover:not(:disabled) {
 	background: #313033;
 }
+
+/* Date: 2026-11-13. Failure reasons remain visible in both task-list sizes. */
+.wb-continuous-feedback {
+	position: relative;
+	z-index: 2;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 0 12px 8px;
+	font-size: 11px;
+	line-height: 1.5;
+	color: #c4b6dd;
+	pointer-events: auto;
+}
+.wb-continuous-feedback > span {
+	min-width: 0;
+	flex: 1;
+	overflow-wrap: anywhere;
+	user-select: text;
+}
+.wb-continuous-feedback[data-blocked="true"] {
+	color: #e7bd79;
+}
+.wb-continuous-feedback > button {
+	flex: none;
+	padding: 1px 8px;
+	border: 1px solid #e7ad5560;
+	border-radius: 8px;
+	background: #e7ad5515;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+.wb-continuous-feedback > button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+.wb .wb-continuous[data-status="blocked"][aria-checked="true"],
+.wb .wb-continuous[data-status="blocked"][aria-checked="true"]:hover:not(:disabled) {
+	background: #866026;
+}
