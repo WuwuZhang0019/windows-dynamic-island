@@ -40,6 +40,9 @@ describe("grouped task routes", () => {
 		]);
 		expect(graph.nodes.find((node) => node.step.key === "m1")?.column).toBe(1);
 		expect(graph.nodes.find((node) => node.step.key === "a0")?.column).toBe(2);
+		expect(
+			new Set(graph.nodes.filter((node) => main.stepKeys.includes(node.step.key)).map((node) => node.lane)).size,
+		).toBe(1);
 	});
 	test("related branch plans share a task while unrelated plans in the same project stay separate", () => {
 		const snapshot = createScenario("multi-project").snapshot;

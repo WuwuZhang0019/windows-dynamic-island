@@ -188,6 +188,11 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 	// Date: 2026-11-13. Center shared runs between their declared incoming/outgoing branches.
 	const originalLanes = new Map([...nodes].map(([key, node]) => [key, node.lane]));
 	const placedRuns = new Set<string>();
+	const parentContexts = new Set(
+		routes
+			.filter((route) => route.sourceStepKey && route.returnStepKey === route.sourceStepKey)
+			.map((route) => route.sourceStepKey),
+	);
 	for (const startNode of nodes.values()) {
 		const predecessors = incoming.get(startNode.step.key) ?? [];
 		if (!visited.has(startNode.step.key) || placedRuns.has(startNode.step.key)) continue;
@@ -201,6 +206,8 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 			const target: string | undefined = targets.length === 1 ? targets[0] : undefined;
 			current = target && incoming.get(target)?.length === 1 && visited.has(target) ? nodes.get(target) : undefined;
 		}
+		// Parent expansion keeps the main route level; it is not a parallel fork/join section.
+		if (run.some((node) => parentContexts.has(node.step.key))) continue;
 		const branchLanes = run.flatMap((node) => {
 			const sources = incoming.get(node.step.key) ?? [];
 			const targets = outgoing.get(node.step.key) ?? [];
