@@ -116,7 +116,8 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 			if (i) connect(keys[i - 1], key);
 		});
 		connect(route.sourceStepKey, keys[0]);
-		connect(keys.at(-1), route.returnStepKey);
+		// Date: 2026-11-13. Returning to the source identifies the parent context, not another temporal edge.
+		if (route.returnStepKey !== route.sourceStepKey) connect(keys.at(-1), route.returnStepKey);
 	}
 	for (const node of nodes.values())
 		for (const source of node.step.dependsOn) connect(source, node.step.key, "dependency");

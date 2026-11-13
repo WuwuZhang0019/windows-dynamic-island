@@ -25,6 +25,22 @@ function graphFixture() {
 }
 
 describe("grouped task routes", () => {
+	test("a child route returning to its own source does not draw a second descent or create a cycle", () => {
+		const { routes, steps } = graphFixture();
+		const main = { ...routes[0], stepKeys: ["m0", "m1", "m2"] };
+		const child = { ...routes[1], stepKeys: ["a0", "a1", "b0"], sourceStepKey: "m1", returnStepKey: "m1" };
+		const graph = layoutRoutes([main, child], steps);
+		expect(graph.nodes).toHaveLength(6);
+		expect(graph.edges.map((edge) => [edge.from, edge.to])).toEqual([
+			["m0", "m1"],
+			["m1", "m2"],
+			["a0", "a1"],
+			["a1", "b0"],
+			["m1", "a0"],
+		]);
+		expect(graph.nodes.find((node) => node.step.key === "m1")?.column).toBe(1);
+		expect(graph.nodes.find((node) => node.step.key === "a0")?.column).toBe(2);
+	});
 	test("related branch plans share a task while unrelated plans in the same project stay separate", () => {
 		const snapshot = createScenario("multi-project").snapshot;
 		if (!snapshot) throw Error("Missing fixture");
