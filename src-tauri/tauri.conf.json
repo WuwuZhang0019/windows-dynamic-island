@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run prepare:runtime && bun run build",
     "frontendDist": "../dist",
     "removeUnusedCommands": true
   },
@@ -58,7 +58,8 @@
     "resources": {
       "../LICENSE": "licenses/LICENSE",
       "../THIRD-PARTY-NOTICES.txt": "licenses/THIRD-PARTY-NOTICES.txt",
-      "../SOURCE.md": "licenses/SOURCE.md"
+      "../SOURCE.md": "licenses/SOURCE.md",
+      "../runtime/workbench/": "workbench/"
     }
   },
   "plugins": {

@@ -4,6 +4,7 @@ import {
 	InfoIcon,
 	MousePointerClickIcon,
 	PaletteIcon,
+	PlayIcon,
 	PlugIcon,
 	SettingsIcon,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { TitleBar } from "./components/TitleBar";
 import { AboutPage } from "./pages/AboutPage";
 import { AppearancePage } from "./pages/AppearancePage";
 import { BehaviorPage } from "./pages/BehaviorPage";
+import { ContinuousPage } from "./pages/ContinuousPage";
 import { GeneralPage } from "./pages/GeneralPage";
 import { ModulesPage } from "./pages/ModulesPage";
 import { SkillPage } from "./pages/SkillPage";
@@ -48,6 +50,7 @@ export function SettingsApp() {
 						<NavItem to="/behavior" icon={<MousePointerClickIcon size={15} />} label={t("behavior.title")} />
 						<NavSection label={t("settings.section.island")} />
 						<NavItem to="/modules" icon={<Grid2X2Icon size={15} />} label="已归档任务" />
+						<NavItem to="/continuous" icon={<PlayIcon size={15} />} label="连续执行" />
 						<NavItem to="/mcp" icon={<PlugIcon size={15} />} label="MCP" />
 						<NavItem to="/skill" icon={<BookOpenIcon size={15} />} label="Skill" />
 						<div className="flex-1" />
@@ -60,6 +63,7 @@ export function SettingsApp() {
 								<Route path="appearance" element={<AppearancePage values={values} />} />
 								<Route path="behavior" element={<BehaviorPage values={values} />} />
 								<Route path="modules" element={<ModulesPage />} />
+								<Route path="continuous" element={<ContinuousPage values={values} />} />
 								<Route path="mcp" element={<WorkbenchPage />} />
 								<Route path="workbench" element={<Navigate to="/mcp" replace />} />
 								<Route path="skill" element={<SkillPage />} />

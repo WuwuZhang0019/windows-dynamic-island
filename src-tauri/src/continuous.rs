@@ -11,6 +11,12 @@ pub enum Action {
     Pause,
     Resume,
 }
+#[derive(Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Mode {
+    Stages,
+    CurrentThread,
+}
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Change {
@@ -18,6 +24,8 @@ pub struct Change {
     action: Action,
     expected_revision: u64,
     acknowledged: bool,
+    #[serde(default)]
+    mode: Option<Mode>,
 }
 fn validate(label: &str, input: &Change) -> Result<(), String> {
     if label != crate::window::ISLAND_LABEL
@@ -51,7 +59,21 @@ pub async fn island_continuous_change(
         Action::Pause => "pause",
         Action::Resume => "resume",
     };
-    let response=client.post(endpoint.join("api/light-continuous/change").map_err(|_|"INVALID_OWNER")?).bearer_auth(&token).json(&json!({"planKey":value.plan_key,"action":action,"expectedRevision":value.expected_revision,"acknowledged":true})).send().await.map_err(|_|"CONTINUOUS_RESULT_UNKNOWN")?;
+    let mut body = json!({"planKey":value.plan_key,"action":action,"expectedRevision":value.expected_revision,"acknowledged":true});
+    if let Some(mode) = value.mode {
+        body["mode"] = serde_json::to_value(mode).map_err(|_| "INVALID_MODE")?;
+    }
+    let response = client
+        .post(
+            endpoint
+                .join("api/light-continuous/change")
+                .map_err(|_| "INVALID_OWNER")?,
+        )
+        .bearer_auth(&token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|_| "CONTINUOUS_RESULT_UNKNOWN")?;
     let status = response.status();
     let mut response = response;
     let mut bytes = Vec::new();
@@ -97,9 +119,15 @@ mod tests {
             action: Action::Start,
             expected_revision: 0,
             acknowledged: true,
+            mode: None,
         };
         assert!(validate(crate::window::ISLAND_LABEL, &v).is_ok());
         assert!(validate("settings", &v).is_err());
         assert!(serde_json::from_value::<Change>(json!({"planKey":"p","action":"start","expectedRevision":0,"acknowledged":true,"cwd":"elsewhere"})).is_err());
+        for mode in ["stages", "current_thread"] {
+            let input = json!({"planKey":"p","action":"resume","expectedRevision":0,"acknowledged":true,"mode":mode});
+            assert!(serde_json::from_value::<Change>(input).is_ok());
+        }
+        assert!(serde_json::from_value::<Change>(json!({"planKey":"p","action":"start","expectedRevision":0,"acknowledged":true,"mode":"invalid"})).is_err());
     }
 }

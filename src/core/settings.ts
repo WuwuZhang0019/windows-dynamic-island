@@ -56,6 +56,7 @@ const SHELL_KEYS = new Set([
 	"tasks.displaySize",
 	"tasks.routeOrder",
 	"tasks.cardEffect",
+	"tasks.continuousMode",
 	"island.hidden",
 	"island.openOn",
 	"island.closeOn",
@@ -73,7 +74,11 @@ export function shellPreferences(value: unknown): Values {
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_SHELL_CONFIG");
 	if ("shell.configVersion" in value && value["shell.configVersion"] !== 1) throw new Error("UNSUPPORTED_SHELL_CONFIG");
 	return {
-		...Object.fromEntries(Object.entries(value).filter(([key]) => SHELL_KEYS.has(key))),
+		...Object.fromEntries(
+			Object.entries(value).filter(
+				([key, item]) => SHELL_KEYS.has(key) && (key !== CONTINUOUS_MODE_KEY || validContinuousMode(item)),
+			),
+		),
 		"shell.configVersion": 1,
 	};
 }
@@ -146,7 +151,7 @@ export function useSetting<T>(def: SettingDef<T>): T {
 
 export function setSetting<T>(def: SettingDef<T> | string, value: T) {
 	const key = typeof def === "string" ? def : def.key;
-	if (!SHELL_KEYS.has(key)) return;
+	if (!SHELL_KEYS.has(key) || (key === CONTINUOUS_MODE_KEY && !validContinuousMode(value))) return;
 	if (!isTauri && browserReadOnly) {
 		settingsError = "配置读取或迁移失败，当前为只读；请恢复配置后重新打开。";
 		notify();
@@ -187,6 +192,16 @@ export type TaskCardEffect = "emerald" | "minimal";
 
 export function taskCardEffect(all: Values): TaskCardEffect {
 	return all["tasks.cardEffect"] === "emerald" ? "emerald" : "minimal";
+}
+
+// Date: 2026-11-13. A preference only; changing it never dispatches a task.
+export const CONTINUOUS_MODE_KEY = "tasks.continuousMode";
+export type ContinuousMode = "stages" | "current_thread";
+export function validContinuousMode(value: unknown): value is ContinuousMode {
+	return value === "stages" || value === "current_thread";
+}
+export function continuousMode(all: Values): ContinuousMode {
+	return all[CONTINUOUS_MODE_KEY] === "current_thread" ? "current_thread" : "stages";
 }
 
 /** How the island reacts to the pointer (the settings' Behavior page). */

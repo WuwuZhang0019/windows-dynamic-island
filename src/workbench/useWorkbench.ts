@@ -1,8 +1,9 @@
 // Date: 2026-11-12. Explicit simulation preview is isolated from the native service client.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onEvent } from "../core/bridge";
+import { continuousMode, getSettings } from "../core/settings";
 import type { AppFilter } from "./agent-apps";
-import { type ContinuousRun, changeContinuous } from "./continuous";
+import { type ContinuousRun, changeContinuous, continuousEnabled } from "./continuous";
 import { MockWorkbenchClient, type ScenarioId, scenarios } from "./contract/fixtures";
 import { acceptEnvelope, type Preferences, type WorkbenchEnvelope } from "./contract/protocol";
 import { failedEnvelope, ServiceWorkbenchClient } from "./service-client";
@@ -99,14 +100,19 @@ export function useWorkbench() {
 		[read],
 	);
 	const toggleContinuous = useCallback(
-		async (planKey: string) => {
+		async (planKey: string, requestedAction?: "resume") => {
 			const snapshot = current.current?.snapshot;
 			const plan = snapshot?.plans.find((p) => p.key === planKey);
 			const project = snapshot?.projects.find((p) => p.key === plan?.projectKey);
 			if (!project || project.revision === null) throw Error("OWNER_UNAVAILABLE");
 			const run = continuousRuns.find((r) => r.planKey === planKey);
-			const action = run?.status === "running" ? "pause" : run ? "resume" : "start";
-			await changeContinuous(planKey, action, project.revision);
+			const action = requestedAction ?? (continuousEnabled(run) ? "pause" : run ? "resume" : "start");
+			await changeContinuous(
+				planKey,
+				action,
+				project.revision,
+				action === "pause" ? undefined : continuousMode(getSettings()),
+			);
 			await read();
 		},
 		[continuousRuns, read],

@@ -3,7 +3,7 @@ import { AnimatePresence, motion, Reorder, useReducedMotion } from "motion/react
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setSetting, taskCardEffect, useSettings } from "../core/settings";
 import { type AppFilter, matchesApp } from "./agent-apps";
-import { ContinuousButton } from "./ContinuousButton";
+import { ContinuousButton, ContinuousFeedback } from "./ContinuousButton";
 import type { ContinuousRun } from "./continuous";
 import type { WorkbenchEnvelope as Envelope, Preferences, Route, Step, WorkbenchSnapshot } from "./contract/protocol";
 import { GroupRouteGraph } from "./GroupRouteGraph";
@@ -154,7 +154,7 @@ export interface WorkbenchViewProps {
 	archivedKeys?: string[];
 	archiveTask?: (key: string) => Promise<void>;
 	continuousRuns?: ContinuousRun[];
-	toggleContinuous?: (planKey: string) => Promise<void>;
+	toggleContinuous?: (planKey: string, requestedAction?: "resume") => Promise<void>;
 }
 
 export function WorkbenchView({
@@ -196,6 +196,7 @@ export function WorkbenchView({
 	const entries = allEntries.filter((group) => matchesApp(group, envelope, selectedApp));
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [archiveMessage, setArchiveMessage] = useState("");
+	const [continuousErrors, setContinuousErrors] = useState<Record<string, string>>({});
 
 	// Date: 2026-11-12. Display-only graphs select their card without blocking native lane scrolling.
 	useEffect(() => {
@@ -341,14 +342,15 @@ export function WorkbenchView({
 			setBusyKey(null);
 		}
 	}
-	async function continuousEntry(key: string) {
+	async function continuousEntry(key: string, requestedAction?: "resume") {
 		if (!toggleContinuous || busyKey) return;
 		setBusyKey(key);
 		try {
-			await toggleContinuous(key);
+			await toggleContinuous(key, requestedAction);
+			setContinuousErrors((previous) => ({ ...previous, [key]: "" }));
 			setArchiveMessage("");
 		} catch (error) {
-			setArchiveMessage(`连续执行操作未完成：${String(error)}；请刷新核对后重试`);
+			setContinuousErrors((previous) => ({ ...previous, [key]: `连续执行未启动：${String(error)}` }));
 		} finally {
 			setBusyKey(null);
 		}
@@ -483,6 +485,7 @@ export function WorkbenchView({
 									routes.find((item) => item.stepKeys.includes(anchor?.key ?? "")) ??
 									main;
 								const delay = reducedMotion ? 0 : Math.min(index, 5) * 0.07;
+								const continuousRun = continuousRuns.find((run) => run.planKey === group.plan?.key);
 								return (
 									<SortableRouteCard
 										key={key}
@@ -539,7 +542,8 @@ export function WorkbenchView({
 												{group.plan && (
 													<ContinuousButton
 														title={title}
-														run={continuousRuns.find((r) => r.planKey === group.plan?.key)}
+														run={continuousRun}
+														busy={busyKey === group.plan?.key}
 														disabled={!toggleContinuous || !!busyKey || connection.state !== "ready"}
 														onToggle={() => void continuousEntry(group.plan?.key ?? "")}
 													/>
@@ -551,6 +555,14 @@ export function WorkbenchView({
 												/>
 											</div>
 										</header>
+										{group.plan && (
+											<ContinuousFeedback
+												run={continuousRun}
+												error={continuousErrors[group.plan.key]}
+												disabled={!toggleContinuous || !!busyKey || connection.state !== "ready"}
+												onRetry={() => void continuousEntry(group.plan?.key ?? "", "resume")}
+											/>
+										)}
 										<div className="wb-route-body" inert={compact} aria-hidden={compact}>
 											<div className="wb-route-body-inner">
 												{routes.length ? (
