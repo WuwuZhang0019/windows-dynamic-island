@@ -31,16 +31,27 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             app.manage(settings::Settings::load(&handle));
+            // Date: 2026-11-13. A debug-only native host permits input tests with isolated data.
+            let input_test =
+                cfg!(debug_assertions) && std::env::var_os("ISLAND_NATIVE_TEST_WINDOW").is_some();
             if let Some(win) = app.get_webview_window(window::ISLAND_LABEL) {
-                window::make_overlay(&win);
+                if input_test {
+                    win.set_skip_taskbar(false)?;
+                    win.set_decorations(true)?;
+                    win.set_title("任务岛 — 连续执行原生测试")?;
+                } else {
+                    window::make_overlay(&win);
+                }
                 display::place(&win)?;
-                win.set_ignore_cursor_events(true)?;
+                win.set_ignore_cursor_events(!input_test)?;
                 win.show()?;
             }
             memory::sync_island(&handle);
             glass::setup(&handle);
-            window::spawn_hit_test(handle.clone());
-            display::spawn_placement(handle.clone());
+            if !input_test {
+                window::spawn_hit_test(handle.clone());
+                display::spawn_placement(handle.clone());
+            }
             tray::setup(&handle)?;
             tray::enable_autostart_on_first_run(&handle);
             updater::spawn(handle.clone());

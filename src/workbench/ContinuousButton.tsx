@@ -17,16 +17,20 @@ export function ContinuousButton({
 	const hint =
 		run?.status === "pausing"
 			? "连续执行已关闭，当前阶段完成后暂停"
-			: run?.reason || (active ? "当前阶段完成后暂停接续" : "按阶段新建会话并连续执行至方案结束");
+			: run?.status === "completed"
+				? "方案已完成，连续执行已关闭"
+				: run?.reason || (active ? "当前阶段完成后暂停接续" : "按阶段新建会话并连续执行至方案结束");
 	return (
 		<button
 			type="button"
 			className="wb-continuous"
+			data-no-drag
+			onPointerDown={(event) => event.stopPropagation()}
 			role="switch"
 			aria-checked={active}
 			aria-label={`连续执行：${title}`}
 			data-status={run?.status ?? "idle"}
-			disabled={disabled || run?.status === "completed" || run?.status === "pausing"}
+			disabled={disabled || run?.status === "completed"}
 			title={hint + (run?.stageCode ? ` · 当前阶段 ${run.stageCode}` : "")}
 			onClick={(event) => {
 				event.stopPropagation();
