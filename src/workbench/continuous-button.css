@@ -1,9 +1,9 @@
 /* Date: 2026-11-13. Uiverse warm-turtle-37, nazar-gavrylyk / Na3ar-17 (MIT), compact adaptation. */
 .wb-continuous {
 	position: relative;
-	flex: 0 0 51px;
-	width: 51px;
-	height: 28px;
+	flex: 0 0 30px;
+	width: 30px;
+	height: 30px;
 	padding: 0;
 	border: 0;
 	border-radius: 30px;
@@ -29,12 +29,12 @@
 .wb-continuous-ball {
 	position: absolute;
 	top: 0;
-	left: -1px;
-	width: 28px;
-	height: 28px;
+	left: 0;
+	width: 30px;
+	height: 30px;
 	border-radius: 50%;
-	background: #fff;
-	color: #313033;
+	background: transparent;
+	color: inherit;
 	display: grid;
 	place-items: center;
 	transition:
@@ -43,6 +43,8 @@
 		outline 0.4s;
 }
 .wb-continuous-ball svg {
+	width: 16px;
+	height: 16px;
 	stroke: currentColor;
 	stroke-width: 2;
 	stroke-linecap: round;
@@ -56,9 +58,8 @@
 	left: 38%;
 }
 .wb-continuous[aria-checked="true"] .wb-continuous-ball {
-	left: 24px;
+	left: 0;
 	transform: rotate(360deg);
-	outline: 4px solid #ffffff47;
 }
 .wb-continuous:focus-visible {
 	outline: 2px solid #b996f2;
@@ -71,8 +72,10 @@
 .wb-continuous[data-status="blocked"] {
 	box-shadow: inset 0 0 0 1px #e7ad55;
 }
-.wb-route-heading > .wb-route-actions {
-	gap: 10px;
+/* Date: 2026-11-13. Stack task actions at the same 30px size as the settings control. */
+.wb-route-heading > .wb-route-actions:has(.wb-continuous) {
+	flex-direction: column;
+	gap: 4px;
 }
 @media (prefers-reduced-motion: reduce) {
 	.wb-continuous,
@@ -83,7 +86,7 @@
 }
 
 .wb-route-heading:has(.wb-continuous) .wb-row-thumbnail {
-	right: 113px;
+	right: 52px;
 }
 
 .wb .wb-continuous[aria-checked="false"],
