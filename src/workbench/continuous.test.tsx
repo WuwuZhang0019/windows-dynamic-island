@@ -23,7 +23,9 @@ describe("continuous execution feedback", () => {
 		);
 		const message = renderToStaticMarkup(<ContinuousFeedback run={run} disabled={false} onRetry={() => {}} />);
 		expect(button).toContain('aria-checked="true"');
-		expect(button).toContain("接续受阻");
+		expect(button).toContain('data-status="blocked"');
+		expect(button).toContain('title="连续执行"');
+		expect(button).not.toContain("wb-continuous-title");
 		expect(message).toContain("工作目录不存在");
 		expect(message).toContain("重试");
 	});
@@ -35,7 +37,7 @@ describe("continuous execution feedback", () => {
 		expect(continuousEnabled(run)).toBe(false);
 		expect(button).toContain('aria-checked="false"');
 		expect(button).toContain("disabled");
-		expect(button).toContain("已完成");
+		expect(button).toContain('data-status="completed"');
 	});
 	test("waiting and request failures are visible without relying on hover", () => {
 		const waiting = renderToStaticMarkup(

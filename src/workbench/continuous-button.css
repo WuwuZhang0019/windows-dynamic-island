@@ -1,8 +1,8 @@
 /* Date: 2026-11-13. Uiverse warm-turtle-37, nazar-gavrylyk / Na3ar-17 (MIT), compact adaptation. */
 .wb-continuous {
 	position: relative;
-	flex: 0 0 102px;
-	width: 102px;
+	flex: 0 0 51px;
+	width: 51px;
 	height: 28px;
 	padding: 0;
 	border: 0;
@@ -56,7 +56,7 @@
 	left: 38%;
 }
 .wb-continuous[aria-checked="true"] .wb-continuous-ball {
-	left: 75px;
+	left: 24px;
 	transform: rotate(360deg);
 	outline: 4px solid #ffffff47;
 }
@@ -83,7 +83,7 @@
 }
 
 .wb-route-heading:has(.wb-continuous) .wb-row-thumbnail {
-	right: 164px;
+	right: 113px;
 }
 
 .wb .wb-continuous[aria-checked="false"],

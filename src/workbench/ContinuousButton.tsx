@@ -16,21 +16,6 @@ export function ContinuousButton({
 	onToggle: () => void;
 }) {
 	const active = continuousEnabled(run);
-	const hint =
-		run?.status === "pausing"
-			? "连续执行已关闭，当前阶段完成后暂停"
-			: run?.status === "completed"
-				? "方案已完成，无需重复执行"
-				: run?.status === "blocked"
-					? `连续执行已开启但接续受阻：${run.reason}。可重试或点击关闭。`
-					: run?.reason || (active ? "点击关闭后续接续，当前阶段继续完成" : "按设置中选择的方式开启连续执行");
-	const label = busy
-		? "处理中…"
-		: run?.status === "completed"
-			? "已完成"
-			: run?.status === "blocked"
-				? "接续受阻"
-				: "连续执行";
 	return (
 		<button
 			type="button"
@@ -43,13 +28,12 @@ export function ContinuousButton({
 			aria-label={`连续执行：${title}`}
 			data-status={run?.status ?? "idle"}
 			disabled={disabled || busy || run?.status === "completed"}
-			title={hint + (run?.stageCode ? ` · 当前阶段 ${run.stageCode}` : "")}
+			title="连续执行"
 			onClick={(event) => {
 				event.stopPropagation();
 				onToggle();
 			}}
 		>
-			<span className="wb-continuous-title">{label}</span>
 			<span className="wb-continuous-ball">
 				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
 					{run?.status === "completed" ? (
