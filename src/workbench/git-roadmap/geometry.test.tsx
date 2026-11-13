@@ -95,7 +95,7 @@ describe("source-adapted Git roadmap", () => {
 		expect(new Set(palette.values()).size).toBe(keys.length);
 		expect([...routeColours([...keys].reverse())]).toEqual([...palette]);
 	});
-	test("an explicit long dependency bypasses intermediate stations rather than fabricating a connection", () => {
+	test("transitive dependencies stay in the layout without adding redundant visual arcs", () => {
 		const snapshot = fixture();
 		const main = snapshot.routes[0];
 		const steps = snapshot.steps.filter((step) => main.stepKeys.includes(step.key));
@@ -104,9 +104,33 @@ describe("source-adapted Git roadmap", () => {
 		const edge = roadmapGeometry(layout, false).edges.find(
 			(item) => item.from === steps[0].key && item.to === steps[2].key,
 		);
-		expect(edge?.path).toContain(" Q ");
-		expect(edge?.kind).toBe("dependency");
+		expect(edge).toBeUndefined();
 		expect(layout.edges).toHaveLength(8);
+	});
+	test("the seven-stage route stays straight while independent cross-route dependencies remain visible", () => {
+		const snapshot = createScenario("long-route").snapshot;
+		if (!snapshot) throw Error("Missing fixture");
+		const steps = snapshot.steps.slice(0, 7);
+		const parents = [[], [0], [0], [1], [3], [2, 4], [5]];
+		steps.forEach((step, index) => {
+			step.dependsOn = parents[index].map((parent) => steps[parent].key);
+		});
+		const route = { ...snapshot.routes[0], stepKeys: steps.map((step) => step.key) };
+		for (const compact of [false, true]) {
+			const graph = roadmapGeometry(layoutRoutes([route], steps), compact);
+			expect(graph.edges).toHaveLength(6);
+			expect(graph.edges.every((edge) => !edge.path.includes(" Q "))).toBe(true);
+			expect(graph.nodes.every((node) => !node.merge)).toBe(true);
+		}
+		const other = { ...route, key: "other", stepKeys: [steps[5].key, steps[6].key] };
+		steps[5].dependsOn = [steps[0].key];
+		const graph = roadmapGeometry(
+			layoutRoutes([{ ...route, stepKeys: steps.slice(0, 3).map((step) => step.key) }, other], steps),
+			false,
+		);
+		expect(
+			graph.edges.some((edge) => edge.kind === "dependency" && edge.from === steps[0].key && edge.to === steps[5].key),
+		).toBe(true);
 	});
 	test("compact output stays text-free; expanded output names its branches and only the card is selectable", () => {
 		const snapshot = fixture();

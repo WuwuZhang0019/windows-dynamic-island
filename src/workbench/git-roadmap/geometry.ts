@@ -64,6 +64,27 @@ export function roundedPath(points: Point[], radius: number): string {
 }
 
 export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
+	// Date: 2026-11-13. Keep transitive dependencies in the model, without duplicating existing visual paths.
+	const outgoing = new Map<string, RouteGraphEdge[]>();
+	for (const edge of layout.edges) outgoing.set(edge.from, [...(outgoing.get(edge.from) ?? []), edge]);
+	function reachable(start: string, target: string, excluded?: string) {
+		const pending = [start];
+		const visited = new Set<string>();
+		while (pending.length) {
+			const key = pending.pop();
+			if (!key || visited.has(key)) continue;
+			visited.add(key);
+			for (const edge of outgoing.get(key) ?? []) {
+				if (edge.key === excluded) continue;
+				if (edge.to === target) return true;
+				pending.push(edge.to);
+			}
+		}
+		return false;
+	}
+	const visibleEdges = layout.edges.filter(
+		(edge) => edge.kind !== "dependency" || !reachable(edge.from, edge.to, edge.key) || reachable(edge.to, edge.from),
+	);
 	const columnWidth = 108;
 	const laneHeight = compact ? 18 : 94;
 	const offset = compact ? 12 : 24;
@@ -71,7 +92,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	const palette = routeColours(layout.nodes.flatMap((node) => node.routeKeys));
 	const height = (compact ? 24 : 96) + (layout.lanes - 1) * laneHeight;
 	const incoming = new Map<string, number>();
-	for (const edge of layout.edges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
+	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
 	const nodes: RoadmapNode[] = layout.nodes.map((node) => ({
 		...node,
 		x: (node.column + 0.5) * columnWidth,
@@ -82,7 +103,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	}));
 	const byKey = new Map(nodes.map((node) => [node.step.key, node]));
 	const edges: RoadmapEdge[] = [];
-	for (const edge of layout.edges) {
+	for (const edge of visibleEdges) {
 		const from = byKey.get(edge.from);
 		const to = byKey.get(edge.to);
 		if (!from || !to) continue;

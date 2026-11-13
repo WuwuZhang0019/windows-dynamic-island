@@ -1,6 +1,6 @@
 // Date: 2026-11-13. Source-adapted Git curves with the workbench's declared route topology.
 import type { CSSProperties } from "react";
-import type { Route } from "./contract/protocol";
+import type { Route, Step } from "./contract/protocol";
 import { CurvedEdge } from "./git-roadmap/CurvedEdge";
 import { roadmapGeometry } from "./git-roadmap/geometry";
 import type { RouteGraphLayout } from "./task-groups";
@@ -27,6 +27,9 @@ export function GroupRouteGraph({
 	routes?: Route[];
 }) {
 	const graph = roadmapGeometry(layout, compact);
+	const codes = new Map(layout.nodes.map((node) => [node.step.key, node.step.code]));
+	const label = (step: Step, merge: boolean) =>
+		`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}${step.dependsOn.length ? `\n前置：${step.dependsOn.map((key) => codes.get(key) ?? "路线外步骤").join("、")}` : ""}`;
 	return (
 		<>
 			<div
@@ -71,9 +74,9 @@ export function GroupRouteGraph({
 						data-status={step.status}
 						data-merge={merge}
 						data-fork-down={forkDown && !compact}
-						aria-label={`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}`}
+						aria-label={label(step, merge)}
 						data-selected={step.key === selectedKey}
-						title={`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}`}
+						title={label(step, merge)}
 						style={
 							{
 								left: `${(x / graph.width) * 100}%`,
