@@ -8,6 +8,7 @@ import {
 	type WorkbenchClient,
 	type WorkbenchEnvelope,
 } from "./contract/protocol";
+import { followNewPlan } from "./reading-positions";
 import { checkedArchives, type TaskLibraryPanel } from "./task-library";
 
 export type NativeCall = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
@@ -95,6 +96,8 @@ export class ServiceWorkbenchClient implements WorkbenchClient {
 				this.savedPreferences = checkedPreferences(panel.preferences ?? blankPreferences());
 				this.initializedPreferences = true;
 			}
+			if (this.savedPreferences)
+				this.savedPreferences = followNewPlan(this.current?.snapshot ?? null, next.snapshot, this.savedPreferences);
 			this.archives = checkedArchives(panel.library).map((entry) => entry.key);
 			this.supportsLibrary = panel.librarySupported === true;
 			this.current = next;

@@ -29,6 +29,11 @@ export function useWorkbench() {
 			const incoming = await client.read();
 			if (token !== request.current || !alive.current) return;
 			const next = acceptEnvelope(current.current, incoming);
+			if (
+				current.current?.snapshot &&
+				next.snapshot?.plans.some((plan) => !current.current?.snapshot?.plans.some((old) => old.key === plan.key))
+			)
+				setSelectedApp("all");
 			current.current = next;
 			setEnvelope(next);
 			if (client instanceof ServiceWorkbenchClient) {
@@ -96,7 +101,7 @@ export function useWorkbench() {
 					await read();
 					if (!cancelled) poll();
 				},
-				document.hidden ? 30000 : 10000,
+				document.hidden ? 5000 : 1000,
 			);
 		};
 		const visible = () => {

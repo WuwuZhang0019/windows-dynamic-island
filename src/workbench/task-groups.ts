@@ -77,7 +77,7 @@ export function taskGroups(snapshot: WorkbenchSnapshot, archived: string[] = [])
 export function orderedTaskGroups(groups: TaskGroup[], order: string[]): TaskGroup[] {
 	const ranks = new Map(order.map((key, index) => [key, index]));
 	const rank = (group: TaskGroup) => Math.min(...group.aliases.map((key) => ranks.get(key) ?? Infinity));
-	return [...groups].sort((a, b) => rank(a) - rank(b));
+	return [...groups].sort((a, b) => (rank(a) === Infinity ? -1 : rank(a)) - (rank(b) === Infinity ? -1 : rank(b)));
 }
 
 export type RouteGraphNode = { step: Step; routeKeys: string[]; column: number; lane: number };

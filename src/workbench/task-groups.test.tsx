@@ -46,7 +46,12 @@ describe("grouped task routes", () => {
 		expect(groups[0].archiveKeys).not.toContain(hidden);
 		const last = groups.at(-1);
 		if (!last) throw Error("Missing group");
-		expect(orderedTaskGroups(groups, [last.routes[0].key])[0].key).toBe(last.key);
+		expect(
+			orderedTaskGroups(groups, [
+				last.routes[0].key,
+				...groups.filter((item) => item.key !== last.key).map((item) => item.key),
+			])[0].key,
+		).toBe(last.key);
 	});
 	test("consecutive route fragments keep one lane when they contain no parallel work", () => {
 		const { routes, steps } = graphFixture();

@@ -12,7 +12,8 @@ import { layoutRoutes, orderedTaskGroups, primaryRoute, type TaskGroup, taskGrou
 import { libraryError } from "./task-library";
 import "./workbench.css";
 
-type Reading = { selected: string; route?: string; top: number; lanes: Record<string, number> };
+import { type Reading, readingPositions } from "./reading-positions";
+
 const emptySnapshot: WorkbenchSnapshot = {
 	schemaVersion: "light-1.0",
 	date: "2026-11-11",
@@ -28,7 +29,7 @@ const emptySnapshot: WorkbenchSnapshot = {
 	supplements: [],
 	events: [],
 };
-const readingPositions = new Map<string, Reading>();
+
 const labels: Record<string, string> = {
 	pending: "待执行",
 	running: "执行中",
