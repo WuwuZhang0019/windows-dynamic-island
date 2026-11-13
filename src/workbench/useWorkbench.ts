@@ -31,7 +31,12 @@ export function useWorkbench() {
 			const next = acceptEnvelope(current.current, incoming);
 			if (
 				current.current?.snapshot &&
-				next.snapshot?.plans.some((plan) => !current.current?.snapshot?.plans.some((old) => old.key === plan.key))
+				(next.snapshot?.plans.some((plan) => !current.current?.snapshot?.plans.some((old) => old.key === plan.key)) ||
+					next.snapshot?.events.some(
+						(event) =>
+							event.toStatus === "running" &&
+							!current.current?.snapshot?.events.some((old) => old.eventId === event.eventId),
+					))
 			)
 				setSelectedApp("all");
 			current.current = next;
