@@ -1,97 +1,44 @@
-/* Date: 2026-11-13. Uiverse warm-turtle-37, nazar-gavrylyk / Na3ar-17 (MIT), compact adaptation. */
+/* Date: 2026-11-13. Continuous execution shares the archive expansion animation. */
 .wb-continuous {
-	position: relative;
+	--wb-action-label: "连续执行";
+	--wb-action-hover: #8a5cd4;
 	flex: 0 0 30px;
-	width: 30px;
-	height: 30px;
-	padding: 0;
-	border: 0;
-	border-radius: 30px;
-	background: #313033;
-	color: #fff;
-	cursor: pointer;
 	pointer-events: auto;
-	transition: background-color 0.4s;
-	isolation: isolate;
-	font-family: inherit;
-	font-size: 11px;
-	font-weight: 600;
 }
-.wb-continuous-title {
-	position: absolute;
-	top: 50%;
-	left: 61%;
-	transform: translate(-50%, -50%);
-	white-space: nowrap;
-	transition: left 0.4s;
-	user-select: none;
+.wb-continuous[aria-checked="true"] {
+	--wb-action-label: "暂停接续";
+	background: #8a5cd4;
 }
 .wb-continuous-ball {
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: 30px;
-	height: 30px;
-	border-radius: 50%;
-	background: transparent;
-	color: inherit;
 	display: grid;
 	place-items: center;
-	transition:
-		left 0.4s,
-		transform 0.4s,
-		outline 0.4s;
 }
 .wb-continuous-ball svg {
-	width: 16px;
-	height: 16px;
 	stroke: currentColor;
 	stroke-width: 2;
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
-.wb .wb-continuous[aria-checked="true"],
-.wb .wb-continuous[aria-checked="true"]:hover:not(:disabled) {
-	background: #8a5cd4;
-}
-.wb-continuous[aria-checked="true"] .wb-continuous-title {
-	left: 38%;
-}
-.wb-continuous[aria-checked="true"] .wb-continuous-ball {
-	left: 0;
-	transform: rotate(360deg);
-}
-.wb-continuous:focus-visible {
-	outline: 2px solid #b996f2;
-	outline-offset: 4px;
-}
-.wb-continuous:disabled {
-	cursor: default;
-	opacity: 0.5;
-}
 .wb-continuous[data-status="blocked"] {
 	box-shadow: inset 0 0 0 1px #e7ad55;
 }
-/* Date: 2026-11-13. Stack task actions at the same 30px size as the settings control. */
+/* Keep the graph and action slots fixed while either button expands leftward. */
 .wb-route-heading > .wb-route-actions:has(.wb-continuous) {
 	flex-direction: column;
+	align-items: flex-end;
+	width: 30px;
+	min-width: 30px;
 	gap: 4px;
+}
+.wb-route-heading:has(.wb-continuous) .wb-row-thumbnail {
+	right: 42px;
 }
 @media (prefers-reduced-motion: reduce) {
 	.wb-continuous,
-	.wb-continuous-title,
-	.wb-continuous-ball {
+	.wb-continuous::before,
+	.wb-continuous-ball svg {
 		transition: none;
 	}
-}
-
-.wb-route-heading:has(.wb-continuous) .wb-row-thumbnail {
-	right: 52px;
-}
-
-.wb .wb-continuous[aria-checked="false"],
-.wb .wb-continuous[aria-checked="false"]:hover:not(:disabled) {
-	background: #313033;
 }
 
 /* Date: 2026-11-13. Failure reasons remain visible in both task-list sizes. */

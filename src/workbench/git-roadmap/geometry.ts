@@ -72,9 +72,15 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	const height = (compact ? 24 : 96) + (layout.lanes - 1) * laneHeight;
 	const incoming = new Map<string, number>();
 	for (const edge of layout.edges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
+	// Date: 2026-11-13. Compact terminal stations share the fixed right edge.
+	const outgoing = new Set(layout.edges.map((edge) => edge.from));
 	const nodes: RoadmapNode[] = layout.nodes.map((node) => ({
 		...node,
-		x: (node.column + 0.5) * columnWidth,
+		x: compact
+			? !outgoing.has(node.step.key)
+				? width
+				: (node.column / Math.max(1, layout.columns - 1)) * width
+			: (node.column + 0.5) * columnWidth,
 		y: offset + node.lane * laneHeight,
 		merge: (incoming.get(node.step.key) ?? 0) > 1,
 		colour: palette.get(node.routeKeys[0]) ?? routeColour(""),
