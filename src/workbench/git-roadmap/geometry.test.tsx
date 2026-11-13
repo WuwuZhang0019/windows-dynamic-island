@@ -13,6 +13,21 @@ function fixture() {
 }
 
 describe("source-adapted Git roadmap", () => {
+	test("forks leave the exact source x vertically in both sizes, keeping a source label corridor", () => {
+		const snapshot = fixture();
+		for (const compact of [false, true]) {
+			const graph = roadmapGeometry(layoutRoutes(snapshot.routes, snapshot.steps), compact);
+			const branch = snapshot.routes[2];
+			const edge = graph.edges.find((item) => item.to === branch.stepKeys[0]);
+			const source = graph.nodes.find((node) => node.step.key === edge?.from);
+			if (!source || !edge) throw Error("Missing branch fixture");
+			const coordinates = edge.path.match(/^M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)/);
+			expect(Number(coordinates?.[1])).toBe(source.x);
+			expect(Number(coordinates?.[3])).toBe(source.x);
+			expect(Number(coordinates?.[4])).toBeGreaterThan(source.y);
+			expect(source.forkDown).toBe(true);
+		}
+	});
 	test("rounds branch corners without changing the exact station endpoints", () => {
 		expect(
 			roundedPath(

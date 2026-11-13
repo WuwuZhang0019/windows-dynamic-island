@@ -725,6 +725,15 @@
 }
 
 /* Date: 2026-11-13. Git-style route identities with execution states on the stations. */
+/* Downward forks leave a clear corridor beside their source labels. */
+.wb-graph-step[data-fork-down="true"] :is(.wb-step-code, .wb-step-title, .wb-step-state) {
+	align-self: flex-start;
+	width: calc(50% - 9px);
+	text-align: right;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 .wb-graph-lines path {
 	stroke-width: 1.75;
 	stroke-linecap: round;

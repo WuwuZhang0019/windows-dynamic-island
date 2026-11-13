@@ -3,7 +3,7 @@
 import type { RouteGraphEdge, RouteGraphLayout, RouteGraphNode } from "../task-groups";
 
 type Point = { x: number; y: number };
-export type RoadmapNode = RouteGraphNode & Point & { merge: boolean; colour: string };
+export type RoadmapNode = RouteGraphNode & Point & { merge: boolean; colour: string; forkDown: boolean };
 export type RoadmapEdge = RouteGraphEdge & { path: string; colour: string; status: string };
 
 // Branch colours identify routes; station fills and text still communicate execution status.
@@ -77,6 +77,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 		x: (node.column + 0.5) * columnWidth,
 		y: offset + node.lane * laneHeight,
 		merge: (incoming.get(node.step.key) ?? 0) > 1,
+		forkDown: false,
 		colour: palette.get(node.routeKeys[0]) ?? routeColour(""),
 	}));
 	const byKey = new Map(nodes.map((node) => [node.step.key, node]));
@@ -93,7 +94,9 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 		let points: Point[] = [from, to];
 		if (from.y !== to.y) {
 			const inset = Math.min(columnWidth * 0.4, Math.abs(to.x - from.x) / 2);
-			const bend = to.merge ? to.x - direction * inset : from.x + direction * inset;
+			// Date: 2026-11-13. Forks leave the source vertically; joins retain their destination bend.
+			const bend = to.merge ? to.x - direction * inset : from.x;
+			if (!to.merge && to.y > from.y) from.forkDown = true;
 			points = [from, { x: bend, y: from.y }, { x: bend, y: to.y }, to];
 		} else if (
 			nodes.some(

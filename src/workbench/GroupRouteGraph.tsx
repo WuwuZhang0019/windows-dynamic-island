@@ -62,7 +62,7 @@ export function GroupRouteGraph({
 					))}
 				</svg>
 				{/* Station actions remain paused; card selection and wheel scrolling are handled by WorkbenchView. */}
-				{graph.nodes.map(({ step, x, y, merge, colour }) => (
+				{graph.nodes.map(({ step, x, y, merge, colour, forkDown }) => (
 					<span
 						key={step.key}
 						role="img"
@@ -70,6 +70,7 @@ export function GroupRouteGraph({
 						data-step-key={step.key}
 						data-status={step.status}
 						data-merge={merge}
+						data-fork-down={forkDown && !compact}
 						aria-label={`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}`}
 						data-selected={step.key === selectedKey}
 						title={`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}`}
