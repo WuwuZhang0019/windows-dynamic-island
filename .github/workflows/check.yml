@@ -43,6 +43,10 @@ jobs:
       - name: Lint frontend
         run: bunx biome ci --error-on-warnings .
 
+      # Date: 2026-11-15. Guard roadmap rules and other frontend regressions on the delivery branch.
+      - name: Test frontend
+        run: bun test src
+
       # Also produces `dist/`, which `tauri::generate_context!` embeds.
       - name: Build frontend
         run: bun run build

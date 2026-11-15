@@ -1,4 +1,4 @@
-/* Date: 2026-11-12. Adapted from Uiverse.io by vinodjangid07, smart-emu-83 (MIT).
+/* Date: 2026-11-13. Adapted from Uiverse.io by vinodjangid07, smart-emu-83 (MIT).
    Archive and delete share expansion and icon motion, with distinct labels and colors. */
 .wb-route-actions {
 	position: relative;
@@ -18,6 +18,7 @@
 	--wb-action-hover: rgb(0, 194, 106);
 }
 .wb-route-delete,
+.wb-continuous,
 .wb-route-archive {
 	position: relative;
 	display: flex;
@@ -40,6 +41,7 @@
 		border-radius 0.3s;
 }
 .wb-delete-icon,
+.wb-continuous-ball svg,
 .wb-archive-icon {
 	width: 14px;
 	height: 14px;
@@ -53,6 +55,7 @@
 	fill: currentColor;
 }
 .wb-route-delete::before,
+.wb-continuous::before,
 .wb-route-archive::before {
 	position: absolute;
 	top: -15px;
@@ -65,18 +68,21 @@
 		transform 0.3s;
 }
 .wb-route-delete:is(:hover, :focus-visible):not(:disabled),
+.wb .wb-continuous:is(:hover, :focus-visible):not(:disabled),
 .wb .wb-route-archive:is(:hover, :focus-visible):not(:disabled) {
 	width: 84px;
 	border-radius: 15px;
 	background: var(--wb-action-hover);
 }
 .wb-route-delete:is(:hover, :focus-visible):not(:disabled) .wb-delete-icon,
+.wb-continuous:is(:hover, :focus-visible):not(:disabled) .wb-continuous-ball svg,
 .wb-route-archive:is(:hover, :focus-visible):not(:disabled) .wb-archive-icon {
 	width: 28px;
 	height: 28px;
 	transform: translateY(65%);
 }
 .wb-route-delete:is(:hover, :focus-visible):not(:disabled)::before,
+.wb-continuous:is(:hover, :focus-visible):not(:disabled)::before,
 .wb-route-archive:is(:hover, :focus-visible):not(:disabled)::before {
 	font-size: 11px;
 	opacity: 1;
@@ -88,6 +94,7 @@
 	.wb-delete-icon,
 	.wb-archive-icon,
 	.wb-route-delete::before,
+	.wb-continuous::before,
 	.wb-route-archive::before {
 		transition: none;
 	}

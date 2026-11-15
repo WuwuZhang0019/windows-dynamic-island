@@ -1,4 +1,4 @@
-// Date: 2026-11-13. Verify the task semantics that Git source adaptation must preserve.
+// Date: 2026-11-15. Verify roadmap semantics and compatibility with compact endpoint alignment.
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createScenario } from "../contract/fixtures";
@@ -19,11 +19,29 @@ describe("source-adapted Git roadmap", () => {
 			const graph = roadmapGeometry(layoutRoutes(snapshot.routes, snapshot.steps), compact);
 			const join = graph.nodes.find((node) => node.step.code === "A5");
 			if (!join) throw Error("Missing merge fixture");
-			expect(join.x).toBe((join.column + 0.5) * 108 - 43.2);
+			expect(join.x).toBeCloseTo(
+				compact
+					? ((join.column - 0.4) * graph.width) / (layoutRoutes(snapshot.routes, snapshot.steps).columns - 1)
+					: (join.column + 0.5) * 108 - 43.2,
+				3,
+			);
 			const incoming = graph.edges.filter((edge) => edge.to === join.step.key);
 			expect(incoming).toHaveLength(3);
 			for (const edge of incoming) expect(edge.path).toEndWith(`L ${join.x} ${join.y}`);
-			for (const node of graph.nodes.filter((node) => !node.merge)) expect(node.x).toBe((node.column + 0.5) * 108);
+			for (const node of graph.nodes.filter((node) => !node.merge)) {
+				const terminal = !graph.edges.some((edge) => edge.from === node.step.key);
+				expect(node.x).toBeCloseTo(
+					compact
+						? terminal
+							? graph.width
+							: (node.column * graph.width) / (layoutRoutes(snapshot.routes, snapshot.steps).columns - 1)
+						: (node.column + 0.5) * 108,
+					3,
+				);
+			}
+			if (compact)
+				for (const node of graph.nodes.filter((node) => !graph.edges.some((edge) => edge.from === node.step.key)))
+					expect(node.x).toBe(graph.width);
 		}
 	});
 	test("forks leave the exact source x vertically in both sizes, keeping a source label corridor", () => {
