@@ -8,7 +8,7 @@ import { Lead, Title } from "../components/Heading";
 import "../components/mcp-connections.css";
 
 const invocation =
-	"请使用 workbench-handoff 技能，读取我提供的方案，仅规范阶段、步骤编号及相关引用，不改动执行内容、依赖顺序和验收要求，并核对当前进度。";
+	"请使用 workbench-handoff 技能，读取我提供的方案文档，提取完整阶段、步骤、依赖和分支路线，立即自动登记到任务岛并回读核对，先显示待执行路线图。保留方案内容、依赖和验收要求；已有登记则复用原路线与进度，不重复创建。不要先做业务审查或开始执行。";
 
 export function SkillPage() {
 	const [message, setMessage] = useState("");
@@ -23,9 +23,9 @@ export function SkillPage() {
 	return (
 		<>
 			<Title>Skill</Title>
-			<Lead>让 AI 帮你整理计划、跟进任务。</Lead>
+			<Lead>发送方案文档，调用技能，让任务岛先显示待执行路线。</Lead>
 			<Card>
-				<Row label="怎么使用">
+				<Row label="发送方案文档，并把以下指令发给 AI">
 					<Button
 						className="mcp-copy-button h-13 min-w-60 self-center justify-center px-9 text-base"
 						onClick={() => void copyInvocation()}
@@ -44,7 +44,10 @@ export function SkillPage() {
 			<Card>
 				<Row label="任务助手" />
 				<div className="flex flex-col gap-3 pb-4 text-[13px]/relaxed text-text-dim">
-					<p>把你的方案整理成任务岛里的执行路线，方便查看进度和继续任务。它会按以下方式运行：</p>
+					<p>
+						在 AI
+						对话中附上方案文档，再发送上面的指令。技能会优先把方案登记为待执行路线，不需要你手工建项目或额外要求接入。它会按以下方式运行：
+					</p>
 					<ol className="list-decimal space-y-3 pl-5">
 						<li>
 							<strong className="text-text">读取方案。</strong>
@@ -59,8 +62,8 @@ export function SkillPage() {
 							只整理阶段和步骤的编号、层级及相关引用，不改方案目标、具体做法、执行先后、依赖关系或验收要求，也不自行增删、拆分或合并任务。
 						</li>
 						<li>
-							<strong className="text-text">登记与核对。</strong>连接 MCP
-							后，将路线登记到任务岛，核对哪些已完成、哪些待执行。同步失败会明确提示待同步，不会把未执行的步骤记为完成。
+							<strong className="text-text">先显示待执行路线。</strong>
+							提取步骤后立即自动登记并回读，先在任务岛显示待执行路线图；已有路线保留原进度。不会先做历史证据核查或业务审查，登记失败会说明原因。
 						</li>
 						<li>
 							<strong className="text-text">执行与接续。</strong>需要 AI
@@ -68,7 +71,9 @@ export function SkillPage() {
 							时，可提供当前进度、剩余事项和下一步指令。
 						</li>
 					</ol>
-					<p>改动前会保留原文或可恢复版本。步骤边界或顺序不明确时，会先与你核对，再处理相关部分。</p>
+					<p>
+						提供方案并调用技能只会先登记路线，不会自动开始执行。方案解析和登记需要一定时间；步骤或依赖不明确时，会说明具体缺项，不会擅自编造。
+					</p>
 				</div>
 			</Card>
 			<p className="text-[12.5px]/relaxed text-text-dim">
