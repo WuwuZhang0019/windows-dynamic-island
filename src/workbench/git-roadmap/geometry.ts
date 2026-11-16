@@ -93,13 +93,13 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	const height = (compact ? 24 : 96) + (layout.lanes - 1) * laneHeight;
 	const incoming = new Map<string, number>();
 	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
-	// Date: 2026-11-15. Preserve compact endpoint alignment and junction placement together.
+	// Date: 2026-11-16. Keep merge stations on the same column grid as other stations.
 	const hasSuccessor = new Set(visibleEdges.map((edge) => edge.from));
 	const stride = compact ? width / Math.max(1, layout.columns - 1) : columnWidth;
 	function stationX(node: RouteGraphNode) {
 		if (compact && !hasSuccessor.has(node.step.key)) return width;
 		const base = compact ? node.column * stride : (node.column + 0.5) * stride;
-		return Number((base - ((incoming.get(node.step.key) ?? 0) > 1 ? stride * 0.4 : 0)).toFixed(3));
+		return Number(base.toFixed(3));
 	}
 	const nodes: RoadmapNode[] = layout.nodes.map((node) => ({
 		...node,

@@ -1,4 +1,4 @@
-// Date: 2026-11-15. Verify roadmap semantics and compatibility with compact endpoint alignment.
+// Date: 2026-11-16. Verify roadmap semantics and compatibility with compact endpoint alignment.
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createScenario } from "../contract/fixtures";
@@ -21,8 +21,8 @@ describe("source-adapted Git roadmap", () => {
 			if (!join) throw Error("Missing merge fixture");
 			expect(join.x).toBeCloseTo(
 				compact
-					? ((join.column - 0.4) * graph.width) / (layoutRoutes(snapshot.routes, snapshot.steps).columns - 1)
-					: (join.column + 0.5) * 108 - 43.2,
+					? (join.column * graph.width) / (layoutRoutes(snapshot.routes, snapshot.steps).columns - 1)
+					: (join.column + 0.5) * 108,
 				3,
 			);
 			const incoming = graph.edges.filter((edge) => edge.to === join.step.key);
@@ -42,6 +42,28 @@ describe("source-adapted Git roadmap", () => {
 			if (compact)
 				for (const node of graph.nodes.filter((node) => !graph.edges.some((edge) => edge.from === node.step.key)))
 					expect(node.x).toBe(graph.width);
+		}
+	});
+	test("consecutive stations stay equally spaced through multiple merges", () => {
+		const snapshot = fixture();
+		const layout = layoutRoutes(snapshot.routes, snapshot.steps);
+		for (const compact of [false, true]) {
+			const graph = roadmapGeometry(layout, compact);
+			const stride = compact ? graph.width / (layout.columns - 1) : 108;
+			const byKey = new Map(graph.nodes.map((node) => [node.step.key, node]));
+			const adjacent = graph.edges.filter((edge) => {
+				const from = byKey.get(edge.from);
+				const to = byKey.get(edge.to);
+				if (!from || !to) throw Error("Missing edge station");
+				return to.column === from.column + 1 && (from.merge || to.merge);
+			});
+			expect(adjacent.length).toBeGreaterThan(0);
+			for (const edge of adjacent) {
+				const from = byKey.get(edge.from);
+				const to = byKey.get(edge.to);
+				if (!from || !to) throw Error("Missing edge station");
+				expect(to.x - from.x).toBeCloseTo(stride, 2);
+			}
 		}
 	});
 	test("forks leave the exact source x vertically in both sizes, keeping a source label corridor", () => {
