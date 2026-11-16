@@ -47,7 +47,7 @@ export function failedEnvelope(
 					? "连接授权不可用，请在工作台管理入口检查授权"
 					: state === "incompatible"
 						? "服务响应不兼容，已保留最后有效快照"
-						: "服务未连接，请启动独立工作台服务后重连",
+						: "后台连接中断，任务岛正在自动恢复；已保留最后有效进度",
 		},
 		pendingOperation: previous?.pendingOperation ?? null,
 	};

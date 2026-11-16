@@ -3,6 +3,7 @@ mod agent_connections;
 mod autostart;
 mod continuous;
 mod display;
+mod exit_guard;
 mod glass;
 mod i18n;
 mod memory;
@@ -21,8 +22,12 @@ use tauri::Manager;
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            let _ = settings::open(app);
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if argv.iter().any(|arg| arg == "--workbench-recover") {
+                service_bootstrap::spawn(app);
+            } else {
+                let _ = settings::open(app);
+            }
         }))
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -47,7 +52,10 @@ pub fn run() {
                 win.set_ignore_cursor_events(!input_test)?;
                 win.show()?;
             }
-            if !input_test {
+            if !input_test
+                || (cfg!(debug_assertions)
+                    && std::env::var_os("ISLAND_NATIVE_TEST_SERVICE").is_some())
+            {
                 service_bootstrap::spawn(&handle);
             }
             memory::sync_island(&handle);
@@ -95,6 +103,23 @@ pub fn run() {
             updater::install_update,
             i18n::set_locale,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { api, .. } => {
+                if !exit_guard::consume_permit() {
+                    api.prevent_exit();
+                    exit_guard::request(app);
+                }
+            }
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } if label == window::ISLAND_LABEL => {
+                api.prevent_close();
+                exit_guard::request(app);
+            }
+            _ => {}
+        });
 }
