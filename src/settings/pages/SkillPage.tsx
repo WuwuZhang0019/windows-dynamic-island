@@ -1,10 +1,11 @@
-// Date: 2026-11-13. Companion skill guidance; installation status is not inferred.
+// Date: 2026-11-16. Companion skill guidance; installation status is not inferred.
 import { CopyIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { Button } from "../../components/ui/button";
 import { Card, Row } from "../../components/ui/card";
 import { Lead, Title } from "../components/Heading";
+import "../components/mcp-connections.css";
 
 const invocation =
 	"请使用 workbench-handoff 技能，读取我提供的方案，仅规范阶段、步骤编号及相关引用，不改动执行内容、依赖顺序和验收要求，并核对当前进度。";
@@ -25,7 +26,10 @@ export function SkillPage() {
 			<Lead>让 AI 帮你整理计划、跟进任务。</Lead>
 			<Card>
 				<Row label="怎么使用">
-					<Button onClick={() => void copyInvocation()}>
+					<Button
+						className="mcp-copy-button h-13 min-w-60 self-center justify-center px-9 text-base"
+						onClick={() => void copyInvocation()}
+					>
 						<CopyIcon size={14} />
 						复制指令
 					</Button>
