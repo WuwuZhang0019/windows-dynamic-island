@@ -1,22 +1,22 @@
 {
-	"date": "2026-11-12",
+	"date": "2026-11-17",
 	"protocolVersion": "island-workbench/1",
 	"snapshotVersion": "light-1.0",
 	"ownerRepository": "Codex-task-monitoring",
-	"sourceCommit": "2b5ccdf413bc3359edfe77f24fe3572286ae7225",
+	"sourceCommit": "bc1ad029a561098808109e18132562b8f5c33f35",
 	"sourcePath": "app/contracts/island-workbench-v1",
 	"mode": "service-and-explicit-simulation",
 	"files": {
 		"protocol.ts": {
-			"sha256": "a28cf041d0c88f3248a569009ffc3c675d9f533694e28558bbcb8352fd66b810",
-			"lfSha256": "a28cf041d0c88f3248a569009ffc3c675d9f533694e28558bbcb8352fd66b810"
+			"sha256": "5899cbcd56604121513ecfedb57e50c9f958324ea26a64e4e46f65c868b4a3a4",
+			"lfSha256": "5899cbcd56604121513ecfedb57e50c9f958324ea26a64e4e46f65c868b4a3a4"
 		},
 		"fixtures.ts": {
-			"sha256": "f2546369fd7888cf8bc4d1380846194fabf5959ba026f0bcaf15f61f82a60505",
-			"lfSha256": "f2546369fd7888cf8bc4d1380846194fabf5959ba026f0bcaf15f61f82a60505"
+			"sha256": "74ddbed5a928541637368239d0cd6cdb14739b65cd7f9c41754c4d823be796a4",
+			"lfSha256": "74ddbed5a928541637368239d0cd6cdb14739b65cd7f9c41754c4d823be796a4"
 		}
 	},
 	"sourceBaseCommit": "f27192c58969a06f5afbba553f11a198a17afaf5",
-	"sourceState": "Committed dynamic application metadata; canonical contract and shell copy match.",
-	"compatibilityNote": "Optional agentApps and bindingApps are presentation metadata; light-1.0 business identities remain unchanged."
+	"sourceState": "Committed nested step hierarchy and optional binding exclusions; canonical contract and shell copy match.",
+	"compatibilityNote": "Optional excludedStepKeys restrict retained bindings; existing light-1.0 identities and evidence remain unchanged."
 }

@@ -169,3 +169,33 @@ describe("grouped task routes", () => {
 		expect(html).toContain('role="img" class="wb-step wb-graph-step');
 	});
 });
+
+// Date: 2026-11-17. Existing work packages and their phases expand without changing the declared service route.
+test("nested package phases remain visible and preserve explicit route ownership", () => {
+	const { routes, steps } = graphFixture();
+	const heading = { ...steps[0], key: "heading", parentKey: null, code: "I" };
+	const pack = { ...steps[1], key: "package", parentKey: heading.key, code: "I-04", order: 4 };
+	const phases = [1, 2, 3].map((order) => ({
+		...steps[2],
+		key: `phase-${order}`,
+		parentKey: pack.key,
+		code: `I-04-0${order}`,
+		order,
+	}));
+	const route = { ...routes[0], stepKeys: [heading.key] };
+	const graph = layoutRoutes([route], [heading, pack, ...phases]);
+	expect(graph.nodes.map((node) => node.step.key)).toEqual([heading.key, pack.key, ...phases.map((step) => step.key)]);
+	expect(graph.edges).toHaveLength(4);
+	expect(route.stepKeys).toEqual([heading.key]);
+	const separate = { ...routes[1], stepKeys: [pack.key], planKey: route.planKey };
+	const split = taskGroups({
+		...graphFixture().snapshot,
+		projects: [graphFixture().snapshot.projects[0]],
+		plans: [graphFixture().snapshot.plans[0]],
+		routes: [route, separate],
+		steps: [heading, pack, ...phases],
+	});
+	expect(
+		split.flatMap((group) => group.routes.flatMap((item) => item.stepKeys)).filter((key) => key === phases[0].key),
+	).toHaveLength(1);
+});

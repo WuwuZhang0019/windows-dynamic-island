@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createScenario } from "../contract/fixtures";
 import { GroupRouteGraph } from "../GroupRouteGraph";
-import { layoutRoutes } from "../task-groups";
+import { expandedRoutes, layoutRoutes, stepStatusLabel, taskGroups } from "../task-groups";
 import { roadmapGeometry, roundedPath, routeColour, routeColours } from "./geometry";
 
 function fixture() {
@@ -13,6 +13,66 @@ function fixture() {
 }
 
 describe("source-adapted Git roadmap", () => {
+	test("registered child history expands after fixed headings, without duplicate explicit ownership", () => {
+		const snapshot = fixture();
+		const base = snapshot.steps[0];
+		const headings = ["S", "I"].map((code, index) => ({
+			...base,
+			key: code,
+			code,
+			parentKey: null,
+			order: index + 1,
+			dependsOn: [],
+		}));
+		const children = [
+			{ ...base, key: "S-01", code: "S-01", parentKey: "S", order: 1, dependsOn: [], status: "completed" as const },
+			{ ...base, key: "S-02", code: "S-02", parentKey: "S", order: 2, dependsOn: ["S-01"], status: "running" as const },
+			{
+				...base,
+				key: "I-01",
+				code: "I-01",
+				parentKey: "I",
+				order: 1,
+				dependsOn: ["S-01"],
+				status: "pending" as const,
+				acceptance: "recheck",
+			},
+		];
+		const routes = headings.map((step, index) => ({
+			...snapshot.routes[0],
+			key: `${step.key}/route`,
+			stepKeys: [step.key],
+			sourceStepKey: null,
+			returnStepKey: null,
+			order: index + 1,
+		}));
+		const steps = [...headings, ...children];
+		expect(expandedRoutes(routes, steps).map((route) => route.stepKeys)).toEqual([
+			["S", "S-01", "S-02"],
+			["I", "I-01"],
+		]);
+		expect(routes.map((route) => route.stepKeys)).toEqual([["S"], ["I"]]);
+		for (const compact of [false, true]) {
+			const graph = roadmapGeometry(layoutRoutes(routes, steps), compact);
+			expect(graph.nodes).toHaveLength(5);
+			expect(graph.nodes.filter((node) => node.heading).every((node) => node.x === 0)).toBe(true);
+			expect(graph.nodes.find((node) => node.step.key === "S-02")?.x).toBeGreaterThan(0);
+			expect(graph.edges.some((edge) => edge.kind === "dependency" && edge.from === "S-01" && edge.to === "I-01")).toBe(
+				true,
+			);
+		}
+		expect(stepStatusLabel(children[2])).toBe("待核验");
+		const split = [...routes, { ...routes[0], key: "explicit-child", stepKeys: ["S-02"], sourceStepKey: "S-01" }];
+		const displayed = expandedRoutes(split, steps);
+		expect(displayed.flatMap((route) => route.stepKeys).filter((key) => key === "S-02")).toHaveLength(1);
+		const grouped = taskGroups({ ...snapshot, routes, steps });
+		expect(grouped.flatMap((group) => group.routes).find((route) => route.key === routes[0].key)?.stepKeys).toEqual([
+			"S",
+			"S-01",
+			"S-02",
+		]);
+	});
+
 	test("solitary headings stay left and remain anchored when steps are appended", () => {
 		const snapshot = fixture();
 		const originals = snapshot.steps.slice(0, 5);
@@ -55,7 +115,7 @@ describe("source-adapted Git roadmap", () => {
 			expect(join.x).toBeCloseTo(
 				compact
 					? (join.column * graph.width) / (layoutRoutes(snapshot.routes, snapshot.steps).columns - 1)
-					: (join.column + 0.5) * 108,
+					: join.column * 108,
 				3,
 			);
 			const incoming = graph.edges.filter((edge) => edge.to === join.step.key);
@@ -68,7 +128,7 @@ describe("source-adapted Git roadmap", () => {
 						? terminal
 							? graph.width
 							: (node.column * graph.width) / (layoutRoutes(snapshot.routes, snapshot.steps).columns - 1)
-						: (node.column + 0.5) * 108,
+						: node.column * 108,
 					3,
 				);
 			}

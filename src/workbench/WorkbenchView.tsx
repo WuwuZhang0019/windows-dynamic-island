@@ -10,7 +10,15 @@ import { GroupRouteGraph } from "./GroupRouteGraph";
 import { TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
 import { RouteArchiveButton } from "./RouteArchiveButton";
 import { SortableRouteCard } from "./SortableRouteCard";
-import { layoutRoutes, orderedTaskGroups, primaryRoute, type TaskGroup, taskGroups } from "./task-groups";
+import {
+	expandedRoutes,
+	layoutRoutes,
+	orderedTaskGroups,
+	primaryRoute,
+	stepStatusLabel,
+	type TaskGroup,
+	taskGroups,
+} from "./task-groups";
 import { libraryError } from "./task-library";
 import "./workbench.css";
 
@@ -32,13 +40,6 @@ const emptySnapshot: WorkbenchSnapshot = {
 	events: [],
 };
 
-const labels: Record<string, string> = {
-	pending: "待执行",
-	running: "执行中",
-	blocked: "已阻塞",
-	completed: "已完成",
-	cancelled: "已取消",
-};
 const connectionLabels: Record<string, string> = {
 	ready: "快照可用",
 	offline: "服务离线",
@@ -82,7 +83,7 @@ function RouteThumbnail({ routeKey, steps, currentKey }: { routeKey?: string; st
 						data-step-key={step.key}
 						data-status={step.status}
 						data-current={step.key === currentKey}
-						title={`${step.code} ${step.title} · ${labels[step.status]}`}
+						title={`${step.code} ${step.title} · ${stepStatusLabel(step)}`}
 					>
 						<span className="wb-dot" />
 					</span>
@@ -105,7 +106,9 @@ export function WorkbenchSummary({
 }) {
 	const hidden = archivedKeys;
 	const snapshot = envelope.snapshot ?? emptySnapshot;
-	const availableRoutes = snapshot.routes.filter((route) => !hidden.includes(route.key));
+	const availableRoutes = expandedRoutes(snapshot.routes, snapshot.steps).filter(
+		(route) => !hidden.includes(route.key),
+	);
 	const byKey = new Map(snapshot.steps.map((step) => [step.key, step]));
 	const remembered = readingPositions.get(`${envelope.mode}/${scenario}`);
 	const explicitRoute = availableRoutes.find((route) => route.key === (remembered?.route ?? preferences?.focus.at(-1)));
@@ -134,7 +137,7 @@ export function WorkbenchSummary({
 			role="img"
 			data-workbench-summary
 			data-connection={envelope.connection.state}
-			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${routeSteps.map((step) => `${step.code} ${labels[step.status]}`).join("，")}`}
+			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${routeSteps.map((step) => `${step.code} ${stepStatusLabel(step)}`).join("，")}`}
 		>
 			<RouteThumbnail routeKey={route?.key} steps={routeSteps} currentKey={anchor?.key} />
 		</div>

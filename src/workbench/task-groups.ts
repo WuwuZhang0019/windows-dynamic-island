@@ -10,8 +10,43 @@ export type TaskGroup = {
 	archiveKeys: string[];
 };
 
+// Date: 2026-11-16. Expand only registered children, preserving explicit cross-route ownership.
+export function expandedRoutes(routes: Route[], steps: Step[]): Route[] {
+	const explicit = new Set(routes.flatMap((route) => route.stepKeys));
+	const children = new Map<string, Step[]>();
+	for (const step of steps) {
+		if (!step.parentKey || explicit.has(step.key)) continue;
+		const list = children.get(step.parentKey) ?? [];
+		list.push(step);
+		children.set(step.parentKey, list);
+	}
+	for (const list of children.values()) list.sort((a, b) => a.order - b.order);
+	return routes.map((route) => {
+		const visited = new Set<string>();
+		const expand = (key: string): string[] => {
+			if (visited.has(key)) return [];
+			visited.add(key);
+			return [
+				key,
+				...(children.get(key) ?? [])
+					.filter((step) => step.planKey === route.planKey)
+					.flatMap((step) => expand(step.key)),
+			];
+		};
+		return { ...route, stepKeys: route.stepKeys.flatMap(expand) };
+	});
+}
+
+export function stepStatusLabel(step: Step): string {
+	if (step.status === "pending" && step.acceptance === "recheck") return "待核验";
+	return { pending: "待执行", running: "执行中", blocked: "已阻塞", completed: "已完成", cancelled: "已取消" }[
+		step.status
+	];
+}
+
 export function taskGroups(snapshot: WorkbenchSnapshot, archived: string[] = []): TaskGroup[] {
 	const hidden = new Set(archived);
+	const displayRoutes = expandedRoutes(snapshot.routes, snapshot.steps);
 	const plans = new Map(snapshot.plans.map((plan) => [plan.key, plan]));
 	const steps = new Map(snapshot.steps.map((step) => [step.key, step]));
 	const parents = new Map(snapshot.plans.map((plan) => [plan.key, plan.key]));
@@ -54,7 +89,7 @@ export function taskGroups(snapshot: WorkbenchSnapshot, archived: string[] = [])
 			const plan = members.find((item) => !children.has(item.key)) ?? members[0];
 			const memberKeys = new Set(members.map((item) => item.key));
 			const allRoutes = members.flatMap((item) =>
-				snapshot.routes.filter((route) => route.planKey === item.key).sort((a, b) => a.order - b.order),
+				displayRoutes.filter((route) => route.planKey === item.key).sort((a, b) => a.order - b.order),
 			);
 			const routes = allRoutes.filter((route) => !hidden.has(route.key));
 			const emptyPlans = members.filter(
@@ -80,7 +115,7 @@ export function orderedTaskGroups(groups: TaskGroup[], order: string[]): TaskGro
 	return [...groups].sort((a, b) => (rank(a) === Infinity ? -1 : rank(a)) - (rank(b) === Infinity ? -1 : rank(b)));
 }
 
-export type RouteGraphNode = { step: Step; routeKeys: string[]; column: number; lane: number };
+export type RouteGraphNode = { step: Step; routeKeys: string[]; column: number; lane: number; heading?: boolean };
 export type RouteGraphEdge = { key: string; from: string; to: string; kind: "route" | "dependency" };
 export type RouteGraphLayout = { nodes: RouteGraphNode[]; edges: RouteGraphEdge[]; columns: number; lanes: number };
 
@@ -90,13 +125,25 @@ export function primaryRoute(routes: Route[]): Route | undefined {
 }
 
 export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
+	routes = expandedRoutes(routes, steps);
+	const headings = new Set(
+		routes
+			.filter((route) => {
+				const first = steps.find((step) => step.key === route.stepKeys[0]);
+				return (
+					first?.parentKey === null &&
+					(route.stepKeys.length === 1 || steps.some((step) => step.parentKey === first.key))
+				);
+			})
+			.map((route) => route.stepKeys[0]),
+	);
 	const byKey = new Map(steps.map((step) => [step.key, step]));
 	const nodes = new Map<string, RouteGraphNode>();
 	for (const route of routes)
 		for (const key of route.stepKeys) {
 			const step = byKey.get(key);
 			if (!step) continue;
-			const node = nodes.get(key) ?? { step, routeKeys: [], column: 0, lane: -1 };
+			const node = nodes.get(key) ?? { step, routeKeys: [], column: 0, lane: -1, heading: headings.has(key) };
 			if (!node.routeKeys.includes(route.key)) node.routeKeys.push(route.key);
 			nodes.set(key, node);
 		}
@@ -137,7 +184,7 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		visited.add(key);
 		for (const target of outgoing.get(key) ?? []) {
 			const next = nodes.get(target);
-			if (next) next.column = Math.max(next.column, node.column + 1);
+			if (next && !next.heading) next.column = Math.max(next.column, node.column + 1);
 			const count = (remaining.get(target) ?? 1) - 1;
 			remaining.set(target, count);
 			if (!count) queue.push(target);
@@ -207,7 +254,7 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 			current = target && incoming.get(target)?.length === 1 && visited.has(target) ? nodes.get(target) : undefined;
 		}
 		// Parent expansion keeps the main route level; it is not a parallel fork/join section.
-		if (run.some((node) => parentContexts.has(node.step.key))) continue;
+		if (run.some((node) => node.heading || parentContexts.has(node.step.key))) continue;
 		const branchLanes = run.flatMap((node) => {
 			const sources = incoming.get(node.step.key) ?? [];
 			const targets = outgoing.get(node.step.key) ?? [];

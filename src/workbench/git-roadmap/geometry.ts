@@ -88,7 +88,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	const columnWidth = 108;
 	const laneHeight = compact ? 18 : 94;
 	const offset = compact ? 12 : 24;
-	const width = layout.columns * columnWidth;
+	const width = (compact ? layout.columns : Math.max(1, layout.columns - 1)) * columnWidth;
 	const palette = routeColours(layout.nodes.flatMap((node) => node.routeKeys));
 	const height = (compact ? 24 : 96) + (layout.lanes - 1) * laneHeight;
 	const incoming = new Map<string, number>();
@@ -99,7 +99,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	function stationX(node: RouteGraphNode) {
 		// Date: 2026-11-16. A solitary heading is a starting station, not an endpoint.
 		if (compact && node.column > 0 && !hasSuccessor.has(node.step.key)) return width;
-		const base = compact ? node.column * stride : (node.column + 0.5) * stride;
+		const base = node.column * stride;
 		return Number(base.toFixed(3));
 	}
 	const nodes: RoadmapNode[] = layout.nodes.map((node) => ({

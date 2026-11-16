@@ -607,6 +607,11 @@
 	width: 100%;
 	pointer-events: auto;
 }
+/* Date: 2026-11-16. Reserve label gutters; expanded origins remain at the left edge. */
+.wb-group-graph:not(.wb-group-graph-compact) {
+	margin-inline: 50px;
+	width: calc(100% - 100px);
+}
 .wb-group-graph-compact {
 	container-type: inline-size;
 }

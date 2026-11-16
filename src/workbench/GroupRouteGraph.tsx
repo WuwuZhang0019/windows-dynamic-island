@@ -3,15 +3,7 @@ import type { CSSProperties } from "react";
 import type { Route, Step } from "./contract/protocol";
 import { CurvedEdge } from "./git-roadmap/CurvedEdge";
 import { roadmapGeometry } from "./git-roadmap/geometry";
-import type { RouteGraphLayout } from "./task-groups";
-
-const labels: Record<string, string> = {
-	pending: "待执行",
-	running: "执行中",
-	blocked: "已阻塞",
-	completed: "已完成",
-	cancelled: "已取消",
-};
+import { type RouteGraphLayout, stepStatusLabel } from "./task-groups";
 
 export function GroupRouteGraph({
 	layout,
@@ -29,7 +21,7 @@ export function GroupRouteGraph({
 	const graph = roadmapGeometry(layout, compact);
 	const codes = new Map(layout.nodes.map((node) => [node.step.key, node.step.code]));
 	const label = (step: Step, merge: boolean) =>
-		`${step.code} ${step.title} · ${labels[step.status]}${merge ? " · 合流步骤" : ""}${step.dependsOn.length ? `\n前置：${step.dependsOn.map((key) => codes.get(key) ?? "路线外步骤").join("、")}` : ""}`;
+		`${step.code} ${step.title} · ${stepStatusLabel(step)}${merge ? " · 合流步骤" : ""}${step.dependsOn.length ? `\n前置：${step.dependsOn.map((key) => codes.get(key) ?? "路线外步骤").join("、")}` : ""}`;
 	return (
 		<>
 			<div
@@ -65,13 +57,14 @@ export function GroupRouteGraph({
 					))}
 				</svg>
 				{/* Station actions remain paused; card selection and wheel scrolling are handled by WorkbenchView. */}
-				{graph.nodes.map(({ step, x, y, merge, colour, forkDown }) => (
+				{graph.nodes.map(({ step, x, y, merge, colour, forkDown, heading }) => (
 					<span
 						key={step.key}
 						role="img"
 						className={`wb-step wb-graph-step wb-step-${step.status}`}
 						data-step-key={step.key}
 						data-status={step.status}
+						data-heading={heading || undefined}
 						data-merge={merge}
 						data-fork-down={forkDown && !compact}
 						aria-label={label(step, merge)}
@@ -92,7 +85,7 @@ export function GroupRouteGraph({
 							<>
 								<span className="wb-step-code">{step.code}</span>
 								<span className="wb-step-title">{step.title}</span>
-								<span className="wb-step-state">{labels[step.status]}</span>
+								<span className="wb-step-state">{stepStatusLabel(step)}</span>
 							</>
 						)}
 					</span>

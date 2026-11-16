@@ -35,12 +35,14 @@ describe("single-route thumbnail", () => {
 		expect(list).not.toContain("wb-route-delete");
 	});
 
-	test("renders one whole route instead of all routes and unassigned stages", () => {
+	test("renders one whole route including registered children, without unrelated routes", () => {
 		const envelope = createScenario("multi-project");
 		const route = envelope.snapshot?.routes[0];
+		const child = envelope.snapshot?.steps.find((step) => step.parentKey === route?.stepKeys.at(-1));
+		if (!route || !child) throw Error("Missing route child fixture");
 		const html = renderToStaticMarkup(<WorkbenchSummary envelope={envelope} />);
 		expect(html.match(/class="wb-mini-route"/g)).toHaveLength(1);
-		expect(keys(html)).toEqual(route?.stepKeys ?? []);
+		expect(keys(html)).toEqual([...route.stepKeys, child.key]);
 		expect(html.replace(/<[^>]*>/g, "")).toBe("");
 	});
 
@@ -84,14 +86,14 @@ describe("single-route thumbnail", () => {
 		expect(keys(html)).toHaveLength(0);
 	});
 
-	test("an unlisted child selects its ancestor's route without adding another lane", () => {
+	test("a registered child remains on its ancestor route and marks the actual current station", () => {
 		const envelope = createScenario("multi-project");
 		const child = envelope.snapshot?.steps.find((step) => step.parentKey);
 		if (!child) throw Error("Missing fixture child");
 		const route = envelope.snapshot?.routes.find((item) => item.stepKeys.includes(child.parentKey ?? ""));
 		const html = renderToStaticMarkup(<WorkbenchSummary envelope={envelope} preferences={preferences(child.key)} />);
-		expect(keys(html)).toEqual(route?.stepKeys ?? []);
-		expect(keys(html)).not.toContain(child.key);
+		expect(keys(html)).toEqual([...(route?.stepKeys ?? []), child.key]);
+		expect(html).toContain(`data-step-key="${child.key}" data-status="${child.status}" data-current="true"`);
 		expect(html.match(/class="wb-mini-route"/g)).toHaveLength(1);
 	});
 
