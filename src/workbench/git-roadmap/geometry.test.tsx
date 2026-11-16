@@ -13,6 +13,39 @@ function fixture() {
 }
 
 describe("source-adapted Git roadmap", () => {
+	test("solitary headings stay left and remain anchored when steps are appended", () => {
+		const snapshot = fixture();
+		const originals = snapshot.steps.slice(0, 5);
+		const headings = originals.map((step, index) => ({
+			...step,
+			key: `heading-${index}`,
+			parentKey: null,
+			dependsOn: [],
+		}));
+		const routes = headings.map((step, index) => ({
+			...snapshot.routes[0],
+			key: `line-${index}`,
+			stepKeys: [step.key],
+			sourceStepKey: null,
+			returnStepKey: null,
+		}));
+		const initial = roadmapGeometry(layoutRoutes(routes, headings), true);
+		expect(initial.nodes).toHaveLength(5);
+		expect(initial.nodes.every((node) => node.x === 0)).toBe(true);
+		expect(initial.edges).toHaveLength(0);
+		const child = { ...originals[0], key: "actual-step", parentKey: headings[0].key, dependsOn: [headings[0].key] };
+		const grown = roadmapGeometry(
+			layoutRoutes(
+				[{ ...routes[0], stepKeys: [headings[0].key, child.key] }, ...routes.slice(1)],
+				[...headings, child],
+			),
+			true,
+		);
+		expect(grown.nodes.filter((node) => node.step.key.startsWith("heading-")).every((node) => node.x === 0)).toBe(true);
+		expect(grown.nodes.find((node) => node.step.key === child.key)?.x).toBe(grown.width);
+		expect(grown.edges).toHaveLength(1);
+	});
+
 	test("merge stations occupy their junction and incoming curves end on that station", () => {
 		const snapshot = fixture();
 		for (const compact of [false, true]) {

@@ -97,7 +97,8 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	const hasSuccessor = new Set(visibleEdges.map((edge) => edge.from));
 	const stride = compact ? width / Math.max(1, layout.columns - 1) : columnWidth;
 	function stationX(node: RouteGraphNode) {
-		if (compact && !hasSuccessor.has(node.step.key)) return width;
+		// Date: 2026-11-16. A solitary heading is a starting station, not an endpoint.
+		if (compact && node.column > 0 && !hasSuccessor.has(node.step.key)) return width;
 		const base = compact ? node.column * stride : (node.column + 0.5) * stride;
 		return Number(base.toFixed(3));
 	}
