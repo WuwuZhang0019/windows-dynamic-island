@@ -6,7 +6,7 @@ import { command, isTauri } from "../../core/bridge";
 import { useT } from "../../core/i18n";
 
 const REPO_URL = "https://github.com/WuwuZhang0019/Codex-task-monitoring.git";
-const UPSTREAM_URL = "https://github.com/HeyyCzer";
+const UPSTREAM_URL = "https://github.com/HeyyCzer/windows-dynamic-island.git";
 const ROADMAP_URL = "https://github.com/TomPlum/react-git-log";
 export function AboutPage() {
 	const t = useT();
@@ -35,8 +35,8 @@ export function AboutPage() {
 				<Row label="致谢" desc="HeyyCzer · Windows Dynamic Island">
 					<Button
 						onClick={openUpstream}
-						aria-label="访问 HeyyCzer 的 GitHub"
-						title="访问 HeyyCzer 的 GitHub"
+						aria-label="访问 Windows Dynamic Island 的 GitHub"
+						title="访问 Windows Dynamic Island 的 GitHub"
 						className="px-3"
 					>
 						<GitHubIcon size={18} />
