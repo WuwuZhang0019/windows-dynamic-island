@@ -93,7 +93,30 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 	const minimumWidth = (compact ? layout.columns : Math.max(1, layout.columns - 1)) * columnWidth;
 	const width = compact ? (renderedWidth ?? minimumWidth) : Math.max(minimumWidth, renderedWidth ?? 0);
 	const palette = routeColours(layout.nodes.flatMap((node) => node.routeKeys));
-	const height = (compact ? 24 : 96) + (layout.lanes - 1) * laneHeight;
+	// Date: 2026-11-17. Center a solitary continuation over the preceding converging rows.
+	const displayLanes = new Map(layout.nodes.map((node) => [node.lane, node.lane]));
+	const nodeByKey = new Map(layout.nodes.map((node) => [node.step.key, node]));
+	for (const lane of displayLanes.keys()) {
+		const continuation = layout.nodes.filter((node) => node.lane === lane);
+		const preceding = layout.nodes.filter((node) => node.lane !== lane);
+		const precedingLanes = [...new Set(preceding.map((node) => node.lane))].sort((a, b) => a - b);
+		if (precedingLanes.length < 2) continue;
+		const start = Math.min(...continuation.map((node) => node.column));
+		if (preceding.some((node) => node.column >= start)) continue;
+		if (
+			!precedingLanes.every((sourceLane) =>
+				visibleEdges.some(
+					(edge) => nodeByKey.get(edge.from)?.lane === sourceLane && nodeByKey.get(edge.to)?.lane === lane,
+				),
+			)
+		)
+			continue;
+		for (const [index, sourceLane] of precedingLanes.entries()) displayLanes.set(sourceLane, index);
+		displayLanes.set(lane, (precedingLanes.length - 1) / 2);
+		break;
+	}
+	const laneCount = Math.max(1, ...[...displayLanes.values()].map((lane) => lane + 1));
+	const height = (compact ? 24 : 96) + (laneCount - 1) * laneHeight;
 	const incoming = new Map<string, number>();
 	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
 	// Date: 2026-11-16. Keep merge stations on the same column grid as other stations.
@@ -117,7 +140,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		...node,
 		key: node.step.key,
 		x: stationX(node),
-		y: offset + node.lane * laneHeight,
+		y: offset + (displayLanes.get(node.lane) ?? node.lane) * laneHeight,
 		merge: (incoming.get(node.step.key) ?? 0) > 1,
 		forkDown: false,
 		colour: palette.get(node.routeKeys[0]) ?? routeColour(""),
