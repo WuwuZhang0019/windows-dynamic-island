@@ -232,6 +232,53 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		lane++;
 	}
 
+	// Date: 2026-11-17. Use available column slack to shorten companion rails, keeping headings anchored.
+	const lastColumn = Math.max(0, ...[...nodes.values()].map((node) => node.column));
+	function hasAlternatePath(from: string, to: string): boolean {
+		const pending = (outgoing.get(from) ?? []).filter((key) => key !== to);
+		const seen = new Set<string>();
+		while (pending.length) {
+			const key = pending.pop();
+			if (!key || seen.has(key)) continue;
+			if (key === to) return true;
+			seen.add(key);
+			pending.push(...(outgoing.get(key) ?? []));
+		}
+		return false;
+	}
+	for (const route of ordered) {
+		const heading = nodes.get(route.stepKeys[0]);
+		if (route.key === main?.key || !heading?.heading) continue;
+		const work = route.stepKeys.flatMap((key) => {
+			const node = nodes.get(key);
+			return node && node !== heading ? [node] : [];
+		});
+		if (!work.length || work.some((node) => node.heading || node.routeKeys.length !== 1 || !visited.has(node.step.key)))
+			continue;
+		const keys = new Set(work.map((node) => node.step.key));
+		const exits = [...edges.values()].filter((edge) => keys.has(edge.from) && !keys.has(edge.to));
+		const joins = exits.filter((edge) => {
+			const from = nodes.get(edge.from),
+				to = nodes.get(edge.to);
+			return (
+				edge.kind === "dependency" &&
+				from &&
+				to &&
+				visited.has(to.step.key) &&
+				!to.routeKeys.includes(route.key) &&
+				!hasAlternatePath(edge.from, edge.to) &&
+				work.some((node) => node.column > from.column && node.column < to.column)
+			);
+		});
+		if (!joins.length) continue;
+		// Every outgoing relationship stays forward, and the block cannot enlarge the graph.
+		const slack = Math.min(
+			lastColumn - Math.max(...work.map((node) => node.column)),
+			...exits.map((edge) => (nodes.get(edge.to)?.column ?? 0) - (nodes.get(edge.from)?.column ?? 0) - 1),
+		);
+		if (slack > 0) for (const node of work) node.column += slack;
+	}
+
 	return {
 		nodes: [...nodes.values()],
 		edges: [...edges.values()],

@@ -229,3 +229,48 @@ test("cross-line dependencies preserve each route row and all business topology"
 	]);
 	expect(JSON.stringify({ routes: input, steps })).toBe(before);
 });
+
+// Date: 2026-11-17. A service block may use spare columns without moving its origin or its consumer.
+test("route work blocks align toward visible joins while all dependencies stay forward", () => {
+	const { routes, steps } = graphFixture();
+	const template = steps[0];
+	const service = ["S", "S-01", "S-02", "S-03"].map((key, index) => ({
+		...template,
+		key,
+		code: key,
+		parentKey: index ? "S" : null,
+		order: index,
+		dependsOn: [] as string[],
+	}));
+	const host = ["H", "H-01", "H-02", "H-03", "H-04"].map((key, index) => ({
+		...template,
+		key,
+		code: key,
+		parentKey: index ? "H" : null,
+		order: index,
+		dependsOn: key === "H-04" ? ["S-01"] : [],
+	}));
+	const main = { ...routes[0], stepKeys: steps.slice(0, 8).map((step) => step.key) };
+	const input = [
+		main,
+		{ ...routes[0], key: "service", stepKeys: ["S"] },
+		{ ...routes[0], key: "host", stepKeys: ["H"] },
+	];
+	const all = [...steps.slice(0, 8), ...service, ...host].map((step) =>
+		step.key === "m7" ? { ...step, dependsOn: ["S-03"] } : step,
+	);
+	const original = JSON.stringify({ input, all });
+	const graph = layoutRoutes(input, all);
+	const byKey = new Map(graph.nodes.map((node) => [node.step.key, node]));
+	expect(["S", "S-01", "S-02", "S-03"].map((key) => byKey.get(key)?.column)).toEqual([0, 3, 4, 5]);
+	expect(byKey.get("H-04")?.column).toBe(4);
+	expect(graph.columns).toBe(8);
+	for (const edge of graph.edges) {
+		expect(byKey.get(edge.to)?.column ?? -1).toBeGreaterThan(byKey.get(edge.from)?.column ?? Infinity);
+	}
+	expect(JSON.stringify({ input, all })).toBe(original);
+	// An earlier consumer prevents the same block from being delayed past that consumer.
+	const constrained = all.map((step) => (step.key === "H-03" ? { ...step, dependsOn: ["S-02"] } : step));
+	const limited = layoutRoutes(input, constrained);
+	expect(limited.nodes.filter((node) => node.step.key.startsWith("S-")).map((node) => node.column)).toEqual([1, 2, 3]);
+});
