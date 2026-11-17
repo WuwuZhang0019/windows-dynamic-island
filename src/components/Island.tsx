@@ -12,9 +12,10 @@ import { useIslandDrag } from "../core/useIslandDrag";
 import { useWorkbench } from "../workbench/useWorkbench";
 import { islandContent } from "./island/content";
 import { GlassProbes } from "./island/GlassProbes";
-import { geometry, variantOf } from "./island/geometry";
+import { expandedHeightLimit, geometry, variantOf } from "./island/geometry";
 import { Rim } from "./island/Rim";
 import { Surface } from "./island/Surface";
+import { useContentHeight } from "./island/useContentHeight";
 
 export function Island() {
 	const ctl = useIslandController();
@@ -33,8 +34,13 @@ export function Island() {
 	useGlass(look.glass);
 	useSyncLocale();
 
-	const bigSize = { width: Math.min(860, viewport.width - 40), height: Math.min(480, viewport.height - 100) };
-	const baseGeometry = geometry(v, look, mode, bigSize, primary);
+	const heightLimit = expandedHeightLimit(viewport.height, v.top);
+	const contentSize = useContentHeight(mode === "expanded" && !!workbench.envelope, heightLimit);
+	const bigSize = {
+		width: Math.min(860, viewport.width - 40),
+		height: Math.max(0, (contentSize.height ?? 480) - v.tabBar),
+	};
+	const baseGeometry = geometry(v, look, mode, bigSize, primary, heightLimit);
 	const g = mode === "compact" ? { ...baseGeometry, width: Math.min(410, viewport.width - 40) } : baseGeometry;
 	const big = mode === "expanded";
 	const hidden = mode === "hidden";
@@ -55,7 +61,7 @@ export function Island() {
 		[mode, ctl.tab, ctl.expand, ctl.collapse, ctl.keepOpen],
 	);
 
-	const content = islandContent(ctl, look, v, workbench);
+	const content = islandContent(ctl, look, v, workbench, contentSize.ref);
 	const rim = windows ? <Rim look={look} /> : null;
 
 	return (
@@ -92,7 +98,7 @@ export function Island() {
 							opacity: hidden ? 0 : 1,
 							y: hidden ? -g.height - 12 - v.top : 0,
 						}}
-						transition={transition}
+						transition={{ ...transition, height: { type: "tween", duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
 						tabIndex={-1}
 						onClick={(event) => {
 							if (!resting) return;

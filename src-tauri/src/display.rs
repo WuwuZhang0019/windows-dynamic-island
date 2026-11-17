@@ -13,7 +13,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
-use crate::window::{ISLAND_LABEL, STRIP_HEIGHT};
+use crate::window::ISLAND_LABEL;
 
 /// `"primary"` or the id of a monitor from [`list_monitors`].
 pub const MONITOR_KEY: &str = "island.monitor";
@@ -125,8 +125,20 @@ fn target(app: &AppHandle, win: &WebviewWindow) -> Option<Monitor> {
 }
 
 /// Window rect (physical px) that stretches the strip across `monitor`'s top.
+// Date: 2026-11-17. Use the work-area bottom in physical pixels, including negative monitor coordinates.
+fn strip_height(top: i32, work_top: i32, work_height: u32, screen_height: u32) -> u32 {
+    (i64::from(work_top) + i64::from(work_height) - i64::from(top))
+        .clamp(1, i64::from(screen_height.max(1))) as u32
+}
+
 fn strip_rect(monitor: &Monitor) -> (PhysicalPosition<i32>, PhysicalSize<u32>) {
-    let height = (STRIP_HEIGHT * monitor.scale_factor()).round() as u32;
+    let work = monitor.work_area();
+    let height = strip_height(
+        monitor.position().y,
+        work.position.y,
+        work.size.height,
+        monitor.size().height,
+    );
     (
         *monitor.position(),
         PhysicalSize::new(monitor.size().width, height),
@@ -410,4 +422,18 @@ fn covered_monitors(app: &AppHandle) -> Vec<(i32, i32)> {
 #[cfg(not(windows))]
 fn covered_monitors(_: &AppHandle) -> Vec<(i32, i32)> {
     Vec::new()
+}
+
+#[cfg(test)]
+mod adaptive_height_tests {
+    use super::strip_height;
+    #[test]
+    fn overlay_uses_work_area_without_a_fixed_logical_height() {
+        assert_eq!(strip_height(0, 0, 1392, 1440), 1392);
+        assert_eq!(strip_height(-1440, -1440, 1392, 1440), 1392);
+        assert_eq!(strip_height(0, 48, 1392, 1440), 1440);
+        assert_eq!(strip_height(0, 0, 2112, 2160), 2112);
+        assert_eq!(strip_height(0, 0, 5000, 1440), 1440);
+        assert_eq!(strip_height(1000, 0, 500, 1440), 1);
+    }
 }

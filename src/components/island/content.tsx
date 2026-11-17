@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import type { Appearance } from "../../core/appearance";
 import { cn } from "../../core/cn";
 import type { IslandController } from "../../core/useIslandController";
@@ -16,6 +16,7 @@ export function islandContent(
 	look: Appearance,
 	v: Variant,
 	workbench: WorkbenchState,
+	contentRef?: RefObject<HTMLDivElement | null>,
 ): { key: string; node: ReactNode } {
 	if (!workbench.envelope) return { key: "loading", node: <span className="p-3 text-xs">工作台连接中</span> };
 	if (ctl.mode === "expanded") {
@@ -24,6 +25,8 @@ export function islandContent(
 			key: "big:workbench",
 			node: (
 				<div
+					ref={contentRef}
+					data-expanded-content
 					onFocusCapture={(event) => {
 						const target = event.target as HTMLElement;
 						ctl.keepOpen(target.matches("input,select,textarea,:focus-visible"), "workbench-focus");

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Appearance } from "../../core/appearance";
-import { geometry, MAX_HEIGHT, variantOf } from "./geometry";
+import { expandedHeightLimit, geometry, MAX_HEIGHT, variantOf } from "./geometry";
 
 const look = { style: "dynamic" } as Appearance;
 const v = variantOf(look);
@@ -32,5 +32,16 @@ test("controls can move above or below the workbench in either style without res
 				300 + variant.tabBar,
 			);
 		}
+	}
+});
+
+// Date: 2026-11-17. Actual monitor limits replace the former fixed 560 px ceiling.
+test("expanded geometry follows measured content and available monitor height", () => {
+	for (const viewport of [480, 820, 1440]) {
+		const max = expandedHeightLimit(viewport, v.top);
+		expect(geometry(v, look, "expanded", { width: 860, height: 1400 }, undefined, max).height).toBe(max);
+		expect(geometry(v, look, "expanded", { width: 860, height: 200 }, undefined, max).height).toBe(
+			Math.min(200 + v.tabBar, max),
+		);
 	}
 });

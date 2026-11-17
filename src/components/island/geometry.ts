@@ -48,12 +48,13 @@ const WINDOWS: Variant = {
 /** Windows Island at rest without the clock: a small, empty pill. */
 const WINDOWS_BARE_IDLE: Geo = { width: 110, height: 30, radius: 15, ear: 0 };
 
-/**
- * Tallest the island may grow (px). The window is `STRIP_HEIGHT` (640, see
- * `window.rs`) tall; the rest is room for the top gap, the shadow and the
- * spring's overshoot, so the bottom corners never get cut off.
- */
+/** Fallback for callers without a measured viewport; Island supplies its actual work-area limit. */
 export const MAX_HEIGHT = 560;
+
+// Date: 2026-11-17. Leave space for the lower shadow and spring overshoot inside the native work area.
+export function expandedHeightLimit(viewportHeight: number, top: number) {
+	return Math.max(0, viewportHeight - top - 48);
+}
 
 export const BUBBLE = 38;
 export const BUBBLE_GAP = 10;
@@ -71,6 +72,7 @@ export function geometry(
 	mode: IslandMode,
 	bigSize: { width: number; height: number } | undefined,
 	primary: ModuleEntry | undefined,
+	maxHeight = MAX_HEIGHT,
 ): Geo {
 	switch (mode) {
 		case "hidden":
@@ -83,7 +85,7 @@ export function geometry(
 		case "expanded": {
 			const size = bigSize ?? v.expanded;
 			const extra = mode === "expanded" ? v.tabBar : 0;
-			return { ...v.expanded, width: size.width, height: Math.min(size.height + extra, MAX_HEIGHT) };
+			return { ...v.expanded, width: size.width, height: Math.min(size.height + extra, maxHeight) };
 		}
 	}
 }

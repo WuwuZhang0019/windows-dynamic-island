@@ -22,11 +22,6 @@ pub const PRESS_OUTSIDE_EVENT: &str = "island://press-outside";
 /// Tray "Recenter": the frontend snaps the island back to the middle.
 pub const RECENTER_EVENT: &str = "island://recenter";
 
-/// Strip height in logical pixels: the tallest island (`MAX_HEIGHT` in the
-/// frontend's `geometry.ts`) plus its shadow and spring overshoot. Outside the
-/// hit rects the strip lets clicks through, so the spare room costs nothing.
-pub const STRIP_HEIGHT: f64 = 640.0;
-
 /// The last window in front that wasn't one of ours: what "ask about the
 /// screen" captures, and where focus goes back to after typing in the island.
 static LAST_FOREGROUND: AtomicIsize = AtomicIsize::new(0);
