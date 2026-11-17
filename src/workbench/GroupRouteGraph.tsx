@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import type { Route, Step } from "./contract/protocol";
 import { CurvedEdge } from "./git-roadmap/CurvedEdge";
 import { roadmapGeometry } from "./git-roadmap/geometry";
-import { type RouteGraphLayout, stepStatusLabel } from "./task-groups";
+import { executingStepKeys, type RouteGraphLayout, stepStatusLabel } from "./task-groups";
 
 export function GroupRouteGraph({
 	layout,
@@ -19,9 +19,10 @@ export function GroupRouteGraph({
 	routes?: Route[];
 }) {
 	const graph = roadmapGeometry(layout, compact);
+	const executing = executingStepKeys(layout.nodes.map((node) => node.step));
 	const codes = new Map(layout.nodes.map((node) => [node.step.key, node.step.code]));
 	const label = (step: Step, merge: boolean) =>
-		`${step.code} ${step.title} · ${stepStatusLabel(step)}${merge ? " · 合流步骤" : ""}${step.dependsOn.length ? `\n前置：${step.dependsOn.map((key) => codes.get(key) ?? "路线外步骤").join("、")}` : ""}`;
+		`${step.code} ${step.title} · ${stepStatusLabel(step, executing.has(step.key))}${merge ? " · 合流步骤" : ""}${step.dependsOn.length ? `\n前置：${step.dependsOn.map((key) => codes.get(key) ?? "路线外步骤").join("、")}` : ""}`;
 	return (
 		<>
 			<div
@@ -64,6 +65,7 @@ export function GroupRouteGraph({
 						className={`wb-step wb-graph-step wb-step-${step.status}`}
 						data-step-key={step.key}
 						data-status={step.status}
+						data-executing={executing.has(step.key)}
 						data-heading={heading || undefined}
 						data-merge={merge}
 						data-fork-down={forkDown && !compact}
@@ -85,7 +87,7 @@ export function GroupRouteGraph({
 							<>
 								<span className="wb-step-code">{step.code}</span>
 								<span className="wb-step-title">{step.title}</span>
-								<span className="wb-step-state">{stepStatusLabel(step)}</span>
+								<span className="wb-step-state">{stepStatusLabel(step, executing.has(step.key))}</span>
 							</>
 						)}
 					</span>

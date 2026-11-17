@@ -454,11 +454,11 @@
 	outline-offset: 2px;
 }
 
-/* Date: 2026-11-12. A short border beam loops only around running stage dots. */
+/* Date: 2026-11-17. Progress ancestors stay still; the beam marks the actual executing descendants. */
 .wb-step-running .wb-dot {
 	position: relative;
 }
-.wb-step-running .wb-dot::after {
+.wb-step-running[data-executing="true"] .wb-dot::after {
 	content: "";
 	position: absolute;
 	inset: -5px;
@@ -484,7 +484,7 @@
 	.wb-route-card {
 		transition: none;
 	}
-	.wb-step-running .wb-dot::after {
+	.wb-step-running[data-executing="true"] .wb-dot::after {
 		animation: none;
 	}
 }
@@ -745,14 +745,7 @@
 	stroke-linejoin: round;
 	opacity: 0.38;
 }
-/* Date: 2026-11-13. Merge captions sit beside the junction, clear of incoming vertical lines. */
-.wb-graph-step[data-merge="true"] :is(.wb-step-code, .wb-step-title, .wb-step-state) {
-	position: relative;
-	left: calc(50% + 6px);
-	align-self: flex-start;
-	width: 82px;
-	text-align: left;
-}
+/* Date: 2026-11-17. Merge captions stay centered; downward departures use the shared clear corridor. */
 .wb-graph-lines path[data-status="completed"] {
 	opacity: 0.95;
 }

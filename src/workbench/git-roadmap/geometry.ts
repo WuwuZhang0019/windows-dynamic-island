@@ -63,6 +63,33 @@ export function roundedPath(points: Point[], radius: number): string {
 	return commands.join(" ");
 }
 
+// Date: 2026-11-17. Smooth, wide shoulders keep bypasses clear of unrelated stations.
+function bypassPath(from: Point, to: Point, compact: boolean): string {
+	const direction = to.x > from.x ? 1 : -1;
+	const reach = Math.min(42, Math.abs(to.x - from.x) / 3);
+	const transit = from.y - (compact ? 7 : 24);
+	const point = (x: number, y: number) => `${Number(x.toFixed(3))} ${Number(y.toFixed(3))}`;
+	const start = from.x + direction * reach;
+	const end = to.x - direction * reach;
+	return [
+		`M ${point(from.x, from.y)}`,
+		"C " +
+			[
+				point(from.x + (direction * reach) / 2, from.y),
+				point(start - (direction * reach) / 2, transit),
+				point(start, transit),
+			].join(" "),
+		`L ${point(end, transit)}`,
+		"C " +
+			[
+				point(end + (direction * reach) / 2, transit),
+				point(to.x - (direction * reach) / 2, to.y),
+				point(to.x, to.y),
+			].join(" "),
+		`L ${point(to.x, to.y)}`,
+	].join(" ");
+}
+
 export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	// Date: 2026-11-13. Keep transitive dependencies in the model, without duplicating existing visual paths.
 	const outgoing = new Map<string, RouteGraphEdge[]>();
@@ -120,12 +147,29 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 			from.routeKeys.find((key) => to.routeKeys.includes(key)) ??
 			(to.merge ? from.routeKeys[0] : to.routeKeys[0]) ??
 			"";
-		const direction = to.x > from.x ? 1 : -1;
+		let bypass = false;
 		let points: Point[] = [from, to];
 		if (from.y !== to.y) {
-			// Curves meet the merge station directly; forks leave their source vertically.
-			if (!to.merge && to.y > from.y) from.forkDown = true;
-			points = to.merge ? [from, { x: to.x, y: from.y }, to] : [from, { x: from.x, y: to.y }, to];
+			// Date: 2026-11-17. Keep turns away from unrelated stations and their captions.
+			const turnX = to.merge ? to.x : from.x;
+			const obstructed = nodes.some(
+				(node) =>
+					node !== from &&
+					node !== to &&
+					Math.abs(node.x - turnX) < (compact ? 6 : 50) &&
+					node.y >= Math.min(from.y, to.y) &&
+					node.y <= Math.max(from.y, to.y),
+			);
+			if (obstructed) {
+				const direction = to.x >= from.x ? 1 : -1;
+				const inset = Math.min(stride / 2, Math.abs(to.x - from.x) / 2 || stride / 2);
+				const corridor = to.merge ? to.x - direction * inset : from.x + direction * inset;
+				points = [from, { x: corridor, y: from.y }, { x: corridor, y: to.y }, to];
+			} else {
+				// Clear forks retain their original vertical departure and caption corridor.
+				if (to.y > from.y && (!to.merge || from.x === to.x)) from.forkDown = true;
+				points = to.merge ? [from, { x: to.x, y: from.y }, to] : [from, { x: from.x, y: to.y }, to];
+			}
 		} else if (
 			nodes.some(
 				(node) =>
@@ -137,20 +181,11 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 			)
 		) {
 			// An explicit long dependency must not appear to connect through an unrelated station.
-			const inset = columnWidth * 0.22;
-			const transit = from.y - (compact ? 7 : 16);
-			points = [
-				from,
-				{ x: from.x + direction * inset, y: from.y },
-				{ x: from.x + direction * inset, y: transit },
-				{ x: to.x - direction * inset, y: transit },
-				{ x: to.x - direction * inset, y: to.y },
-				to,
-			];
+			bypass = true;
 		}
 		edges.push({
 			...edge,
-			path: roundedPath(points, compact ? 4 : 12),
+			path: bypass ? bypassPath(from, to, compact) : roundedPath(points, compact ? 4 : 12),
 			colour: palette.get(routeKey) ?? routeColour(""),
 			status: to.step.status,
 		});

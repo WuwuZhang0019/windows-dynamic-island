@@ -37,7 +37,30 @@ export function expandedRoutes(routes: Route[], steps: Step[]): Route[] {
 	});
 }
 
-export function stepStatusLabel(step: Step): string {
+// Date: 2026-11-17. Running ancestors describe progress; only running leaves describe execution.
+export function executingStepKeys(steps: Step[]): Set<string> {
+	const byKey = new Map(steps.map((step) => [step.key, step]));
+	const parents = new Set(steps.map((step) => step.parentKey));
+	const executing = new Set(
+		steps
+			.filter((step) => step.status === "running" && !(step.parentKey === null && parents.has(step.key)))
+			.map((step) => step.key),
+	);
+	for (const step of steps) {
+		if (step.status !== "running") continue;
+		const visited = new Set([step.key]);
+		let parent = byKey.get(step.parentKey ?? "");
+		while (parent && parent.planKey === step.planKey && !visited.has(parent.key)) {
+			visited.add(parent.key);
+			executing.delete(parent.key);
+			parent = byKey.get(parent.parentKey ?? "");
+		}
+	}
+	return executing;
+}
+
+export function stepStatusLabel(step: Step, executing = true): string {
+	if (step.status === "running" && !executing) return "进行中";
 	if (step.status === "pending" && step.acceptance === "recheck") return "待核验";
 	return { pending: "待执行", running: "执行中", blocked: "已阻塞", completed: "已完成", cancelled: "已取消" }[
 		step.status

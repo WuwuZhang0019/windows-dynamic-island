@@ -11,6 +11,7 @@ import { TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
 import { RouteArchiveButton } from "./RouteArchiveButton";
 import { SortableRouteCard } from "./SortableRouteCard";
 import {
+	executingStepKeys,
 	expandedRoutes,
 	layoutRoutes,
 	orderedTaskGroups,
@@ -71,7 +72,17 @@ function currentStep(steps: Step[]) {
 }
 
 // Date: 2026-11-12. Compact rows and the collapsed island share station states and markers.
-function RouteThumbnail({ routeKey, steps, currentKey }: { routeKey?: string; steps: Step[]; currentKey?: string }) {
+function RouteThumbnail({
+	routeKey,
+	steps,
+	currentKey,
+	executing,
+}: {
+	routeKey?: string;
+	steps: Step[];
+	currentKey?: string;
+	executing: Set<string>;
+}) {
 	if (!steps.length) return null;
 	return (
 		<span className="wb-mini-route" data-route-key={routeKey}>
@@ -83,7 +94,8 @@ function RouteThumbnail({ routeKey, steps, currentKey }: { routeKey?: string; st
 						data-step-key={step.key}
 						data-status={step.status}
 						data-current={step.key === currentKey}
-						title={`${step.code} ${step.title} · ${stepStatusLabel(step)}`}
+						data-executing={executing.has(step.key)}
+						title={`${step.code} ${step.title} · ${stepStatusLabel(step, executing.has(step.key))}`}
 					>
 						<span className="wb-dot" />
 					</span>
@@ -106,6 +118,7 @@ export function WorkbenchSummary({
 }) {
 	const hidden = archivedKeys;
 	const snapshot = envelope.snapshot ?? emptySnapshot;
+	const executing = executingStepKeys(snapshot.steps);
 	const availableRoutes = expandedRoutes(snapshot.routes, snapshot.steps).filter(
 		(route) => !hidden.includes(route.key),
 	);
@@ -137,9 +150,18 @@ export function WorkbenchSummary({
 			role="img"
 			data-workbench-summary
 			data-connection={envelope.connection.state}
-			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${routeSteps.map((step) => `${step.code} ${stepStatusLabel(step)}`).join("，")}`}
+			aria-label={`${envelope.mode === "simulation" ? "模拟" : "真实"}路线，${connectionLabels[envelope.connection.state]}：${routeSteps.map((step) => `${step.code} ${stepStatusLabel(step, executing.has(step.key))}`).join("，")}`}
 		>
-			<RouteThumbnail routeKey={route?.key} steps={routeSteps} currentKey={anchor?.key} />
+			<RouteThumbnail
+				routeKey={route?.key}
+				steps={routeSteps}
+				currentKey={
+					anchor && executing.has(anchor.key)
+						? anchor.key
+						: (routeSteps.find((step) => executing.has(step.key))?.key ?? anchor?.key)
+				}
+				executing={executing}
+			/>
 		</div>
 	);
 }
