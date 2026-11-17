@@ -37,18 +37,19 @@ export function computeMetroRail(from: MetroNode, to: MetroNode, nodes: MetroNod
 			x < dx - epsilon
 		);
 	});
-	// P0: a separate upper companion rail exposes the true dependency origin.
+	// Date: 2026-11-17. P0 follows the destination side so it never recrosses the source rail.
 	if (
 		isCrossLine &&
 		absDy > epsilon &&
 		between.some((node) => node.routeKeys.some((key) => from.routeKeys.includes(key)))
 	) {
 		let offset = 12;
-		if (compact && offset + 8 > dx - Math.abs(dy + offset)) offset = Math.min(12, (dx - absDy - 8) / 2);
-		const turn = dx - Math.abs(dy + offset);
+		if (compact) offset = Math.min(12, (dx + absDy - 8) / 2);
+		const trackY = signY * offset;
+		const turn = dx - Math.abs(dy - trackY);
 		// Unlike the supplied Math.max clamp, this never stretches a diagonal away from 45 degrees.
 		if (offset > epsilon && turn >= offset + 8 - epsilon) {
-			return rail("P0", [start, { x: offset, y: -offset }, { x: turn, y: -offset }, end]);
+			return rail("P0", [start, { x: offset, y: trackY }, { x: turn, y: trackY }, end]);
 		}
 	}
 	if (absDy < epsilon) {

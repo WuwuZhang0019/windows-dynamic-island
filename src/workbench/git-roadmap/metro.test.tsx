@@ -55,8 +55,8 @@ const cases: [string, string, MetroMotif, number[][]][] = [
 		"P0",
 		[
 			[108, 118],
-			[120, 106],
-			[326, 106],
+			[120, 130],
+			[350, 130],
 			[432, 212],
 		],
 	],
@@ -217,6 +217,19 @@ describe("approved deterministic metro routing", () => {
 			expect(rail.points.map(({ x, y }) => [x, y])).toEqual(expected);
 			expectOctilinear(rail.points);
 		});
+	test("companion rails stay on the destination side without recrossing the service rail", () => {
+		for (const mirror of [false, true]) {
+			const fixture = nodes.map((node) => ({ ...node, y: mirror ? 400 - node.y : node.y }));
+			const from = fixture.find((item) => item.key === node("S-01").key);
+			const to = fixture.find((item) => item.key === node("H-04").key);
+			if (!from || !to) throw Error("Missing companion rail fixture");
+			const rail = computeMetroRail(from, to, fixture);
+			expect(rail.shape).toBe("P0");
+			const direction = Math.sign(to.y - from.y);
+			for (const point of rail.points.slice(1)) expect((point.y - from.y) * direction).toBeGreaterThan(0);
+			expectOctilinear(rail.points);
+		}
+	});
 	test("coordinate tables and caption metadata are not mutated", () => {
 		const before = JSON.stringify(nodes);
 		for (const [from, to] of cases) computeMetroRail(node(from), node(to), nodes);
