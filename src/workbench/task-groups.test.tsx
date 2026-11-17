@@ -1,4 +1,4 @@
-// Date: 2026-11-12. Exercise relationship grouping, shared joins and lane reuse.
+// Date: 2026-11-12. Exercise relationship grouping, shared joins and fixed route rows.
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createScenario } from "./contract/fixtures";
@@ -72,37 +72,42 @@ describe("grouped task routes", () => {
 			])[0].key,
 		).toBe(last.key);
 	});
-	test("consecutive route fragments keep one lane when they contain no parallel work", () => {
+	test("separate declared route fragments retain separate rows", () => {
 		const { routes, steps } = graphFixture();
 		const first = { ...routes[0], stepKeys: ["m0", "m1", "m2"] };
 		const second = { ...routes[0], key: "next", stepKeys: ["m3", "m4"] };
 		const third = { ...routes[0], key: "last", stepKeys: ["m5", "m6", "m7"] };
 		steps[3].dependsOn = ["m2"];
 		steps[5].dependsOn = ["m4"];
-		expect(layoutRoutes([first, second, third], steps).lanes).toBe(1);
+		const graph = layoutRoutes([first, second, third], steps);
+		expect(graph.lanes).toBe(3);
+		for (const [lane, route] of [first, second, third].entries())
+			expect(
+				graph.nodes.filter((node) => route.stepKeys.includes(node.step.key)).every((node) => node.lane === lane),
+			).toBe(true);
 	});
-	test("later forks reuse finished lanes and both branch ends meet the single shared node", () => {
+	test("later forks keep their own rows while both branch ends meet the single shared node", () => {
 		const { routes, steps } = graphFixture();
 		const graph = layoutRoutes(routes, steps);
-		expect(graph.lanes).toBe(3);
+		expect(graph.lanes).toBe(5);
 		const nodes = new Map(graph.nodes.map((node) => [node.step.key, node]));
-		expect(nodes.get("a0")?.lane).toBe(nodes.get("c0")?.lane);
-		expect(nodes.get("b0")?.lane).toBe(nodes.get("d0")?.lane);
+		expect(nodes.get("a0")?.lane).not.toBe(nodes.get("c0")?.lane);
+		expect(nodes.get("b0")?.lane).not.toBe(nodes.get("d0")?.lane);
 		expect(nodes.get("m2")?.column).toBeGreaterThan(nodes.get("a1")?.column ?? Infinity);
 		expect(graph.edges.filter((edge) => edge.to === "m2").map((edge) => edge.from)).toEqual(["m1", "a1", "b1"]);
 		expect(new Set(graph.nodes.map((node) => node.step.key)).size).toBe(steps.length);
 		expect(new Set(graph.nodes.map((node) => `${node.column}:${node.lane}`)).size).toBe(steps.length);
 	});
 
-	test("shared steps between two forks sit halfway between upper and lower branches", () => {
+	test("main-route stations stay on the main row between forks", () => {
 		const { routes, steps } = graphFixture();
 		const graph = layoutRoutes([routes[0], routes[1], routes[3]], steps);
 		const nodes = new Map(graph.nodes.map((node) => [node.step.key, node]));
 		const upper = nodes.get("m1")?.lane ?? -1;
 		const lower = nodes.get("a1")?.lane ?? -1;
 		expect(lower).toBeGreaterThan(upper);
-		for (const key of ["m2", "m3", "m4"]) expect(nodes.get(key)?.lane).toBe((upper + lower) / 2);
-		expect(nodes.get("c0")?.lane).toBe(lower);
+		for (const key of ["m2", "m3", "m4"]) expect(nodes.get(key)?.lane).toBe(upper);
+		expect(nodes.get("c0")?.lane).toBeGreaterThan(lower);
 		expect(graph.edges.filter((edge) => edge.to === "m2").map((edge) => edge.from)).toEqual(["m1", "a1"]);
 		expect(graph.edges.filter((edge) => edge.from === "m4").map((edge) => edge.to)).toEqual(["m5", "c0"]);
 		expect(new Set(graph.nodes.map((node) => `${node.column}:${node.lane}`)).size).toBe(graph.nodes.length);
@@ -198,4 +203,29 @@ test("nested package phases remain visible and preserve explicit route ownership
 	expect(
 		split.flatMap((group) => group.routes.flatMap((item) => item.stepKeys)).filter((key) => key === phases[0].key),
 	).toHaveLength(1);
+});
+
+// Date: 2026-11-17. Reproduce H-02/H-03 being displaced toward a dependent UI route.
+test("cross-line dependencies preserve each route row and all business topology", () => {
+	const { routes, steps } = graphFixture();
+	const host = { ...routes[0], key: "host", stepKeys: ["m0", "m1", "m2", "m3", "m4"] };
+	const core = { ...routes[1], key: "core", stepKeys: ["a0", "a1"], sourceStepKey: null, returnStepKey: null };
+	const ui = { ...routes[2], key: "ui", stepKeys: ["b0", "b1"], sourceStepKey: null, returnStepKey: null };
+	const input = [host, core, ui];
+	const before = JSON.stringify({ routes: input, steps });
+	const plain = layoutRoutes(input, steps);
+	const dependent = steps.map((step) => (step.key === "b1" ? { ...step, dependsOn: ["m2", "m3"] } : step));
+	const graph = layoutRoutes(input, dependent);
+	for (const route of input) {
+		const stations = graph.nodes.filter((node) => route.stepKeys.includes(node.step.key));
+		expect(new Set(stations.map((node) => node.lane)).size).toBe(1);
+		for (const node of stations)
+			expect(node.lane).toBe(plain.nodes.find((before) => before.step.key === node.step.key)?.lane ?? -1);
+	}
+	expect(graph.lanes).toBe(3);
+	expect(graph.edges.filter((edge) => edge.kind === "dependency").map((edge) => [edge.from, edge.to])).toEqual([
+		["m2", "b1"],
+		["m3", "b1"],
+	]);
+	expect(JSON.stringify({ routes: input, steps })).toBe(before);
 });

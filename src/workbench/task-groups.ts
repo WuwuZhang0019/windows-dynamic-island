@@ -217,88 +217,19 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 	let fallback =
 		Math.max(-1, ...[...nodes.values()].filter((node) => visited.has(node.step.key)).map((node) => node.column)) + 1;
 	for (const node of nodes.values()) if (!visited.has(node.step.key)) node.column = fallback++;
-	const occupied: { start: number; end: number }[][] = [];
+	// Date: 2026-11-17. Give every owning route one row; cross-route dependencies never move stations.
 	const main = primaryRoute(routes);
 	const ordered = main ? [main, ...routes.filter((route) => route.key !== main.key)] : routes;
+	let lane = 0;
 	for (const route of ordered) {
-		let run: RouteGraphNode[] = [];
-		function place() {
-			if (!run.length) return;
-			const neighbors = run.flatMap((node) => [
-				...(incoming.get(node.step.key) ?? []),
-				...(outgoing.get(node.step.key) ?? []),
-			]);
-			const columns = [
-				...run.map((node) => node.column),
-				...neighbors.flatMap((key) => {
-					const node = nodes.get(key);
-					return node && node.lane >= 0 ? [node.column] : [];
-				}),
-			];
-			const start = Math.min(...columns),
-				end = Math.max(...columns);
-			let lane = 0;
-			while (
-				occupied[lane]?.some((slot) => slot.start < end && start < slot.end) ||
-				[...nodes.values()].some((node) => node.lane === lane && run.some((item) => item.column === node.column))
-			)
-				lane++;
-			occupied[lane] ??= [];
-			occupied[lane].push({ start, end });
-			for (const node of run) node.lane = lane;
-			run = [];
-		}
-		for (const key of route.stepKeys) {
+		const owned = route.stepKeys.flatMap((key) => {
 			const node = nodes.get(key);
-			if (node && node.lane < 0) run.push(node);
-			else place();
-		}
-		place();
-	}
-	// Date: 2026-11-13. Center shared runs between their declared incoming/outgoing branches.
-	const originalLanes = new Map([...nodes].map(([key, node]) => [key, node.lane]));
-	const placedRuns = new Set<string>();
-	const parentContexts = new Set(
-		routes
-			.filter((route) => route.sourceStepKey && route.returnStepKey === route.sourceStepKey)
-			.map((route) => route.sourceStepKey),
-	);
-	for (const startNode of nodes.values()) {
-		const predecessors = incoming.get(startNode.step.key) ?? [];
-		if (!visited.has(startNode.step.key) || placedRuns.has(startNode.step.key)) continue;
-		if (predecessors.length === 1 && (outgoing.get(predecessors[0])?.length ?? 0) === 1) continue;
-		const run: RouteGraphNode[] = [];
-		let current: RouteGraphNode | undefined = startNode;
-		while (current && !placedRuns.has(current.step.key)) {
-			run.push(current);
-			placedRuns.add(current.step.key);
-			const targets: string[] = outgoing.get(current.step.key) ?? [];
-			const target: string | undefined = targets.length === 1 ? targets[0] : undefined;
-			current = target && incoming.get(target)?.length === 1 && visited.has(target) ? nodes.get(target) : undefined;
-		}
-		// Parent expansion keeps the main route level; it is not a parallel fork/join section.
-		if (run.some((node) => node.heading || parentContexts.has(node.step.key))) continue;
-		const branchLanes = run.flatMap((node) => {
-			const sources = incoming.get(node.step.key) ?? [];
-			const targets = outgoing.get(node.step.key) ?? [];
-			return [...(sources.length > 1 ? sources : []), ...(targets.length > 1 ? targets : [])].flatMap((key) => {
-				const lane = originalLanes.get(key);
-				return lane === undefined ? [] : [lane];
-			});
+			return node && node.lane < 0 ? [node] : [];
 		});
-		if (branchLanes.length < 2) continue;
-		const low = Math.min(...branchLanes),
-			high = Math.max(...branchLanes);
-		if (low === high) continue;
-		const center = (low + high) / 2;
-		const members = new Set(run.map((node) => node.step.key));
-		const collision = [...nodes.values()].some(
-			(node) =>
-				!members.has(node.step.key) &&
-				Math.abs(node.lane - center) < 1 &&
-				run.some((item) => item.column === node.column),
-		);
-		if (!collision) for (const node of run) node.lane = center;
+		if (!owned.length) continue;
+		// Shared fork/join stations retain their owner's row and are drawn exactly once.
+		for (const node of owned) node.lane = lane;
+		lane++;
 	}
 
 	return {
