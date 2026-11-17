@@ -2,10 +2,11 @@
 // Apache-2.0 source and local changes are recorded in third_party/react-git-log.
 import type { RouteGraphEdge, RouteGraphLayout, RouteGraphNode } from "../task-groups";
 
-import { type CaptionSide, type Point, type RoutedRail, routeRail } from "./routing";
+import { computeMetroRail, type MetroRail, metroRoundedPath } from "./metro";
+import { type CaptionSide, type Point, type Rail, routeRail } from "./routing";
 export type RoadmapNode = RouteGraphNode &
 	Point & { merge: boolean; colour: string; forkDown: boolean; key: string; captionSide?: CaptionSide };
-export type RoadmapEdge = RouteGraphEdge & RoutedRail & { path: string; colour: string; status: string };
+export type RoadmapEdge = RouteGraphEdge & MetroRail & { path: string; colour: string; status: string };
 
 // Branch colours identify routes; station fills and text still communicate execution status.
 const colours = ["#00c26a", "#a5a0ff", "#76bbff", "#efbd75", "#ed94b2", "#74d4d9", "#c39cec", "#bdd785"];
@@ -123,6 +124,8 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 	}));
 	const byKey = new Map(nodes.map((node) => [node.step.key, node]));
 	const edges: RoadmapEdge[] = [];
+	// Date: 2026-11-17. Keep the established caption layout independent of the new SVG paths.
+	const captionRails: Rail[] = [];
 	// Date: 2026-11-17. Lay existing rails first, then route branches around occupied segments.
 	const priority = (edge: RouteGraphEdge) =>
 		byKey.get(edge.from)?.y === byKey.get(edge.to)?.y ? 0 : edge.kind === "route" ? 1 : 2;
@@ -134,11 +137,13 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 			from.routeKeys.find((key) => to.routeKeys.includes(key)) ??
 			(to.merge ? from.routeKeys[0] : to.routeKeys[0]) ??
 			"";
-		const rail = routeRail(from, to, nodes, edges, routeKey, compact);
+		const captionRail = routeRail(from, to, nodes, captionRails, routeKey, compact);
+		captionRails.push(captionRail);
+		const rail = computeMetroRail(from, to, nodes, compact);
 		edges.push({
 			...edge,
 			...rail,
-			path: roundedPath(rail.points, compact ? 1 : 3),
+			path: metroRoundedPath(rail.points),
 			colour: palette.get(routeKey) ?? routeColour(""),
 			status: to.step.status,
 		});

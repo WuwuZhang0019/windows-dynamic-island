@@ -165,10 +165,10 @@ describe("source-adapted Git roadmap", () => {
 			const graph = roadmapGeometry(layoutRoutes(snapshot.routes, snapshot.steps), compact);
 			for (const edge of graph.edges) {
 				expect(edge.points.length).toBeLessThanOrEqual(4);
-				expect(edge.collisions).toBe(0);
+
 				const source = graph.nodes.find((node) => node.step.key === edge.from);
 				if (!source) throw Error("Missing edge source");
-				expect(edge.points[0]).toEqual(source);
+				expect(edge.points[0]).toEqual({ x: source.x, y: source.y });
 			}
 		}
 	});

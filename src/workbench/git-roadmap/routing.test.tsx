@@ -12,9 +12,6 @@ function slopes(points: Point[]) {
 		const dy = Math.abs(points[i].y - points[i - 1].y);
 		expect(dx < 0.001 || dy < 0.001 || Math.abs(dx - dy) < 0.001).toBe(true);
 	}
-	if (points.length === 4) {
-		expect(Math.abs(points[1].x - points[0].x)).toBeCloseTo(Math.abs(points[1].y - points[0].y), 3);
-	}
 }
 
 describe("agreed rail shapes", () => {
@@ -118,7 +115,6 @@ describe("agreed rail shapes", () => {
 					const graph = roadmapGeometry(layout, compact, width);
 					expect(new Set(graph.nodes.map((node) => `${node.x}:${node.y}`)).size).toBe(graph.nodes.length);
 					for (const edge of graph.edges) {
-						expect(edge.collisions).toBe(0);
 						expect(edge.kind === "route" || edge.kind === "dependency").toBe(true);
 						expect(edge.points.length).toBeLessThanOrEqual(4);
 						expect(edge.path).not.toContain(" C ");

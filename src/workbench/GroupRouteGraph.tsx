@@ -55,20 +55,26 @@ export function GroupRouteGraph({
 					preserveAspectRatio="none"
 					aria-hidden="true"
 				>
-					{graph.edges.map((edge) => (
-						<CurvedEdge
-							key={edge.key}
-							id={edge.key}
-							points={edge.points}
-							shape={edge.shape}
-							colour={edge.colour}
-							path={edge.path}
-							dashed={edge.status === "running"}
-							status={edge.status}
-							kind={edge.kind}
-							from={edge.from}
-							to={edge.to}
-						/>
+					{[true, false].map((isCrossLine) => (
+						<g key={String(isCrossLine)} data-rail-layer={isCrossLine ? "cross-line" : "internal"}>
+							{graph.edges
+								.filter((edge) => edge.isCrossLine === isCrossLine)
+								.map((edge) => (
+									<CurvedEdge
+										key={edge.key}
+										id={edge.key}
+										points={edge.points}
+										shape={edge.shape}
+										colour={edge.colour}
+										path={edge.path}
+										dashed={edge.status === "running"}
+										status={edge.status}
+										kind={edge.kind}
+										from={edge.from}
+										to={edge.to}
+									/>
+								))}
+						</g>
 					))}
 				</svg>
 				{/* Station actions remain paused; card selection and wheel scrolling are handled by WorkbenchView. */}
