@@ -87,7 +87,7 @@ export function Island() {
 						)}
 						{...(hidden || swallowed ? {} : { "data-hit": true })}
 						{...ctl.domHover}
-						style={{ ...drag.style, marginTop: v.top }}
+						style={{ ...drag.style, marginTop: v.top, maxHeight: big ? heightLimit : undefined }}
 						onPointerDown={drag.onPointerDown}
 						onClickCapture={drag.onClickCapture}
 						onUpdate={drag.onShellUpdate}
