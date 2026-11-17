@@ -1,5 +1,5 @@
 // Date: 2026-11-13. Source-adapted Git curves with the workbench's declared route topology.
-import type { CSSProperties } from "react";
+import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import type { Route, Step } from "./contract/protocol";
 import { CurvedEdge } from "./git-roadmap/CurvedEdge";
 import { roadmapGeometry } from "./git-roadmap/geometry";
@@ -18,7 +18,18 @@ export function GroupRouteGraph({
 	onSelect: (key: string, route: string) => void;
 	routes?: Route[];
 }) {
-	const graph = roadmapGeometry(layout, compact);
+	// Date: 2026-11-17. Use actual CSS pixels so responsive thumbnails preserve true 45-degree slopes.
+	const element = useRef<HTMLDivElement>(null);
+	const [renderedWidth, setRenderedWidth] = useState<number>();
+	useLayoutEffect(() => {
+		if (!element.current) return;
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry.contentRect.width > 0) setRenderedWidth(entry.contentRect.width);
+		});
+		observer.observe(element.current);
+		return () => observer.disconnect();
+	}, []);
+	const graph = roadmapGeometry(layout, compact, renderedWidth);
 	const executing = executingStepKeys(layout.nodes.map((node) => node.step));
 	const codes = new Map(layout.nodes.map((node) => [node.step.key, node.step.code]));
 	const label = (step: Step, merge: boolean) =>
@@ -26,13 +37,14 @@ export function GroupRouteGraph({
 	return (
 		<>
 			<div
+				ref={element}
 				className={`wb-group-graph${compact ? " wb-group-graph-compact" : ""}`}
 				data-graph-lanes={layout.lanes}
 				data-graph-renderer="react-git-log-adapted"
 				style={
 					{
 						height: graph.height,
-						minWidth: compact ? undefined : graph.width,
+						minWidth: compact ? undefined : graph.minimumWidth,
 						"--wb-graph-columns": layout.columns,
 					} as CSSProperties
 				}
@@ -47,6 +59,8 @@ export function GroupRouteGraph({
 						<CurvedEdge
 							key={edge.key}
 							id={edge.key}
+							points={edge.points}
+							shape={edge.shape}
 							colour={edge.colour}
 							path={edge.path}
 							dashed={edge.status === "running"}
@@ -58,7 +72,7 @@ export function GroupRouteGraph({
 					))}
 				</svg>
 				{/* Station actions remain paused; card selection and wheel scrolling are handled by WorkbenchView. */}
-				{graph.nodes.map(({ step, x, y, merge, colour, forkDown, heading }) => (
+				{graph.nodes.map(({ step, x, y, merge, colour, forkDown, heading, captionSide }) => (
 					<span
 						key={step.key}
 						role="img"
@@ -69,6 +83,7 @@ export function GroupRouteGraph({
 						data-heading={heading || undefined}
 						data-merge={merge}
 						data-fork-down={forkDown && !compact}
+						data-caption-side={!compact ? captionSide : undefined}
 						aria-label={label(step, merge)}
 						data-selected={step.key === selectedKey}
 						title={label(step, merge)}

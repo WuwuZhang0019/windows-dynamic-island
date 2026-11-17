@@ -2,9 +2,10 @@
 // Apache-2.0 source and local changes are recorded in third_party/react-git-log.
 import type { RouteGraphEdge, RouteGraphLayout, RouteGraphNode } from "../task-groups";
 
-type Point = { x: number; y: number };
-export type RoadmapNode = RouteGraphNode & Point & { merge: boolean; colour: string; forkDown: boolean };
-export type RoadmapEdge = RouteGraphEdge & { path: string; colour: string; status: string };
+import { type CaptionSide, type Point, type RoutedRail, routeRail } from "./routing";
+export type RoadmapNode = RouteGraphNode &
+	Point & { merge: boolean; colour: string; forkDown: boolean; key: string; captionSide?: CaptionSide };
+export type RoadmapEdge = RouteGraphEdge & RoutedRail & { path: string; colour: string; status: string };
 
 // Branch colours identify routes; station fills and text still communicate execution status.
 const colours = ["#00c26a", "#a5a0ff", "#76bbff", "#efbd75", "#ed94b2", "#74d4d9", "#c39cec", "#bdd785"];
@@ -63,34 +64,7 @@ export function roundedPath(points: Point[], radius: number): string {
 	return commands.join(" ");
 }
 
-// Date: 2026-11-17. Smooth, wide shoulders keep bypasses clear of unrelated stations.
-function bypassPath(from: Point, to: Point, compact: boolean): string {
-	const direction = to.x > from.x ? 1 : -1;
-	const reach = Math.min(42, Math.abs(to.x - from.x) / 3);
-	const transit = from.y - (compact ? 7 : 24);
-	const point = (x: number, y: number) => `${Number(x.toFixed(3))} ${Number(y.toFixed(3))}`;
-	const start = from.x + direction * reach;
-	const end = to.x - direction * reach;
-	return [
-		`M ${point(from.x, from.y)}`,
-		"C " +
-			[
-				point(from.x + (direction * reach) / 2, from.y),
-				point(start - (direction * reach) / 2, transit),
-				point(start, transit),
-			].join(" "),
-		`L ${point(end, transit)}`,
-		"C " +
-			[
-				point(end + (direction * reach) / 2, transit),
-				point(to.x - (direction * reach) / 2, to.y),
-				point(to.x, to.y),
-			].join(" "),
-		`L ${point(to.x, to.y)}`,
-	].join(" ");
-}
-
-export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
+export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, renderedWidth?: number) {
 	// Date: 2026-11-13. Keep transitive dependencies in the model, without duplicating existing visual paths.
 	const outgoing = new Map<string, RouteGraphEdge[]>();
 	for (const edge of layout.edges) outgoing.set(edge.from, [...(outgoing.get(edge.from) ?? []), edge]);
@@ -115,22 +89,32 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	const columnWidth = 108;
 	const laneHeight = compact ? 18 : 94;
 	const offset = compact ? 12 : 24;
-	const width = (compact ? layout.columns : Math.max(1, layout.columns - 1)) * columnWidth;
+	const minimumWidth = (compact ? layout.columns : Math.max(1, layout.columns - 1)) * columnWidth;
+	const width = compact ? (renderedWidth ?? minimumWidth) : Math.max(minimumWidth, renderedWidth ?? 0);
 	const palette = routeColours(layout.nodes.flatMap((node) => node.routeKeys));
 	const height = (compact ? 24 : 96) + (layout.lanes - 1) * laneHeight;
 	const incoming = new Map<string, number>();
 	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
 	// Date: 2026-11-16. Keep merge stations on the same column grid as other stations.
 	const hasSuccessor = new Set(visibleEdges.map((edge) => edge.from));
-	const stride = compact ? width / Math.max(1, layout.columns - 1) : columnWidth;
+	const stride = width / Math.max(1, layout.columns - 1);
 	function stationX(node: RouteGraphNode) {
 		// Date: 2026-11-16. A solitary heading is a starting station, not an endpoint.
-		if (compact && node.column > 0 && !hasSuccessor.has(node.step.key)) return width;
+		if (
+			compact &&
+			node.column > 0 &&
+			!hasSuccessor.has(node.step.key) &&
+			!layout.nodes.some(
+				(other) => other !== node && other.lane === node.lane && other.column > 0 && !hasSuccessor.has(other.step.key),
+			)
+		)
+			return width;
 		const base = node.column * stride;
 		return Number(base.toFixed(3));
 	}
 	const nodes: RoadmapNode[] = layout.nodes.map((node) => ({
 		...node,
+		key: node.step.key,
 		x: stationX(node),
 		y: offset + node.lane * laneHeight,
 		merge: (incoming.get(node.step.key) ?? 0) > 1,
@@ -139,7 +123,10 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 	}));
 	const byKey = new Map(nodes.map((node) => [node.step.key, node]));
 	const edges: RoadmapEdge[] = [];
-	for (const edge of visibleEdges) {
+	// Date: 2026-11-17. Lay existing rails first, then route branches around occupied segments.
+	const priority = (edge: RouteGraphEdge) =>
+		byKey.get(edge.from)?.y === byKey.get(edge.to)?.y ? 0 : edge.kind === "route" ? 1 : 2;
+	for (const edge of [...visibleEdges].sort((a, b) => priority(a) - priority(b))) {
 		const from = byKey.get(edge.from);
 		const to = byKey.get(edge.to);
 		if (!from || !to) continue;
@@ -147,48 +134,23 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean) {
 			from.routeKeys.find((key) => to.routeKeys.includes(key)) ??
 			(to.merge ? from.routeKeys[0] : to.routeKeys[0]) ??
 			"";
-		let bypass = false;
-		let points: Point[] = [from, to];
-		if (from.y !== to.y) {
-			// Date: 2026-11-17. Keep turns away from unrelated stations and their captions.
-			const turnX = to.merge ? to.x : from.x;
-			const obstructed = nodes.some(
-				(node) =>
-					node !== from &&
-					node !== to &&
-					Math.abs(node.x - turnX) < (compact ? 6 : 50) &&
-					node.y >= Math.min(from.y, to.y) &&
-					node.y <= Math.max(from.y, to.y),
-			);
-			if (obstructed) {
-				const direction = to.x >= from.x ? 1 : -1;
-				const inset = Math.min(stride / 2, Math.abs(to.x - from.x) / 2 || stride / 2);
-				const corridor = to.merge ? to.x - direction * inset : from.x + direction * inset;
-				points = [from, { x: corridor, y: from.y }, { x: corridor, y: to.y }, to];
-			} else {
-				// Clear forks retain their original vertical departure and caption corridor.
-				if (to.y > from.y && (!to.merge || from.x === to.x)) from.forkDown = true;
-				points = to.merge ? [from, { x: to.x, y: from.y }, to] : [from, { x: from.x, y: to.y }, to];
-			}
-		} else if (
-			nodes.some(
-				(node) =>
-					node !== from &&
-					node !== to &&
-					node.y === from.y &&
-					node.x > Math.min(from.x, to.x) &&
-					node.x < Math.max(from.x, to.x),
-			)
-		) {
-			// An explicit long dependency must not appear to connect through an unrelated station.
-			bypass = true;
-		}
+		const rail = routeRail(from, to, nodes, edges, routeKey, compact);
 		edges.push({
 			...edge,
-			path: bypass ? bypassPath(from, to, compact) : roundedPath(points, compact ? 4 : 12),
+			...rail,
+			path: roundedPath(rail.points, compact ? 1 : 3),
 			colour: palette.get(routeKey) ?? routeColour(""),
 			status: to.step.status,
 		});
 	}
-	return { nodes, edges, width, height, palette };
+	for (const node of nodes) node.forkDown = node.captionSide === "left";
+	const byEdge = new Map(edges.map((edge) => [edge.key, edge]));
+	return {
+		nodes,
+		edges: visibleEdges.flatMap((edge) => byEdge.get(edge.key) ?? []),
+		width,
+		minimumWidth,
+		height,
+		palette,
+	};
 }

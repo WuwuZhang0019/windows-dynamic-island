@@ -811,3 +811,13 @@
 	flex-shrink: 0;
 	border-radius: 50%;
 }
+
+/* Date: 2026-11-17. Incoming diagonal rails may reserve the left half of a station caption. */
+.wb-graph-step[data-caption-side="right"] :is(.wb-step-code, .wb-step-title, .wb-step-state) {
+	align-self: flex-end;
+	width: calc(50% - 9px);
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

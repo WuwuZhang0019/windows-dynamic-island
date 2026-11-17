@@ -159,19 +159,17 @@ describe("source-adapted Git roadmap", () => {
 			}
 		}
 	});
-	test("forks leave the exact source x vertically in both sizes, keeping a source label corridor", () => {
+	test("branch departures use the agreed rail shapes without losing their source", () => {
 		const snapshot = fixture();
 		for (const compact of [false, true]) {
 			const graph = roadmapGeometry(layoutRoutes(snapshot.routes, snapshot.steps), compact);
-			const branch = snapshot.routes[2];
-			const edge = graph.edges.find((item) => item.to === branch.stepKeys[0]);
-			const source = graph.nodes.find((node) => node.step.key === edge?.from);
-			if (!source || !edge) throw Error("Missing branch fixture");
-			const coordinates = edge.path.match(/^M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)/);
-			expect(Number(coordinates?.[1])).toBe(source.x);
-			expect(Number(coordinates?.[3])).toBe(source.x);
-			expect(Number(coordinates?.[4])).toBeGreaterThan(source.y);
-			expect(source.forkDown).toBe(true);
+			for (const edge of graph.edges) {
+				expect(edge.points.length).toBeLessThanOrEqual(4);
+				expect(edge.collisions).toBe(0);
+				const source = graph.nodes.find((node) => node.step.key === edge.from);
+				if (!source) throw Error("Missing edge source");
+				expect(edge.points[0]).toEqual(source);
+			}
 		}
 	});
 	test("rounds branch corners without changing the exact station endpoints", () => {
@@ -215,7 +213,7 @@ describe("source-adapted Git roadmap", () => {
 				expect(edge.path).toEndWith(`L ${to?.x} ${to?.y}`);
 				expect(edge.path).not.toMatch(/NaN|Infinity/);
 				expect(edge.status).toBe(to?.step.status);
-				if (from?.lane !== to?.lane) expect(edge.path).toContain(" Q ");
+				if (from?.lane !== to?.lane) expect(edge.points.length).toBeGreaterThanOrEqual(2);
 			}
 		}
 	});

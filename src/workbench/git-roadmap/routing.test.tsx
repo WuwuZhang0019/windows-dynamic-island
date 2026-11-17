@@ -1,67 +1,131 @@
-// Date: 2026-11-17. Reproduce smooth bypass shoulders and vertical joins beside captions.
-import { expect, test } from "bun:test";
+// Date: 2026-11-17. Verify the agreed rail shapes, exact slopes, collision avoidance and crossings.
+import { describe, expect, test } from "bun:test";
 import { createScenario } from "../contract/fixtures";
-import type { RouteGraphLayout } from "../task-groups";
+import { layoutRoutes } from "../task-groups";
 import { roadmapGeometry } from "./geometry";
+import { type Point, routeRail, type Station } from "./routing";
 
-function fixture(): RouteGraphLayout {
-	const base = createScenario("long-route").snapshot?.steps[0];
-	if (!base) throw Error("Missing fixture");
-	return {
-		columns: 5,
-		lanes: 2,
-		nodes: [
-			{ step: { ...base, key: "C-01" }, routeKeys: ["core"], column: 0, lane: 0 },
-			{ step: { ...base, key: "H-02" }, routeKeys: ["host"], column: 1, lane: 0 },
-			{ step: { ...base, key: "H-03" }, routeKeys: ["host"], column: 2, lane: 0 },
-			{ step: { ...base, key: "C-02" }, routeKeys: ["core"], column: 4, lane: 0 },
-			{ step: { ...base, key: "U-01" }, routeKeys: ["ui"], column: 1, lane: 1 },
-			{ step: { ...base, key: "U" }, routeKeys: ["ui"], column: 0, lane: 1 },
-		],
-		edges: [
-			{ key: "bypass", from: "C-01", to: "C-02", kind: "route" },
-			{ key: "host-ui", from: "H-02", to: "U-01", kind: "dependency" },
-			{ key: "ui", from: "U", to: "U-01", kind: "route" },
-		],
-	};
+const station = (key: string, x: number, y: number): Station => ({ key, x, y, routeKeys: [key] });
+function slopes(points: Point[]) {
+	for (let i = 1; i < points.length; i++) {
+		const dx = Math.abs(points[i].x - points[i - 1].x);
+		const dy = Math.abs(points[i].y - points[i - 1].y);
+		expect(dx < 0.001 || dy < 0.001 || Math.abs(dx - dy) < 0.001).toBe(true);
+	}
+	if (points.length === 4) {
+		expect(Math.abs(points[1].x - points[0].x)).toBeCloseTo(Math.abs(points[1].y - points[0].y), 3);
+	}
 }
 
-test("long links bypass intermediate stations with tangent-continuous shoulders in both sizes", () => {
-	for (const compact of [false, true]) {
-		const graph = roadmapGeometry(fixture(), compact);
-		const edge = graph.edges.find((edge) => edge.key === "bypass");
-		const from = graph.nodes.find((node) => node.step.key === "C-01");
-		const to = graph.nodes.find((node) => node.step.key === "C-02");
-		if (!edge || !from || !to) throw Error("Missing bypass");
-		expect(edge.path).toStartWith(`M ${from.x} ${from.y} C `);
-		expect(edge.path.match(/ C /g)).toHaveLength(2);
-		expect(edge.path).toEndWith(`L ${to.x} ${to.y}`);
-		expect(edge.path).not.toMatch(/NaN|Infinity/);
-	}
-});
+describe("agreed rail shapes", () => {
+	test("clear horizontal and vertical connections remain straight", () => {
+		for (const to of [station("b", 108, 24), station("b", 0, 212)]) {
+			const from = station("a", 0, 24);
+			const rail = routeRail(from, to, [from, to], [], "a", false);
+			expect(rail.shape).toBe("straight");
+			expect(rail.points).toHaveLength(2);
+			expect(rail.collisions).toBe(0);
+		}
+	});
 
-test("vertical edges into shared joins reserve the source caption corridor", () => {
-	const graph = roadmapGeometry(fixture(), false);
-	expect(graph.nodes.find((node) => node.step.key === "H-02")?.forkDown).toBe(true);
-	expect(graph.nodes.find((node) => node.step.key === "U-01")?.merge).toBe(true);
-});
+	test("nearby row changes consume surplus horizontal distance before a strict 45-degree segment", () => {
+		for (const [x, y] of [
+			[108, 118],
+			[-108, 118],
+			[108, 24],
+			[-108, 24],
+		]) {
+			const from = station("a", 0, y === 24 ? 118 : 24);
+			const to = station("b", x, y);
+			const rail = routeRail(from, to, [from, to], [], "a", false);
+			expect(rail.shape).toBe("diagonal");
+			expect(rail.points).toHaveLength(3);
+			expect(rail.points[1].y).toBe(from.y);
+			expect(Math.abs(rail.points[1].x)).toBe(14);
+			expect(rail.collisions).toBe(0);
+			slopes(rail.points);
+		}
+	});
 
-test("cross-lane turns avoid unrelated stations at either end of their vertical segment", () => {
-	for (const compact of [false, true]) {
-		const layout = fixture();
-		layout.edges = [
-			{ key: "through-host", from: "C-01", to: "U-01", kind: "dependency" },
-			{ key: "ui", from: "U", to: "U-01", kind: "route" },
-			{ key: "host", from: "H-02", to: "H-03", kind: "route" },
-		];
-		const graph = roadmapGeometry(layout, compact);
-		const from = graph.nodes.find((node) => node.step.key === "C-01");
-		const to = graph.nodes.find((node) => node.step.key === "U-01");
-		const obstruction = graph.nodes.find((node) => node.step.key === "H-02");
-		const path = graph.edges.find((edge) => edge.key === "through-host")?.path;
-		if (!from || !to || !obstruction || !path) throw Error("Missing obstructed turn fixture");
-		expect(path.match(/ Q /g)).toHaveLength(2);
-		expect(path).not.toContain(`Q ${obstruction.x} ${obstruction.y} `);
-		expect(path).toEndWith(`L ${to.x} ${to.y}`);
-	}
+	test("longer row changes prefer a single L corner", () => {
+		const from = station("a", 0, 24);
+		const to = station("b", 108, 306);
+		const rail = routeRail(from, to, [from, to], [], "a", false);
+		expect(rail.shape).toBe("elbow");
+		expect(rail.points).toHaveLength(3);
+		expect(rail.collisions).toBe(0);
+		slopes(rail.points);
+	});
+
+	test("blocked L corners use a 45-degree departure followed by an L", () => {
+		const from = station("a", 0, 24);
+		const to = station("b", 108, 306);
+		const nodes = [from, to, station("corner-1", 108, 24), station("corner-2", 0, 306)];
+		const rail = routeRail(from, to, nodes, [], "a", false);
+		expect(rail.shape).toBe("detour");
+		expect(rail.collisions).toBe(0);
+		expect(rail.points).toHaveLength(4);
+		slopes(rail.points);
+	});
+
+	test("another route's overlapping rail triggers a diagonal departure", () => {
+		const from = station("a", 0, 24);
+		const to = station("b", 108, 306);
+		const obstacle = station("corner", 0, 306);
+		const rail = routeRail(
+			from,
+			to,
+			[from, to, obstacle],
+			[{ routeKey: "other", points: [from, { x: 108, y: 24 }] }],
+			"a",
+			false,
+		);
+		expect(rail.shape).toBe("detour");
+		expect(rail.collisions).toBe(0);
+		slopes(rail.points);
+	});
+
+	test("crossing rails remain continuous without a gap or extra junction", () => {
+		const from = station("a", 0, 24);
+		const to = station("b", 108, 24);
+		const rail = routeRail(
+			from,
+			to,
+			[from, to],
+			[
+				{
+					routeKey: "other",
+					points: [
+						{ x: 54, y: 0 },
+						{ x: 54, y: 94 },
+					],
+				},
+			],
+			"a",
+			false,
+		);
+		expect(rail.points).toEqual([from, to]);
+		expect(rail.collisions).toBe(0);
+	});
+
+	test("both sizes preserve routing rules, identities and distinct terminals across supported topologies", () => {
+		for (const scenario of ["fork-join", "long-route", "multi-project", "deep-branch"] as const) {
+			const snapshot = createScenario(scenario).snapshot;
+			if (!snapshot) throw Error("Missing fixture");
+			for (const compact of [false, true]) {
+				for (const width of compact ? [180, 320] : [undefined, 1400]) {
+					const layout = layoutRoutes(snapshot.routes, snapshot.steps);
+					const graph = roadmapGeometry(layout, compact, width);
+					expect(new Set(graph.nodes.map((node) => `${node.x}:${node.y}`)).size).toBe(graph.nodes.length);
+					for (const edge of graph.edges) {
+						expect(edge.collisions).toBe(0);
+						expect(edge.kind === "route" || edge.kind === "dependency").toBe(true);
+						expect(edge.points.length).toBeLessThanOrEqual(4);
+						expect(edge.path).not.toContain(" C ");
+						slopes(edge.points);
+					}
+				}
+			}
+		}
+	});
 });
