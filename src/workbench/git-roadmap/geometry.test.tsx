@@ -13,6 +13,29 @@ function fixture() {
 }
 
 describe("source-adapted Git roadmap", () => {
+	test("opposite branches diverge immediately from their shared station", () => {
+		const step = fixture().steps[0];
+		const graph = roadmapGeometry(
+			{
+				nodes: [
+					{ step: { ...step, key: "fork" }, routeKeys: ["main"], column: 0, lane: 1 },
+					{ step: { ...step, key: "upper" }, routeKeys: ["upper"], column: 1, lane: 0 },
+					{ step: { ...step, key: "lower" }, routeKeys: ["lower"], column: 1, lane: 2 },
+				],
+				edges: [
+					{ key: "upper", from: "fork", to: "upper", kind: "route" },
+					{ key: "lower", from: "fork", to: "lower", kind: "route" },
+				],
+				columns: 2,
+				lanes: 3,
+			},
+			false,
+		);
+		const [upper, lower] = graph.edges;
+		expect(upper.points[1].y).toBeLessThan(upper.points[0].y);
+		expect(lower.points[1].y).toBeGreaterThan(lower.points[0].y);
+	});
+
 	test("registered child history expands after fixed headings, without duplicate explicit ownership", () => {
 		const snapshot = fixture();
 		const base = snapshot.steps[0];

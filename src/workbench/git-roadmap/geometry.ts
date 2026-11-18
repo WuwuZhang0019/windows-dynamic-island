@@ -100,7 +100,8 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 	const incoming = new Map<string, number>();
 	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
 	// Date: 2026-11-16. Keep merge stations on the same column grid as other stations.
-	const hasSuccessor = new Set(visibleEdges.map((edge) => edge.from));
+	const visibleOutgoing = new Map<string, number>();
+	for (const edge of visibleEdges) visibleOutgoing.set(edge.from, (visibleOutgoing.get(edge.from) ?? 0) + 1);
 	// Dependent route headings and their endpoints share the same columns in both views.
 	const alignTerminals = compact && !layout.nodes.some((node) => node.heading && node.column > 0);
 	const stride = width / Math.max(1, layout.columns - 1);
@@ -109,9 +110,10 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		if (
 			alignTerminals &&
 			node.column > 0 &&
-			!hasSuccessor.has(node.step.key) &&
+			!visibleOutgoing.has(node.step.key) &&
 			!layout.nodes.some(
-				(other) => other !== node && other.lane === node.lane && other.column > 0 && !hasSuccessor.has(other.step.key),
+				(other) =>
+					other !== node && other.lane === node.lane && other.column > 0 && !visibleOutgoing.has(other.step.key),
 			)
 		)
 			return width;
@@ -145,7 +147,14 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 			(to.merge ? from.routeKeys[0] : to.routeKeys[0]) ??
 			"";
 		const base = computeMetroRail(from, to, nodes, compact);
-		const candidates = destinationMetroRails(from, to, base, Math.abs(to.column - from.column) > 1, compact);
+		const candidates = destinationMetroRails(
+			from,
+			to,
+			base,
+			Math.abs(to.column - from.column) > 1,
+			compact,
+			(visibleOutgoing.get(edge.from) ?? 0) > 1,
+		);
 		const chosen = selectRail(candidates, from, to, nodes, edges, compact) ?? base;
 		const { shape, points, isCrossLine } = chosen;
 		edges.push({

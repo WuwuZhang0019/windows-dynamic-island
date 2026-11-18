@@ -78,6 +78,7 @@ export function destinationMetroRails(
 	base: MetroRail,
 	long: boolean,
 	compact: boolean,
+	fork = false,
 ): MetroRail[] {
 	const dx = Math.abs(to.x - from.x);
 	const dy = Math.abs(to.y - from.y);
@@ -120,6 +121,17 @@ export function destinationMetroRails(
 			};
 		});
 		return [base, ...gaps];
+	}
+	if (fork) {
+		// Mirror the merge approach so branches leave the shared station diagonally.
+		return [
+			{
+				...base,
+				shape: "destination",
+				points: distinct([start, { x: from.x + sx * dy, y: to.y }, end]),
+			},
+			base,
+		];
 	}
 	return [base];
 }
