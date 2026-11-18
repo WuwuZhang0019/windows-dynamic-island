@@ -24,28 +24,8 @@ export function placeRouteColumns(nodes: Map<string, RouteGraphNode>, edges: Ite
 		incoming.set(to, count + 1);
 	}
 
-	const requiredChildren = new Map<string, string[]>();
-	for (const { step } of nodes.values()) {
-		for (const dependency of step.dependsOn) before(dependency, step.key);
-		if (step.parentKey && step.required) {
-			const children = requiredChildren.get(step.parentKey) ?? [];
-			children.push(step.key);
-			requiredChildren.set(step.parentKey, children);
-		}
-	}
-	// A dependency on a parent is satisfied after its required descendants. It still draws from the parent.
-	for (const { step } of nodes.values()) {
-		const pending = [...step.dependsOn];
-		const visited = new Set(pending);
-		for (const key of pending) {
-			for (const child of requiredChildren.get(key) ?? []) {
-				if (visited.has(child)) continue;
-				visited.add(child);
-				before(child, step.key);
-				pending.push(child);
-			}
-		}
-	}
+	// A cross-route dependency uses the displayed source station as its column anchor.
+	for (const { step } of nodes.values()) for (const dependency of step.dependsOn) before(dependency, step.key);
 	// Start each subtree at its own heading and use declared display order where prerequisites allow it.
 	for (const { step } of nodes.values()) if (step.parentKey) before(step.parentKey, step.key);
 	for (const edge of edges) if (edge.kind === "route") before(edge.from, edge.to);

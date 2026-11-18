@@ -262,7 +262,7 @@ describe("source-adapted Git roadmap", () => {
 		expect(new Set(palette.values()).size).toBe(keys.length);
 		expect([...routeColours([...keys].reverse())]).toEqual([...palette]);
 	});
-	test("staggered headings follow real prerequisites and let ready work share columns", () => {
+	test("staggered routes use dependency endpoints without reserving columns for a whole prerequisite route", () => {
 		const snapshot = fixture();
 		const seed = snapshot.steps[0];
 		const specs = [
@@ -273,15 +273,22 @@ describe("source-adapted Git roadmap", () => {
 			{ key: "B", parentKey: null, dependsOn: ["schema"] },
 			{ key: "contract", parentKey: "B", dependsOn: [] },
 			{ key: "commands", parentKey: "B", dependsOn: [] },
-			{ key: "optional", parentKey: "B", dependsOn: [], required: false },
 			{ key: "C", parentKey: null, dependsOn: ["B"] },
 			{ key: "read", parentKey: "C", dependsOn: [] },
+			{ key: "D", parentKey: null, dependsOn: ["B", "C"] },
+			{ key: "prepareWrite", parentKey: "D", dependsOn: [] },
+			{ key: "write", parentKey: "D", dependsOn: [] },
+			{ key: "check", parentKey: "D", dependsOn: [] },
 			{ key: "E", parentKey: null, dependsOn: ["contract"] },
 			{ key: "agent", parentKey: "E", dependsOn: [] },
-			{ key: "verify", parentKey: "E", dependsOn: ["C"] },
+			{ key: "verify", parentKey: "E", dependsOn: ["D"] },
+			{ key: "F", parentKey: null, dependsOn: [] },
+			{ key: "channel", parentKey: "F", dependsOn: [] },
+			{ key: "probe", parentKey: "channel", dependsOn: ["B"] },
+			{ key: "smoke", parentKey: "channel", dependsOn: ["D", "probe"] },
 		];
 		const steps = specs.map((spec, order) => ({ ...seed, required: true, ...spec, code: spec.key, order }));
-		const routes = ["A", "B", "C", "E"].map((key, index) => ({
+		const routes = ["A", "B", "C", "D", "E", "F"].map((key, index) => ({
 			...snapshot.routes[0],
 			key: `route-${key}`,
 			stepKeys: [key],
@@ -291,11 +298,12 @@ describe("source-adapted Git roadmap", () => {
 		const layout = layoutRoutes(routes, steps);
 		const columns = new Map(layout.nodes.map(({ step, column }) => [step.key, column]));
 		expect(columns.get("schema")).toBeLessThan(columns.get("export") ?? -1);
-		expect(columns.get("B")).toBeLessThan(columns.get("C") ?? -1);
+		expect(columns.get("C")).toBe((columns.get("B") ?? -1) + 1);
+		expect(columns.get("C")).toBe(columns.get("contract"));
+		expect(columns.get("D")).toBe(columns.get("read"));
 		expect(columns.get("E")).toBe(columns.get("commands"));
-		expect(columns.get("C")).toBe((columns.get("commands") ?? -1) + 1);
-		expect(columns.get("C")).toBe(columns.get("optional"));
-		expect(columns.get("verify")).toBeGreaterThan(columns.get("read") ?? Infinity);
+		expect(columns.get("verify")).toBe(columns.get("write"));
+		expect(columns.get("smoke")).toBe(columns.get("prepareWrite"));
 		expect(layout.columns).toBeLessThan(steps.length);
 		expect(layout.edges.some((edge) => edge.from === "B" && edge.to === "C")).toBe(true);
 		expect(layout.edges.some((edge) => edge.from === "commands" && edge.to === "C")).toBe(false);
@@ -307,8 +315,6 @@ describe("source-adapted Git roadmap", () => {
 			const to = graph.nodes.find((node) => node.key === "C");
 			const edge = graph.edges.find((edge) => edge.from === "B" && edge.to === "C");
 			if (!from || !to || !edge) throw Error("Missing dependency stations");
-			expect(edge.shape).toBe("destination");
-			expect(edge.points[1].y).toBeGreaterThan(from.y);
 			expect(edge.points[0]).toEqual({ x: from.x, y: from.y });
 			expect(edge.points.at(-1)).toEqual({ x: to.x, y: to.y });
 			expect(graph.nodes.find((node) => node.key === "export")?.x).toBeLessThan(graph.width);
