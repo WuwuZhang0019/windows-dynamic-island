@@ -23,14 +23,14 @@
 	box-shadow: inset 0 0 0 1px #e7ad55;
 }
 /* Keep the graph and action slots fixed while either button expands leftward. */
-.wb-route-heading > .wb-route-actions:has(.wb-continuous) {
+.wb-route-heading > .wb-route-actions:has(.wb-continuous, .wb-route-pause) {
 	flex-direction: column;
 	align-items: flex-end;
 	width: 30px;
 	min-width: 30px;
 	gap: 4px;
 }
-.wb-route-heading:has(.wb-continuous) .wb-row-thumbnail {
+.wb-route-heading:has(.wb-continuous, .wb-route-pause) .wb-row-thumbnail {
 	right: 42px;
 }
 @media (prefers-reduced-motion: reduce) {

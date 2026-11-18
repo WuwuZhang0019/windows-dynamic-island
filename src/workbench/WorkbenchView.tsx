@@ -8,7 +8,7 @@ import type { ContinuousRun } from "./continuous";
 import type { WorkbenchEnvelope as Envelope, Preferences, Route, Step, WorkbenchSnapshot } from "./contract/protocol";
 import { GroupRouteGraph } from "./GroupRouteGraph";
 import { TASK_ORDER_KEY, taskOrder, taskSize } from "./list-preferences";
-import { RouteArchiveButton } from "./RouteArchiveButton";
+import { RouteArchiveButton, RoutePauseButton } from "./RouteArchiveButton";
 import { SortableRouteCard } from "./SortableRouteCard";
 import {
 	executingStepKeys,
@@ -18,6 +18,7 @@ import {
 	primaryRoute,
 	stepStatusLabel,
 	type TaskGroup,
+	taskGroupActive,
 	taskGroups,
 } from "./task-groups";
 import { libraryError } from "./task-library";
@@ -178,6 +179,7 @@ export interface WorkbenchViewProps {
 	preferenceMessage?: string;
 	archivedKeys?: string[];
 	archiveTask?: (key: string) => Promise<void>;
+	pauseTask?: (key: string) => Promise<void>;
 	continuousRuns?: ContinuousRun[];
 	toggleContinuous?: (planKey: string, requestedAction?: "resume") => Promise<void>;
 }
@@ -194,6 +196,7 @@ export function WorkbenchView({
 	preferenceMessage,
 	archivedKeys = [],
 	archiveTask,
+	pauseTask,
 	continuousRuns = [],
 	toggleContinuous,
 }: WorkbenchViewProps) {
@@ -367,6 +370,23 @@ export function WorkbenchView({
 			setBusyKey(null);
 		}
 	}
+	async function pauseEntry(group: TaskGroup, title: string) {
+		if (!pauseTask || busyKey) return;
+		const targetKey = group.plan?.key ?? group.archiveKeys[0] ?? group.key;
+		setBusyKey(`pause/${group.key}`);
+		try {
+			await pauseTask(targetKey);
+			if (group.plan) {
+				const planKey = group.plan.key;
+				setContinuousErrors((previous) => ({ ...previous, [planKey]: "" }));
+			}
+			setArchiveMessage(`已暂停：${title}，进度已保留，可安全退出任务岛`);
+		} catch (error) {
+			setArchiveMessage(libraryError(error));
+		} finally {
+			setBusyKey(null);
+		}
+	}
 	async function continuousEntry(key: string, requestedAction?: "resume") {
 		if (!toggleContinuous || busyKey) return;
 		setBusyKey(key);
@@ -511,6 +531,7 @@ export function WorkbenchView({
 									main;
 								const delay = reducedMotion ? 0 : Math.min(index, 5) * 0.07;
 								const continuousRun = continuousRuns.find((run) => run.planKey === group.plan?.key);
+								const pausable = taskGroupActive(group, snapshot, continuousRuns);
 								return (
 									<SortableRouteCard
 										key={key}
@@ -573,6 +594,13 @@ export function WorkbenchView({
 														onToggle={() => void continuousEntry(group.plan?.key ?? "")}
 													/>
 												)}
+												<RoutePauseButton
+													title={title}
+													active={pausable}
+													busy={busyKey === `pause/${group.key}`}
+													disabled={!pauseTask || !!busyKey || connection.state !== "ready"}
+													onPause={() => void pauseEntry(group, title)}
+												/>
 												<RouteArchiveButton
 													title={title}
 													disabled={!archiveTask || !!busyKey || connection.state !== "ready"}

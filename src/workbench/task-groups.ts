@@ -1,4 +1,5 @@
 // Date: 2026-11-12. Presentation groups follow declared task relationships only.
+import type { ContinuousRun } from "./continuous";
 import type { Plan, Project, Route, Step, WorkbenchSnapshot } from "./contract/protocol";
 import { placeRouteColumns } from "./git-roadmap/display-columns";
 
@@ -10,6 +11,31 @@ export type TaskGroup = {
 	aliases: string[];
 	archiveKeys: string[];
 };
+
+export function taskGroupActive(
+	group: TaskGroup,
+	snapshot: WorkbenchSnapshot,
+	continuousRuns: ContinuousRun[] = [],
+): boolean {
+	const planKeys = new Set(snapshot.plans.filter((plan) => group.aliases.includes(plan.key)).map((plan) => plan.key));
+	const inGroup = (item: { projectKey: string; planKey: string }) =>
+		planKeys.size ? planKeys.has(item.planKey) : item.projectKey === group.project.key;
+	if (snapshot.steps.some((step) => inGroup(step) && step.status === "running")) return true;
+	const byKey = new Map(snapshot.steps.map((step) => [step.key, step]));
+	if (
+		snapshot.executions.some((execution) => {
+			const endedAt = (execution as { endedAt?: string | null }).endedAt;
+			if (!inGroup(execution) || endedAt || execution.outcome !== "running") return false;
+			return (
+				!execution.stepKeys.length ||
+				!execution.stepKeys.some((key) => byKey.get(key)?.status === "blocked") ||
+				!execution.stepKeys.every((key) => ["blocked", "completed", "cancelled"].includes(byKey.get(key)?.status ?? ""))
+			);
+		})
+	)
+		return true;
+	return continuousRuns.some((run) => planKeys.has(run.planKey) && ["running", "pausing"].includes(run.status));
+}
 
 // Date: 2026-11-16. Expand only registered children, preserving explicit cross-route ownership.
 export function expandedRoutes(routes: Route[], steps: Step[]): Route[] {

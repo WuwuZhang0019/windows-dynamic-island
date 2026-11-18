@@ -13,12 +13,23 @@
 	--wb-action-label: "删除";
 	--wb-action-hover: rgb(255, 69, 69);
 }
+.wb-route-pause {
+	--wb-action-label: "暂停";
+	--wb-action-hover: rgb(231, 173, 85);
+}
+.wb-route-pause[data-active="true"]:not(:disabled) {
+	box-shadow:
+		inset 0 0 0 1px #e7ad5588,
+		0 0 12px #0000002a;
+	color: #f3c979;
+}
 .wb-route-archive {
 	--wb-action-label: "归档";
 	--wb-action-hover: rgb(0, 194, 106);
 }
 .wb-route-delete,
 .wb-continuous,
+.wb-route-pause,
 .wb-route-archive {
 	position: relative;
 	display: flex;
@@ -42,6 +53,7 @@
 }
 .wb-delete-icon,
 .wb-continuous-ball svg,
+.wb-pause-icon,
 .wb-archive-icon {
 	width: 14px;
 	height: 14px;
@@ -56,6 +68,7 @@
 }
 .wb-route-delete::before,
 .wb-continuous::before,
+.wb-route-pause::before,
 .wb-route-archive::before {
 	position: absolute;
 	top: -15px;
@@ -69,6 +82,7 @@
 }
 .wb-route-delete:is(:hover, :focus-visible):not(:disabled),
 .wb .wb-continuous:is(:hover, :focus-visible):not(:disabled),
+.wb .wb-route-pause:is(:hover, :focus-visible):not(:disabled),
 .wb .wb-route-archive:is(:hover, :focus-visible):not(:disabled) {
 	width: 84px;
 	border-radius: 15px;
@@ -76,6 +90,7 @@
 }
 .wb-route-delete:is(:hover, :focus-visible):not(:disabled) .wb-delete-icon,
 .wb-continuous:is(:hover, :focus-visible):not(:disabled) .wb-continuous-ball svg,
+.wb-route-pause:is(:hover, :focus-visible):not(:disabled) .wb-pause-icon,
 .wb-route-archive:is(:hover, :focus-visible):not(:disabled) .wb-archive-icon {
 	width: 28px;
 	height: 28px;
@@ -83,6 +98,7 @@
 }
 .wb-route-delete:is(:hover, :focus-visible):not(:disabled)::before,
 .wb-continuous:is(:hover, :focus-visible):not(:disabled)::before,
+.wb-route-pause:is(:hover, :focus-visible):not(:disabled)::before,
 .wb-route-archive:is(:hover, :focus-visible):not(:disabled)::before {
 	font-size: 11px;
 	opacity: 1;
@@ -90,15 +106,19 @@
 }
 @media (prefers-reduced-motion: reduce) {
 	.wb-route-delete,
+	.wb-route-pause,
 	.wb-route-archive,
 	.wb-delete-icon,
+	.wb-pause-icon,
 	.wb-archive-icon,
 	.wb-route-delete::before,
 	.wb-continuous::before,
+	.wb-route-pause::before,
 	.wb-route-archive::before {
 		transition: none;
 	}
 }
+.wb-route-pause:disabled,
 .wb-route-archive:disabled,
 .wb-route-delete:disabled {
 	opacity: 0.4;

@@ -99,6 +99,16 @@ export function useWorkbench() {
 		},
 		[read],
 	);
+	const pauseTask = useCallback(
+		async (key: string) => {
+			const revision = current.current?.snapshot?.revision;
+			if (!Number.isSafeInteger(revision) || revision === null || revision === undefined)
+				throw Error("OWNER_UNAVAILABLE");
+			await changeTaskLibrary("pause", key, revision);
+			await read();
+		},
+		[read],
+	);
 	const toggleContinuous = useCallback(
 		async (planKey: string, requestedAction?: "resume") => {
 			const snapshot = current.current?.snapshot;
@@ -164,6 +174,7 @@ export function useWorkbench() {
 		preferenceMessage,
 		archivedKeys,
 		archiveTask: librarySupported ? archiveTask : undefined,
+		pauseTask: librarySupported ? pauseTask : undefined,
 		continuousRuns,
 		toggleContinuous: continuousSupported ? toggleContinuous : undefined,
 	};

@@ -11,6 +11,7 @@ pub enum Action {
     Archive,
     Restore,
     Delete,
+    Pause,
 }
 impl Action {
     fn route(self) -> &'static str {
@@ -18,6 +19,7 @@ impl Action {
             Self::Archive => "api/light-library/archive",
             Self::Restore => "api/light-library/restore",
             Self::Delete => "api/light-library/delete",
+            Self::Pause => "api/light-library/pause",
         }
     }
 }
@@ -30,7 +32,7 @@ pub struct Change {
 }
 fn allowed(label: &str, action: Action, input: &Change) -> Result<(), String> {
     let window = match action {
-        Action::Archive => label == crate::window::ISLAND_LABEL,
+        Action::Archive | Action::Pause => label == crate::window::ISLAND_LABEL,
         Action::Restore | Action::Delete => label == crate::settings::SETTINGS_LABEL,
     };
     if !window || !input.acknowledged || input.key.is_empty() || input.key.len() > 4000 {
@@ -117,6 +119,8 @@ mod tests {
             acknowledged: true,
         };
         assert!(allowed(crate::window::ISLAND_LABEL, Action::Archive, &value).is_ok());
+        assert!(allowed(crate::window::ISLAND_LABEL, Action::Pause, &value).is_ok());
+        assert!(allowed(crate::settings::SETTINGS_LABEL, Action::Pause, &value).is_err());
         assert!(allowed(crate::window::ISLAND_LABEL, Action::Delete, &value).is_err());
         assert!(allowed(crate::settings::SETTINGS_LABEL, Action::Delete, &value).is_ok());
         assert!(allowed(crate::settings::SETTINGS_LABEL, Action::Restore, &value).is_ok());

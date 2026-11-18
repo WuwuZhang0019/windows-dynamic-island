@@ -49,7 +49,7 @@ export async function readTaskLibrary() {
 	return { snapshot: envelope.snapshot, archived: checkedArchives(panel.library) };
 }
 export async function changeTaskLibrary(
-	action: "archive" | "restore" | "delete",
+	action: "archive" | "restore" | "delete" | "pause",
 	key: string,
 	expectedRevision: number,
 ) {
