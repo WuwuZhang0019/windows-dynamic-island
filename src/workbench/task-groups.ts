@@ -1,5 +1,6 @@
 // Date: 2026-11-12. Presentation groups follow declared task relationships only.
 import type { Plan, Project, Route, Step, WorkbenchSnapshot } from "./contract/protocol";
+import { placeRouteColumns } from "./git-roadmap/display-columns";
 
 export type TaskGroup = {
 	key: string;
@@ -180,43 +181,19 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		const key = JSON.stringify([from, to]);
 		if (!edges.has(key)) edges.set(key, { key, from, to, kind });
 	}
-	for (const route of routes) {
-		const keys = route.stepKeys.filter((key) => nodes.has(key));
-		keys.forEach((key, i) => {
-			if (i) connect(keys[i - 1], key);
-		});
-		connect(route.sourceStepKey, keys[0]);
-		// Date: 2026-11-13. Returning to the source identifies the parent context, not another temporal edge.
-		if (route.returnStepKey !== route.sourceStepKey) connect(keys.at(-1), route.returnStepKey);
-	}
-	for (const node of nodes.values())
-		for (const source of node.step.dependsOn) connect(source, node.step.key, "dependency");
-	const incoming = new Map([...nodes.keys()].map((key) => [key, [] as string[]]));
-	const outgoing = new Map([...nodes.keys()].map((key) => [key, [] as string[]]));
-	for (const edge of edges.values()) {
-		incoming.get(edge.to)?.push(edge.from);
-		outgoing.get(edge.from)?.push(edge.to);
-	}
-	const remaining = new Map([...incoming].map(([key, sources]) => [key, sources.length]));
-	const queue = [...nodes.keys()].filter((key) => remaining.get(key) === 0);
-	const visited = new Set<string>();
-	for (let i = 0; i < queue.length; i++) {
-		const key = queue[i],
-			node = nodes.get(key);
-		if (!node) continue;
-		visited.add(key);
-		for (const target of outgoing.get(key) ?? []) {
-			const next = nodes.get(target);
-			if (next && !next.heading) next.column = Math.max(next.column, node.column + 1);
-			const count = (remaining.get(target) ?? 1) - 1;
-			remaining.set(target, count);
-			if (!count) queue.push(target);
+	function connectRoutes(useDisplayOrder: boolean) {
+		for (const route of routes) {
+			const keys = route.stepKeys.filter((key) => nodes.has(key));
+			const sequence = useDisplayOrder
+				? [...keys].sort((a, b) => (nodes.get(a)?.column ?? 0) - (nodes.get(b)?.column ?? 0))
+				: keys;
+			for (let i = 1; i < sequence.length; i++) connect(sequence[i - 1], sequence[i]);
+			connect(route.sourceStepKey, keys[0]);
+			// Date: 2026-11-13. Returning to the source identifies the parent context.
+			if (route.returnStepKey !== route.sourceStepKey) connect(keys.at(-1), route.returnStepKey);
 		}
+		for (const { step } of nodes.values()) for (const source of step.dependsOn) connect(source, step.key, "dependency");
 	}
-	// Malformed cyclic references remain visible without blocking the reader.
-	let fallback =
-		Math.max(-1, ...[...nodes.values()].filter((node) => visited.has(node.step.key)).map((node) => node.column)) + 1;
-	for (const node of nodes.values()) if (!visited.has(node.step.key)) node.column = fallback++;
 	// Date: 2026-11-17. Give every owning route one row; cross-route dependencies never move stations.
 	const main = primaryRoute(routes);
 	const ordered = main ? [main, ...routes.filter((route) => route.key !== main.key)] : routes;
@@ -231,9 +208,16 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		for (const node of owned) node.lane = lane;
 		lane++;
 	}
+	connectRoutes(false);
+	const placement = placeRouteColumns(nodes, edges.values());
+	// Follow the placed stations even where an inferred sequence conflicted with a real dependency.
+	edges.clear();
+	connectRoutes(true);
 
 	// Date: 2026-11-17. Use available column slack to shorten companion rails, keeping headings anchored.
 	const lastColumn = Math.max(0, ...[...nodes.values()].map((node) => node.column));
+	const outgoing = new Map([...nodes.keys()].map((key) => [key, [] as string[]]));
+	for (const edge of edges.values()) outgoing.get(edge.from)?.push(edge.to);
 	function hasAlternatePath(from: string, to: string): boolean {
 		const pending = (outgoing.get(from) ?? []).filter((key) => key !== to);
 		const seen = new Set<string>();
@@ -253,8 +237,7 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 			const node = nodes.get(key);
 			return node && node !== heading ? [node] : [];
 		});
-		if (!work.length || work.some((node) => node.heading || node.routeKeys.length !== 1 || !visited.has(node.step.key)))
-			continue;
+		if (!work.length || work.some((node) => node.heading || node.routeKeys.length !== 1)) continue;
 		const keys = new Set(work.map((node) => node.step.key));
 		const exits = [...edges.values()].filter((edge) => keys.has(edge.from) && !keys.has(edge.to));
 		const joins = exits.filter((edge) => {
@@ -264,7 +247,6 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 				edge.kind === "dependency" &&
 				from &&
 				to &&
-				visited.has(to.step.key) &&
 				!to.routeKeys.includes(route.key) &&
 				!hasAlternatePath(edge.from, edge.to) &&
 				work.some((node) => node.column > from.column && node.column < to.column)
@@ -275,6 +257,11 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		const slack = Math.min(
 			lastColumn - Math.max(...work.map((node) => node.column)),
 			...exits.map((edge) => (nodes.get(edge.to)?.column ?? 0) - (nodes.get(edge.from)?.column ?? 0) - 1),
+			...work.flatMap((node) =>
+				[...(placement.get(node.step.key) ?? [])]
+					.filter((key) => !keys.has(key))
+					.map((key) => (nodes.get(key)?.column ?? 0) - node.column - 1),
+			),
 		);
 		if (slack > 0) for (const node of work) node.column += slack;
 	}

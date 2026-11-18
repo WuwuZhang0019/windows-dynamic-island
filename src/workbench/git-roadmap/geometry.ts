@@ -3,8 +3,8 @@
 import type { RouteGraphEdge, RouteGraphLayout, RouteGraphNode } from "../task-groups";
 
 import { routeDisplayLanes } from "./display-lanes";
-import { computeMetroRail, type MetroRail, metroRoundedPath } from "./metro";
-import { type CaptionSide, type Point, type Rail, routeRail } from "./routing";
+import { computeMetroRail, destinationMetroRails, type MetroRail, metroRoundedPath } from "./metro";
+import { type CaptionSide, type Point, selectRail } from "./routing";
 export type RoadmapNode = RouteGraphNode &
 	Point & { merge: boolean; colour: string; forkDown: boolean; key: string; captionSide?: CaptionSide };
 export type RoadmapEdge = RouteGraphEdge & MetroRail & { path: string; colour: string; status: string };
@@ -101,11 +101,13 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
 	// Date: 2026-11-16. Keep merge stations on the same column grid as other stations.
 	const hasSuccessor = new Set(visibleEdges.map((edge) => edge.from));
+	// Dependent route headings and their endpoints share the same columns in both views.
+	const alignTerminals = compact && !layout.nodes.some((node) => node.heading && node.column > 0);
 	const stride = width / Math.max(1, layout.columns - 1);
 	function stationX(node: RouteGraphNode) {
 		// Date: 2026-11-16. A solitary heading is a starting station, not an endpoint.
 		if (
-			compact &&
+			alignTerminals &&
 			node.column > 0 &&
 			!hasSuccessor.has(node.step.key) &&
 			!layout.nodes.some(
@@ -127,11 +129,13 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 	}));
 	const byKey = new Map(nodes.map((node) => [node.step.key, node]));
 	const edges: RoadmapEdge[] = [];
-	// Date: 2026-11-17. Keep the established caption layout independent of the new SVG paths.
-	const captionRails: Rail[] = [];
-	// Date: 2026-11-17. Lay existing rails first, then route branches around occupied segments.
-	const priority = (edge: RouteGraphEdge) =>
-		byKey.get(edge.from)?.y === byKey.get(edge.to)?.y ? 0 : edge.kind === "route" ? 1 : 2;
+	// Place station-to-station rails first so long transfers can use the remaining space.
+	const priority = (edge: RouteGraphEdge) => {
+		const from = byKey.get(edge.from);
+		const to = byKey.get(edge.to);
+		if (!from || !to || from.y === to.y) return 0;
+		return Math.abs(from.column - to.column) > 1 ? 2 : 1;
+	};
 	for (const edge of [...visibleEdges].sort((a, b) => priority(a) - priority(b))) {
 		const from = byKey.get(edge.from);
 		const to = byKey.get(edge.to);
@@ -140,13 +144,16 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 			from.routeKeys.find((key) => to.routeKeys.includes(key)) ??
 			(to.merge ? from.routeKeys[0] : to.routeKeys[0]) ??
 			"";
-		const captionRail = routeRail(from, to, nodes, captionRails, routeKey, compact);
-		captionRails.push(captionRail);
-		const rail = computeMetroRail(from, to, nodes, compact);
+		const base = computeMetroRail(from, to, nodes, compact);
+		const candidates = destinationMetroRails(from, to, base, Math.abs(to.column - from.column) > 1, compact);
+		const chosen = selectRail(candidates, from, to, nodes, edges, compact) ?? base;
+		const { shape, points, isCrossLine } = chosen;
 		edges.push({
 			...edge,
-			...rail,
-			path: metroRoundedPath(rail.points),
+			shape,
+			points,
+			isCrossLine,
+			path: metroRoundedPath(points),
 			colour: palette.get(routeKey) ?? routeColour(""),
 			status: to.step.status,
 		});

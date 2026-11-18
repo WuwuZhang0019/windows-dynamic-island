@@ -73,14 +73,9 @@ export function routeRail(
 	const dy = to.y - from.y;
 	const sx = Math.sign(dx) || 1;
 	const sy = Math.sign(dy) || 1;
-	const horizontalGaps = nodes.flatMap((node) =>
-		nodes
-			.filter((other) => other !== node && Math.abs(other.x - node.x) > 0.01)
-			.map((other) => Math.abs(other.x - node.x)),
-	);
-	const dotRadius = compact ? Math.min(3, Math.min(...horizontalGaps) / 3) : 9;
-	const candidates: { points: Point[]; shape: RoutedRail["shape"] }[] = [];
-	const add = (points: Point[], shape: RoutedRail["shape"]) => candidates.push({ points: simplify(points), shape });
+	const candidates: (Rail & { shape: RoutedRail["shape"] })[] = [];
+	const add = (points: Point[], shape: RoutedRail["shape"]) =>
+		candidates.push({ points: simplify(points), routeKey, shape });
 	if (!dx || !dy) add([from, to], "straight");
 	// A nearby row change first consumes surplus horizontal distance, then uses a true 45-degree line.
 	if (dx && dy && Math.abs(dy) <= (compact ? 18 : 94) && Math.abs(dx) >= Math.abs(dy)) {
@@ -99,7 +94,27 @@ export function routeRail(
 			}
 		}
 	}
-	let best: RoutedRail | undefined;
+	return (
+		selectRail(candidates, from, to, nodes, rails, compact) ?? {
+			points: [from, to],
+			routeKey,
+			shape: "straight",
+			collisions: 0,
+		}
+	);
+}
+
+export function selectRail<T extends { points: Point[] }>(
+	candidates: T[],
+	from: Station,
+	to: Station,
+	nodes: Station[],
+	rails: { points: Point[] }[],
+	compact: boolean,
+): (T & { collisions: number }) | undefined {
+	const columns = compact ? [...new Set(nodes.map((node) => node.x))].sort((a, b) => a - b) : [];
+	const dotRadius = compact ? Math.min(3, ...columns.slice(1).map((x, index) => (x - columns[index]) / 3)) : 9;
+	let best: (T & { collisions: number }) | undefined;
 	let bestSides: (CaptionSide | undefined)[] = [];
 	for (const candidate of candidates) {
 		const { points } = candidate;
@@ -108,38 +123,28 @@ export function routeRail(
 		for (const node of nodes) {
 			const endpoint = node.key === from.key || node.key === to.key;
 			if (!endpoint) {
-				const radius = dotRadius;
-				for (let index = 1; index < points.length; index++) {
-					const a = points[index - 1];
-					const b = points[index];
-					// Shared rails may continue through their own stations; another route is an obstacle.
-					if (a.y === b.y && a.y === node.y && node.routeKeys.includes(routeKey)) continue;
-					if (
-						intersects(a, b, {
-							left: node.x - radius,
-							right: node.x + radius,
-							top: node.y - radius,
-							bottom: node.y + radius,
-						})
-					)
-						collisions++;
-				}
+				if (
+					hits(points, {
+						left: node.x - dotRadius,
+						right: node.x + dotRadius,
+						top: node.y - dotRadius,
+						bottom: node.y + dotRadius,
+					})
+				)
+					collisions += 2;
 			}
 			let side = node.captionSide;
 			if (!compact && hits(points, caption(node, side))) {
-				{
-					const available = (["left", "right"] as const).find(
-						(value) =>
-							!hits(points, caption(node, value)) && rails.every((rail) => !hits(rail.points, caption(node, value))),
-					);
-					if (available) side = available;
-					else collisions++;
-				}
+				const available = (["left", "right"] as const).find(
+					(value) =>
+						!hits(points, caption(node, value)) && rails.every((rail) => !hits(rail.points, caption(node, value))),
+				);
+				if (available) side = available;
+				else collisions++;
 			}
 			sides.push(side);
 		}
 		for (const rail of rails) {
-			if (rail.routeKey === routeKey) continue;
 			for (let i = 1; i < points.length; i++)
 				for (let j = 1; j < rail.points.length; j++) {
 					if (overlap(points[i - 1], points[i], rail.points[j - 1], rail.points[j]) > (compact ? 2 : 8)) collisions++;
@@ -148,11 +153,11 @@ export function routeRail(
 		// Keep the candidate inside the row band; crossings remain continuous and do not count as obstacles.
 		if (points.some((point) => point.y < (compact ? 2 : 6))) collisions++;
 		if (!best || collisions < best.collisions) {
-			best = { points, routeKey, shape: candidate.shape, collisions };
+			best = { ...candidate, collisions };
 			bestSides = sides;
 		}
 		if (!collisions) break;
 	}
-	for (const [index, node] of nodes.entries()) node.captionSide = bestSides[index];
-	return best ?? { points: [from, to], routeKey, shape: "straight", collisions: 0 };
+	if (best) for (const [index, node] of nodes.entries()) node.captionSide = bestSides[index];
+	return best;
 }

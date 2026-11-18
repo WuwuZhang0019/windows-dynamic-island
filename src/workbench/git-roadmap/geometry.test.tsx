@@ -239,6 +239,58 @@ describe("source-adapted Git roadmap", () => {
 		expect(new Set(palette.values()).size).toBe(keys.length);
 		expect([...routeColours([...keys].reverse())]).toEqual([...palette]);
 	});
+	test("staggered headings follow real prerequisites and let ready work share columns", () => {
+		const snapshot = fixture();
+		const seed = snapshot.steps[0];
+		const specs = [
+			{ key: "A", parentKey: null, dependsOn: [] },
+			{ key: "sample", parentKey: "A", dependsOn: [] },
+			{ key: "export", parentKey: "sample", dependsOn: ["schema"] },
+			{ key: "schema", parentKey: "A", dependsOn: [] },
+			{ key: "B", parentKey: null, dependsOn: ["schema"] },
+			{ key: "contract", parentKey: "B", dependsOn: [] },
+			{ key: "commands", parentKey: "B", dependsOn: [] },
+			{ key: "optional", parentKey: "B", dependsOn: [], required: false },
+			{ key: "C", parentKey: null, dependsOn: ["B"] },
+			{ key: "read", parentKey: "C", dependsOn: [] },
+			{ key: "E", parentKey: null, dependsOn: ["contract"] },
+			{ key: "agent", parentKey: "E", dependsOn: [] },
+			{ key: "verify", parentKey: "E", dependsOn: ["C"] },
+		];
+		const steps = specs.map((spec, order) => ({ ...seed, required: true, ...spec, code: spec.key, order }));
+		const routes = ["A", "B", "C", "E"].map((key, index) => ({
+			...snapshot.routes[0],
+			key: `route-${key}`,
+			stepKeys: [key],
+			order: index + 1,
+		}));
+		const original = JSON.stringify({ steps, routes });
+		const layout = layoutRoutes(routes, steps);
+		const columns = new Map(layout.nodes.map(({ step, column }) => [step.key, column]));
+		expect(columns.get("schema")).toBeLessThan(columns.get("export") ?? -1);
+		expect(columns.get("B")).toBeLessThan(columns.get("C") ?? -1);
+		expect(columns.get("E")).toBe(columns.get("commands"));
+		expect(columns.get("C")).toBe((columns.get("commands") ?? -1) + 1);
+		expect(columns.get("C")).toBe(columns.get("optional"));
+		expect(columns.get("verify")).toBeGreaterThan(columns.get("read") ?? Infinity);
+		expect(layout.columns).toBeLessThan(steps.length);
+		expect(layout.edges.some((edge) => edge.from === "B" && edge.to === "C")).toBe(true);
+		expect(layout.edges.some((edge) => edge.from === "commands" && edge.to === "C")).toBe(false);
+		expect(JSON.stringify({ steps, routes })).toBe(original);
+
+		for (const compact of [false, true]) {
+			const graph = roadmapGeometry(layout, compact, 420);
+			const from = graph.nodes.find((node) => node.key === "B");
+			const to = graph.nodes.find((node) => node.key === "C");
+			const edge = graph.edges.find((edge) => edge.from === "B" && edge.to === "C");
+			if (!from || !to || !edge) throw Error("Missing dependency stations");
+			expect(edge.shape).toBe("destination");
+			expect(edge.points[1].y).toBeGreaterThan(from.y);
+			expect(edge.points[0]).toEqual({ x: from.x, y: from.y });
+			expect(edge.points.at(-1)).toEqual({ x: to.x, y: to.y });
+			expect(graph.nodes.find((node) => node.key === "export")?.x).toBeLessThan(graph.width);
+		}
+	});
 	test("transitive dependencies stay in the layout without adding redundant visual arcs", () => {
 		const snapshot = fixture();
 		const main = snapshot.routes[0];

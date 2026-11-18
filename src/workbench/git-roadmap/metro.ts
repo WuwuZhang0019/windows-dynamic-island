@@ -1,7 +1,7 @@
 // Date: 2026-11-17. Deterministic octilinear paths from the approved P0-P5 specification.
 export type Point = { x: number; y: number };
 export type MetroNode = Point & { key: string; routeKeys: string[] };
-export type MetroMotif = "P0" | "P1" | "P2" | "P3" | "P4" | "P5" | "narrow";
+export type MetroMotif = "P0" | "P1" | "P2" | "P3" | "P4" | "P5" | "narrow" | "destination";
 export type MetroRail = { points: Point[]; shape: MetroMotif; isCrossLine: boolean };
 const epsilon = 0.000001;
 
@@ -70,6 +70,58 @@ export function computeMetroRail(from: MetroNode, to: MetroNode, nodes: MetroNod
 	}
 	if (dy < 0 && !isCrossLine) return rail("P3", [start, { x: absDy, y: dy }, end]);
 	return rail("P2", [start, { x: dx - absDy, y: 0 }, end]);
+}
+
+export function destinationMetroRails(
+	from: MetroNode,
+	to: MetroNode,
+	base: MetroRail,
+	long: boolean,
+	compact: boolean,
+): MetroRail[] {
+	const dx = Math.abs(to.x - from.x);
+	const dy = Math.abs(to.y - from.y);
+	if (dx < epsilon || dy < epsilon) return [base];
+	const sx = Math.sign(to.x - from.x);
+	const sy = Math.sign(to.y - from.y);
+	const start = { x: from.x, y: from.y };
+	const end = { x: to.x, y: to.y };
+
+	if (long && dx > dy + epsilon) {
+		// Take the row change first, with room beside the destination for its stations and captions.
+		const offsets = compact ? [4, 7, 2, 0] : [12, 20, 28, 0];
+		const destination = offsets
+			.filter((offset) => offset < dy)
+			.map((offset): MetroRail => {
+				const y = to.y - sy * offset;
+				return {
+					...base,
+					shape: "destination",
+					points: distinct([start, { x: from.x + sx * (dy - offset), y }, { x: to.x - sx * offset, y }, end]),
+				};
+			});
+		const chamfer = Math.min(dy / 2, compact ? 6 : 24);
+		destination.push({
+			...base,
+			shape: "destination",
+			points: [start, { x: from.x, y: to.y - sy * chamfer }, { x: from.x + sx * chamfer, y: to.y }, end],
+		});
+		return [...destination, base];
+	}
+	if (dx < dy - epsilon) {
+		// A tighter span can change rows between columns and stay clear of stations on either endpoint column.
+		const gaps = [0.5, 0.35, 0.65].map((fraction): MetroRail => {
+			const lead = dx * fraction;
+			const x = from.x + sx * lead;
+			return {
+				...base,
+				shape: "narrow",
+				points: [start, { x, y: from.y + sy * lead }, { x, y: to.y - sy * (dx - lead) }, end],
+			};
+		});
+		return [base, ...gaps];
+	}
+	return [base];
 }
 
 export function metroRoundedPath(points: Point[], cornerRadius = 8): string {
