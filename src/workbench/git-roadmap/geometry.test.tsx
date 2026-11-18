@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createScenario } from "../contract/fixtures";
 import { GroupRouteGraph } from "../GroupRouteGraph";
 import { expandedRoutes, layoutRoutes, stepStatusLabel, taskGroups } from "../task-groups";
-import { roadmapGeometry, roundedPath, routeColour, routeColours } from "./geometry";
+import { roadmapGeometry, routeColour, routeColours } from "./geometry";
+import { metroPath } from "./metro";
 
 function fixture() {
 	const snapshot = createScenario("fork-join").snapshot;
@@ -187,7 +188,7 @@ describe("source-adapted Git roadmap", () => {
 		for (const compact of [false, true]) {
 			const graph = roadmapGeometry(layoutRoutes(snapshot.routes, snapshot.steps), compact);
 			for (const edge of graph.edges) {
-				expect(edge.points.length).toBeLessThanOrEqual(4);
+				expect(edge.points.length).toBeLessThanOrEqual(5);
 
 				const source = graph.nodes.find((node) => node.step.key === edge.from);
 				if (!source) throw Error("Missing edge source");
@@ -195,27 +196,21 @@ describe("source-adapted Git roadmap", () => {
 			}
 		}
 	});
-	test("rounds branch corners without changing the exact station endpoints", () => {
+	test("draws straight segments and skips duplicate vertices without changing endpoints", () => {
 		expect(
-			roundedPath(
-				[
-					{ x: 0, y: 0 },
-					{ x: 20, y: 0 },
-					{ x: 20, y: 20 },
-					{ x: 40, y: 20 },
-				],
-				6,
-			),
-		).toBe("M 0 0 L 14 0 Q 20 0 20 6 L 20 14 Q 20 20 26 20 L 40 20");
+			metroPath([
+				{ x: 0, y: 0 },
+				{ x: 20, y: 0 },
+				{ x: 20, y: 20 },
+				{ x: 40, y: 20 },
+			]),
+		).toBe("M 0 0 L 20 0 L 20 20 L 40 20");
 		expect(
-			roundedPath(
-				[
-					{ x: 0, y: 0 },
-					{ x: 0, y: 0 },
-					{ x: 2, y: 0 },
-				],
-				12,
-			),
+			metroPath([
+				{ x: 0, y: 0 },
+				{ x: 0, y: 0 },
+				{ x: 2, y: 0 },
+			]),
 		).toBe("M 0 0 L 2 0");
 	});
 	test("both sizes preserve every declared edge, one shared join and state from its destination", () => {
@@ -344,7 +339,7 @@ describe("source-adapted Git roadmap", () => {
 		for (const compact of [false, true]) {
 			const graph = roadmapGeometry(layoutRoutes([route], steps), compact);
 			expect(graph.edges).toHaveLength(6);
-			expect(graph.edges.every((edge) => !edge.path.includes(" Q "))).toBe(true);
+			expect(graph.edges.every((edge) => edge.points.length === 2)).toBe(true);
 			expect(graph.nodes.every((node) => !node.merge)).toBe(true);
 		}
 		const other = { ...route, key: "other", stepKeys: [steps[5].key, steps[6].key] };

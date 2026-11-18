@@ -741,49 +741,33 @@
 }
 .wb-graph-lines path {
 	stroke-width: 1.75;
-	stroke-linecap: round;
-	stroke-linejoin: round;
-	opacity: 0.38;
+	stroke-linecap: butt;
+	stroke-linejoin: miter;
+	opacity: 0.68;
 }
-/* Date: 2026-11-17. Merge captions stay centered; downward departures use the shared clear corridor. */
-.wb-graph-lines path[data-status="completed"] {
-	opacity: 0.95;
-}
-.wb-graph-lines path[data-status="running"] {
-	opacity: 0.95;
-}
-.wb-graph-lines path[data-status="blocked"] {
-	opacity: 0.75;
-	stroke-dasharray: 2 3;
-}
-.wb-graph-lines path[data-status="cancelled"] {
-	opacity: 0.22;
-	stroke-dasharray: 1 4;
-}
+/* Date: 2026-11-18. Line styles encode relationships. Stations carry execution state. */
 .wb-graph-lines path[data-kind="dependency"] {
 	stroke-width: 1.25;
+	stroke-dasharray: 5 4;
+	opacity: 0.56;
 }
 .wb-group-graph-compact .wb-graph-lines path {
-	stroke-width: 1;
+	stroke-width: 1.15;
+}
+.wb-group-graph-compact .wb-graph-lines path[data-kind="dependency"] {
+	stroke-width: 0.8;
+	stroke-dasharray: 3 2;
 }
 .wb-graph-step .wb-dot {
 	position: relative;
 	box-shadow: 0 0 0 3px color-mix(in srgb, var(--wb-branch-colour) 16%, transparent);
 }
-.wb-graph-step[data-merge="true"] .wb-dot::before {
-	content: "";
-	position: absolute;
-	inset: 2px;
-	border: 1px solid currentColor;
-	border-radius: 50%;
-	color: var(--wb-branch-colour);
-	background: #080808;
+.wb-graph-step[data-merge="true"] .wb-dot {
+	border-radius: 0;
+	transform: rotate(45deg) scale(0.82);
 }
 .wb-group-graph-compact .wb-dot {
 	box-shadow: none;
-}
-.wb-group-graph-compact .wb-dot::before {
-	display: none;
 }
 .wb-graph-legend {
 	margin: 0;
@@ -810,6 +794,17 @@
 	height: 6px;
 	flex-shrink: 0;
 	border-radius: 50%;
+}
+.wb-graph-legend .wb-graph-dependency-key {
+	width: 12px;
+	height: 0;
+	border-top: 1px dashed currentColor;
+	border-radius: 0;
+}
+.wb-graph-legend .wb-graph-merge-key {
+	border: 1px solid currentColor;
+	border-radius: 0;
+	transform: rotate(45deg);
 }
 
 /* Date: 2026-11-17. Incoming diagonal rails may reserve the left half of a station caption. */

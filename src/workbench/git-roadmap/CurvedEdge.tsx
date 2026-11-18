@@ -9,7 +9,6 @@ export function CurvedEdge({
 	shape,
 	colour,
 	path,
-	dashed,
 	status,
 	kind,
 	from,
@@ -20,7 +19,6 @@ export function CurvedEdge({
 	shape: string;
 	colour: string;
 	path: string;
-	dashed: boolean;
 	status: string;
 	kind: string;
 	from: string;
@@ -33,10 +31,8 @@ export function CurvedEdge({
 			data-routing-points={JSON.stringify(points.map(({ x, y }) => [x, y]))}
 			d={path}
 			stroke={colour}
-			strokeWidth="2"
 			fill="none"
 			vectorEffect="non-scaling-stroke"
-			strokeDasharray={dashed ? "4 3" : undefined}
 			style={{ "--wb-edge-colour": colour } as CSSProperties}
 			data-status={status}
 			data-kind={kind}

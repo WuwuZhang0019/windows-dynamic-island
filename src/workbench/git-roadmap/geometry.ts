@@ -1,10 +1,10 @@
-// Date: 2026-11-13. Horizontal task adaptation of react-git-log's rounded branch edges.
+// Date: 2026-11-18. Lay out task stations and their octilinear rails.
 // Apache-2.0 source and local changes are recorded in third_party/react-git-log.
 import type { RouteGraphEdge, RouteGraphLayout, RouteGraphNode } from "../task-groups";
 
 import { routeDisplayLanes } from "./display-lanes";
-import { computeMetroRail, destinationMetroRails, type MetroRail, metroRoundedPath } from "./metro";
-import { type CaptionSide, type Point, selectRail } from "./routing";
+import { computeMetroRail, destinationMetroRails, type MetroRail, metroPath } from "./metro";
+import { type CaptionSide, type Point, planRailPaths } from "./routing";
 export type RoadmapNode = RouteGraphNode &
 	Point & { merge: boolean; colour: string; forkDown: boolean; key: string; captionSide?: CaptionSide };
 export type RoadmapEdge = RouteGraphEdge & MetroRail & { path: string; colour: string; status: string };
@@ -33,37 +33,6 @@ export function routeColours(keys: Iterable<string>): Map<string, string> {
 		result.set(key, colour);
 	}
 	return result;
-}
-
-// Two rounded corners keep the branch horizontal between forks and joins.
-// This extends the upstream CanvasRenderer's lineTo/quadraticCurveTo strategy to SVG.
-export function roundedPath(points: Point[], radius: number): string {
-	const vertices = points.filter(
-		(point, index) => !index || point.x !== points[index - 1].x || point.y !== points[index - 1].y,
-	);
-	if (!vertices.length) return "";
-	const number = (value: number) => Number(value.toFixed(3));
-	const coordinate = (point: Point) => `${number(point.x)} ${number(point.y)}`;
-	const commands = [`M ${coordinate(vertices[0])}`];
-	for (let index = 1; index < vertices.length - 1; index++) {
-		const previous = vertices[index - 1];
-		const current = vertices[index];
-		const next = vertices[index + 1];
-		const before = Math.hypot(current.x - previous.x, current.y - previous.y);
-		const after = Math.hypot(next.x - current.x, next.y - current.y);
-		const size = Math.min(radius, before / 2, after / 2);
-		const start = {
-			x: current.x + ((previous.x - current.x) / before) * size,
-			y: current.y + ((previous.y - current.y) / before) * size,
-		};
-		const end = {
-			x: current.x + ((next.x - current.x) / after) * size,
-			y: current.y + ((next.y - current.y) / after) * size,
-		};
-		commands.push(`L ${coordinate(start)}`, `Q ${coordinate(current)} ${coordinate(end)}`);
-	}
-	commands.push(`L ${coordinate(vertices[vertices.length - 1])}`);
-	return commands.join(" ");
 }
 
 export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, renderedWidth?: number) {
@@ -131,43 +100,36 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		colour: palette.get(node.routeKeys[0]) ?? routeColour(""),
 	}));
 	const byKey = new Map(nodes.map((node) => [node.step.key, node]));
-	const edges: RoadmapEdge[] = [];
-	// Place station-to-station rails first so long transfers can use the remaining space.
-	const priority = (edge: RouteGraphEdge) => {
+	const requests = visibleEdges.flatMap((edge) => {
 		const from = byKey.get(edge.from);
 		const to = byKey.get(edge.to);
-		if (!from || !to || from.y === to.y) return 0;
-		return Math.abs(from.column - to.column) > 1 ? 2 : 1;
-	};
-	for (const edge of [...visibleEdges].sort((a, b) => priority(a) - priority(b))) {
-		const from = byKey.get(edge.from);
-		const to = byKey.get(edge.to);
-		if (!from || !to) continue;
+		if (!from || !to) return [];
 		const routeKey =
 			from.routeKeys.find((key) => to.routeKeys.includes(key)) ??
 			(to.merge ? from.routeKeys[0] : to.routeKeys[0]) ??
 			"";
 		const base = computeMetroRail(from, to, nodes, compact);
-		const candidates = destinationMetroRails(
-			from,
-			to,
-			base,
-			Math.abs(to.column - from.column) > 1,
-			compact,
-			(visibleOutgoing.get(edge.from) ?? 0) > 1,
-		);
-		const chosen = selectRail(candidates, from, to, nodes, edges, compact) ?? base;
-		const { shape, points, isCrossLine } = chosen;
-		edges.push({
+		const straightRoute = edge.kind === "route" && from.y === to.y && base.points.length === 2;
+		const long = Math.abs(to.column - from.column) > 1 || Math.abs(to.y - from.y) > laneHeight;
+		const fork = (visibleOutgoing.get(edge.from) ?? 0) > 1;
+		const candidates = straightRoute ? [base] : destinationMetroRails(from, to, base, long, compact, fork);
+		const priority = straightRoute ? 0 : edge.kind === "route" ? 1 : long ? 3 : 2;
+		return [{ edge, from, to, routeKey, candidates, priority }];
+	});
+	requests.sort((a, b) => a.priority - b.priority);
+	const paths = planRailPaths(requests, nodes, compact, { width, height });
+	const edges: RoadmapEdge[] = requests.map(({ edge, to, routeKey }, index) => {
+		const { shape, points, isCrossLine } = paths[index];
+		return {
 			...edge,
 			shape,
 			points,
 			isCrossLine,
-			path: metroRoundedPath(points),
+			path: metroPath(points),
 			colour: palette.get(routeKey) ?? routeColour(""),
 			status: to.step.status,
-		});
-	}
+		};
+	});
 	for (const node of nodes) node.forkDown = node.captionSide === "left";
 	const byEdge = new Map(edges.map((edge) => [edge.key, edge]));
 	return {

@@ -1,7 +1,7 @@
 // Date: 2026-11-17. Deterministic octilinear paths from the approved P0-P5 specification.
 export type Point = { x: number; y: number };
 export type MetroNode = Point & { key: string; routeKeys: string[] };
-export type MetroMotif = "P0" | "P1" | "P2" | "P3" | "P4" | "P5" | "narrow" | "destination";
+export type MetroMotif = "P0" | "P1" | "P2" | "P3" | "P4" | "P5" | "narrow" | "destination" | "detour";
 export type MetroRail = { points: Point[]; shape: MetroMotif; isCrossLine: boolean };
 const epsilon = 0.000001;
 
@@ -82,82 +82,64 @@ export function destinationMetroRails(
 ): MetroRail[] {
 	const dx = Math.abs(to.x - from.x);
 	const dy = Math.abs(to.y - from.y);
-	if (dx < epsilon || dy < epsilon) return [base];
 	const sx = Math.sign(to.x - from.x);
 	const sy = Math.sign(to.y - from.y);
 	const start = { x: from.x, y: from.y };
 	const end = { x: to.x, y: to.y };
-
-	if (long && dx > dy + epsilon) {
-		// Take the row change first, with room beside the destination for its stations and captions.
-		const offsets = compact ? [4, 7, 2, 0] : [12, 20, 28, 0];
-		const destination = offsets
-			.filter((offset) => offset < dy)
-			.map((offset): MetroRail => {
-				const y = to.y - sy * offset;
-				return {
-					...base,
-					shape: "destination",
-					points: distinct([start, { x: from.x + sx * (dy - offset), y }, { x: to.x - sx * offset, y }, end]),
-				};
-			});
-		const chamfer = Math.min(dy / 2, compact ? 6 : 24);
-		destination.push({
-			...base,
-			shape: "destination",
-			points: [start, { x: from.x, y: to.y - sy * chamfer }, { x: from.x + sx * chamfer, y: to.y }, end],
-		});
-		return [...destination, base];
+	const candidates: MetroRail[] = [];
+	function add(shape: MetroMotif, ...between: Point[]) {
+		candidates.push({ ...base, shape, points: distinct([start, ...between, end]) });
 	}
+
+	if (dx < epsilon || dy < epsilon) {
+		// Parallel tracks clear blocked station rows or columns while keeping the real endpoints.
+		candidates.push(base);
+		for (const offset of compact ? [4, 7, 11] : [12, 24, 36, 54]) {
+			if (2 * offset >= Math.max(dx, dy)) break;
+			for (const direction of [-1, 1]) {
+				const x = offset * (sx || direction);
+				const y = offset * (sy || direction);
+				add("detour", { x: from.x + x, y: from.y + y }, { x: to.x + (sx ? -x : x), y: to.y + (sy ? -y : y) });
+			}
+		}
+		return candidates;
+	}
+
+	const offsets = compact ? [4, 7, 9] : [12, 20, 28];
+	if (dx >= dy && (long || fork)) {
+		for (const offset of long ? [...offsets, 0] : [0]) {
+			if (offset >= dy) continue;
+			const y = to.y - sy * offset;
+			add("destination", { x: from.x + sx * (dy - offset), y }, { x: to.x - sx * offset, y });
+		}
+	}
+
+	if (long) {
+		// Reach the destination row through an early corridor when a full diagonal is blocked or too steep.
+		for (const offset of offsets) {
+			const reach = Math.min(dx, dy) - offset;
+			if (reach <= epsilon) continue;
+			const y = to.y - sy * offset;
+			const arrival = { x: to.x - sx * offset, y };
+			for (const lead of [reach * 0.35, reach * 0.65, 0]) {
+				const x = from.x + sx * lead;
+				add("destination", { x, y: from.y + sy * lead }, { x, y }, arrival);
+			}
+		}
+	}
+	candidates.push(base);
 	if (dx < dy - epsilon) {
-		// A tighter span can change rows between columns and stay clear of stations on either endpoint column.
-		const gaps = [0.5, 0.35, 0.65].map((fraction): MetroRail => {
+		for (const fraction of [0.5, 0.35, 0.65]) {
 			const lead = dx * fraction;
 			const x = from.x + sx * lead;
-			return {
-				...base,
-				shape: "narrow",
-				points: [start, { x, y: from.y + sy * lead }, { x, y: to.y - sy * (dx - lead) }, end],
-			};
-		});
-		return [base, ...gaps];
+			add("narrow", { x, y: from.y + sy * lead }, { x, y: to.y - sy * (dx - lead) });
+		}
 	}
-	if (fork) {
-		// Mirror the merge approach so branches leave the shared station diagonally.
-		return [
-			{
-				...base,
-				shape: "destination",
-				points: distinct([start, { x: from.x + sx * dy, y: to.y }, end]),
-			},
-			base,
-		];
-	}
-	return [base];
+	return candidates;
 }
 
-export function metroRoundedPath(points: Point[], cornerRadius = 8): string {
-	const vertices = distinct(points);
-	if (!vertices.length) return "";
-	const coordinate = (point: Point) => `${Number(point.x.toFixed(3))} ${Number(point.y.toFixed(3))}`;
-	const commands = [`M ${coordinate(vertices[0])}`];
-	for (let index = 1; index < vertices.length - 1; index++) {
-		const previous = vertices[index - 1];
-		const current = vertices[index];
-		const next = vertices[index + 1];
-		const before = Math.hypot(current.x - previous.x, current.y - previous.y);
-		const after = Math.hypot(next.x - current.x, next.y - current.y);
-		const radius = Math.min(cornerRadius, before * 0.4, after * 0.4);
-		const start = {
-			x: current.x + ((previous.x - current.x) * radius) / before,
-			y: current.y + ((previous.y - current.y) * radius) / before,
-		};
-		const end = {
-			x: current.x + ((next.x - current.x) * radius) / after,
-			y: current.y + ((next.y - current.y) * radius) / after,
-		};
-		commands.push(`L ${coordinate(start)}`, `Q ${coordinate(current)} ${coordinate(end)}`);
-	}
-	if (vertices.length > 1) commands.push(`L ${coordinate(vertices[vertices.length - 1])}`);
-	return commands.join(" ");
+export function metroPath(points: Point[]): string {
+	return distinct(points)
+		.map(({ x, y }, index) => `${index ? "L" : "M"} ${Number(x.toFixed(6))} ${Number(y.toFixed(6))}`)
+		.join(" ");
 }

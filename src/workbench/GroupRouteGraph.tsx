@@ -1,4 +1,4 @@
-// Date: 2026-11-13. Source-adapted Git curves with the workbench's declared route topology.
+// Date: 2026-11-18. Octilinear rails with the workbench's declared route topology.
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import type { Route, Step } from "./contract/protocol";
 import { CurvedEdge } from "./git-roadmap/CurvedEdge";
@@ -22,16 +22,23 @@ export function GroupRouteGraph({
 	const element = useRef<HTMLDivElement>(null);
 	const [renderedWidth, setRenderedWidth] = useState<number>();
 	useLayoutEffect(() => {
-		if (!element.current) return;
+		const graphElement = element.current;
+		if (!graphElement) return;
+		const width = Number.parseFloat(getComputedStyle(graphElement).width);
+		if (width > 0) setRenderedWidth(width);
 		const observer = new ResizeObserver(([entry]) => {
 			if (entry.contentRect.width > 0) setRenderedWidth(entry.contentRect.width);
 		});
-		observer.observe(element.current);
+		observer.observe(graphElement);
 		return () => observer.disconnect();
 	}, []);
 	const graph = roadmapGeometry(layout, compact, renderedWidth);
 	const executing = executingStepKeys(layout.nodes.map((node) => node.step));
 	const codes = new Map(layout.nodes.map((node) => [node.step.key, node.step.code]));
+	const legendRoutes =
+		!compact && routes.length > 1 ? routes.filter((route) => route.stepKeys.some((key) => codes.has(key))) : [];
+	const showDependencies = !compact && graph.edges.some((edge) => edge.kind === "dependency");
+	const showMerges = !compact && graph.nodes.some((node) => node.merge);
 	const label = (step: Step, merge: boolean) =>
 		`${step.code} ${step.title} · ${stepStatusLabel(step, executing.has(step.key))}${merge ? " · 合流步骤" : ""}${step.dependsOn.length ? `\n前置：${step.dependsOn.map((key) => codes.get(key) ?? "路线外步骤").join("、")}` : ""}`;
 	return (
@@ -55,10 +62,10 @@ export function GroupRouteGraph({
 					preserveAspectRatio="none"
 					aria-hidden="true"
 				>
-					{[true, false].map((isCrossLine) => (
-						<g key={String(isCrossLine)} data-rail-layer={isCrossLine ? "cross-line" : "internal"}>
+					{(["dependency", "route"] as const).map((kind) => (
+						<g key={kind} data-rail-layer={kind}>
 							{graph.edges
-								.filter((edge) => edge.isCrossLine === isCrossLine)
+								.filter((edge) => edge.kind === kind)
 								.map((edge) => (
 									<CurvedEdge
 										key={edge.key}
@@ -67,7 +74,6 @@ export function GroupRouteGraph({
 										shape={edge.shape}
 										colour={edge.colour}
 										path={edge.path}
-										dashed={edge.status === "running"}
 										status={edge.status}
 										kind={edge.kind}
 										from={edge.from}
@@ -114,16 +120,26 @@ export function GroupRouteGraph({
 					</span>
 				))}
 			</div>
-			{!compact && layout.lanes > 1 && routes.length > 1 && (
-				<ul className="wb-graph-legend" aria-label="路线分支">
-					{routes
-						.filter((route) => route.stepKeys.some((key) => graph.nodes.some((node) => node.step.key === key)))
-						.map((route) => (
-							<li key={route.key} title={route.label}>
-								<i style={{ background: graph.palette.get(route.key) }} aria-hidden="true" />
-								{route.label}
-							</li>
-						))}
+			{(legendRoutes.length > 0 || showDependencies || showMerges) && (
+				<ul className="wb-graph-legend" aria-label="路线图图例">
+					{legendRoutes.map((route) => (
+						<li key={route.key} title={route.label} data-route-legend-key={route.key}>
+							<i style={{ background: graph.palette.get(route.key) }} aria-hidden="true" />
+							{route.label}
+						</li>
+					))}
+					{showDependencies && (
+						<li>
+							<i className="wb-graph-dependency-key" aria-hidden="true" />
+							前置依赖
+						</li>
+					)}
+					{showMerges && (
+						<li>
+							<i className="wb-graph-merge-key" aria-hidden="true" />
+							合流
+						</li>
+					)}
 				</ul>
 			)}
 		</>

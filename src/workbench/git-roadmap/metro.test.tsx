@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { createScenario } from "../contract/fixtures";
 import { layoutRoutes } from "../task-groups";
 import { roadmapGeometry } from "./geometry";
-import { computeMetroRail, type MetroMotif, type MetroNode, metroRoundedPath, type Point } from "./metro";
+import { computeMetroRail, type MetroMotif, type MetroNode, metroPath, type Point } from "./metro";
 
 const coordinates: Record<string, [number, number]> = {
 	I: [0, 24],
@@ -195,7 +195,7 @@ const cases: [string, string, MetroMotif, number[][]][] = [
 ];
 
 export function expectOctilinear(points: Point[]) {
-	expect(points.length).toBeLessThanOrEqual(4);
+	expect(points.length).toBeLessThanOrEqual(5);
 	for (let i = 1; i < points.length; i++) {
 		const dx = points[i].x - points[i - 1].x,
 			dy = points[i].y - points[i - 1].y;
@@ -204,7 +204,7 @@ export function expectOctilinear(points: Point[]) {
 			const px = points[i - 1].x - points[i - 2].x,
 				py = points[i - 1].y - points[i - 2].y;
 			const cosine = (px * dx + py * dy) / (Math.hypot(px, py) * Math.hypot(dx, dy));
-			expect(cosine > 0.999 || Math.abs(cosine - Math.SQRT1_2) < 0.001).toBe(true);
+			expect(cosine > 0.999 || Math.abs(cosine) < 0.001 || Math.abs(cosine - Math.SQRT1_2) < 0.001).toBe(true);
 		}
 	}
 }
@@ -253,13 +253,9 @@ describe("approved deterministic metro routing", () => {
 		])
 			expectOctilinear(computeMetroRail(from, to, nodes).points);
 	});
-	test("rounding preserves endpoints, continuous paths and the 40-percent short-segment limit", () => {
+	test("the SVG path uses one continuous polyline with the exact stations as endpoints", () => {
 		const rail = computeMetroRail(node("H-01"), node("H-02"), nodes);
-		const path = metroRoundedPath(rail.points);
-		expect(path).toStartWith("M 108 212 L 116.4 212 Q 122 212");
-		expect(path).toEndWith("L 216 306");
-		expect(path.match(/M /g)).toHaveLength(1);
-		expect(path).not.toMatch(/NaN|Infinity| C /);
+		expect(metroPath(rail.points)).toBe("M 108 212 L 122 212 L 216 306");
 	});
 	test("generic multi-project and fork/join routes use octilinear paths in both sizes", () => {
 		for (const scenario of ["fork-join", "multi-project", "deep-branch", "long-route"] as const) {
@@ -270,7 +266,7 @@ describe("approved deterministic metro routing", () => {
 					const graph = roadmapGeometry(layoutRoutes(snapshot.routes, snapshot.steps), compact, width);
 					for (const edge of graph.edges) {
 						expectOctilinear(edge.points);
-						expect(edge.path).not.toMatch(/NaN|Infinity/);
+						expect(edge.path.match(/[A-Z]/g)).toEqual(["M", ...edge.points.slice(1).map(() => "L")]);
 					}
 				}
 		}
