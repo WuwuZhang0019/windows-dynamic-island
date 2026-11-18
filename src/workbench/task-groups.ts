@@ -238,6 +238,7 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 	const main = primaryRoute(routes);
 	const firstTrack = tracks.find((track) => track.route === main);
 	const ordered = firstTrack ? [firstTrack, ...tracks.filter((track) => track !== firstTrack)] : tracks;
+	const branches: { parentKey: string; stations: RouteGraphNode[] }[] = [];
 	let lane = 0;
 	for (const { sequences } of ordered) {
 		for (const { keys, parentKey } of sequences) {
@@ -251,11 +252,12 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 				node.lane = lane;
 				if (parentKey) node.nested = true;
 			}
+			if (parentKey) branches.push({ parentKey, stations: owned });
 			lane++;
 		}
 	}
 	connectRoutes(false);
-	const placement = placeRouteColumns(nodes, edges.values());
+	const placement = placeRouteColumns(nodes, edges.values(), branches);
 	// Follow the placed stations even where an inferred sequence conflicted with a real dependency.
 	edges.clear();
 	connectRoutes(true);
@@ -305,8 +307,8 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 			...exits.map((edge) => (nodes.get(edge.to)?.column ?? 0) - (nodes.get(edge.from)?.column ?? 0) - 1),
 			...work.flatMap((node) =>
 				[...(placement.get(node.step.key) ?? [])]
-					.filter((key) => !keys.has(key))
-					.map((key) => (nodes.get(key)?.column ?? 0) - node.column - 1),
+					.filter(([key]) => !keys.has(key))
+					.map(([key, spacing]) => (nodes.get(key)?.column ?? 0) - node.column - spacing),
 			),
 		);
 		if (slack > 0) for (const node of work) node.column += slack;

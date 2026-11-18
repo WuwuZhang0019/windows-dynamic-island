@@ -612,6 +612,29 @@
 	margin-inline: 50px;
 	width: calc(100% - 100px);
 }
+.wb-group-graph.wb-group-graph-fit:not(.wb-group-graph-compact) {
+	margin-inline: 24px;
+	width: calc(100% - 48px);
+}
+.wb-graph-view-toggle {
+	position: sticky;
+	left: 0;
+	display: block;
+	margin: 0 0 4px;
+	padding: 2px 8px;
+	border: 1px solid #ffffff24;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-dim);
+	font-size: 11px;
+	cursor: pointer;
+}
+.wb-group-graph-fit .wb-step-code {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 .wb-group-graph-compact {
 	container-type: inline-size;
 }

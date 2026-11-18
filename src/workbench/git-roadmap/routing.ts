@@ -1,7 +1,7 @@
 // Date: 2026-11-17. Route rails with straight, L, horizontal/45-degree and diagonal/L shapes.
 export type Point = { x: number; y: number };
 export type CaptionSide = "left" | "right";
-export type Station = Point & { key: string; routeKeys: string[]; captionSide?: CaptionSide };
+export type Station = Point & { key: string; routeKeys: string[]; captionSide?: CaptionSide; codeWidth?: number };
 export type Rail = { points: Point[]; routeKey: string };
 type Box = { left: number; right: number; top: number; bottom: number };
 type Viewport = { width: number; height: number };
@@ -29,11 +29,12 @@ function fractionInBox(a: Point, b: Point, box: Box): number {
 }
 
 function caption(node: Station, side?: CaptionSide): Box {
+	const halfWidth = (node.codeWidth ?? 100) / 2;
 	return {
-		left: node.x + (side === "right" ? 9 : -50),
-		right: node.x + (side === "left" ? -9 : 50),
+		left: node.x + (side === "right" && !node.codeWidth ? 9 : -halfWidth),
+		right: node.x + (side === "left" && !node.codeWidth ? -9 : halfWidth),
 		top: node.y + 13,
-		bottom: node.y + 60,
+		bottom: node.y + (node.codeWidth ? 29 : 60),
 	};
 }
 

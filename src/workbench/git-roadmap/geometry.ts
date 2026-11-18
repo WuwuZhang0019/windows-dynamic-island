@@ -35,7 +35,12 @@ export function routeColours(keys: Iterable<string>): Map<string, string> {
 	return result;
 }
 
-export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, renderedWidth?: number) {
+export function roadmapGeometry(
+	layout: RouteGraphLayout,
+	compact: boolean,
+	renderedWidth?: number,
+	viewport?: { width: number; height: number; detail: boolean },
+) {
 	// Date: 2026-11-13. Keep transitive dependencies in the model, without duplicating existing visual paths.
 	const outgoing = new Map<string, RouteGraphEdge[]>();
 	for (const edge of layout.edges) outgoing.set(edge.from, [...(outgoing.get(edge.from) ?? []), edge]);
@@ -58,14 +63,29 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		(edge) => edge.kind !== "dependency" || !reachable(edge.from, edge.to, edge.key) || reachable(edge.to, edge.from),
 	);
 	const columnWidth = 108;
-	const laneHeight = compact ? 18 : 94;
-	const offset = compact ? 12 : 24;
 	const minimumWidth = (compact ? layout.columns : Math.max(1, layout.columns - 1)) * columnWidth;
-	const width = compact ? (renderedWidth ?? minimumWidth) : Math.max(minimumWidth, renderedWidth ?? 0);
 	const palette = routeColours(layout.nodes.flatMap((node) => node.routeKeys));
 	const displayLanes = routeDisplayLanes(layout, visibleEdges);
 	const laneCount = Math.max(1, ...[...displayLanes.values()].map((lane) => lane + 1));
-	const height = (compact ? 24 : 96) + (laneCount - 1) * laneHeight;
+	const detailHeight = (compact ? 24 : 96) + (laneCount - 1) * (compact ? 18 : 94);
+	const canFit = !compact && !!viewport && (minimumWidth + 100 > viewport.width || detailHeight > viewport.height);
+	const fitted = canFit && !viewport.detail;
+	const fitHeight = fitted ? viewport.height : undefined;
+	const offset = compact || fitted ? 12 : 24;
+	const width = fitted
+		? viewport.width - 48
+		: compact
+			? (renderedWidth ?? minimumWidth)
+			: Math.max(minimumWidth, renderedWidth ?? 0);
+	const stride = width / Math.max(1, layout.columns - 1);
+	const showCodes = fitHeight !== undefined && stride >= 39 && fitHeight >= 42 + (laneCount - 1) * 34;
+	const fitPadding = showCodes ? 42 : 24;
+	const laneHeight = compact
+		? 18
+		: fitHeight === undefined
+			? 94
+			: Math.min(94, Math.max(showCodes ? 34 : 14, (fitHeight - fitPadding) / Math.max(1, laneCount - 1)));
+	const height = fitHeight === undefined ? detailHeight : fitPadding + (laneCount - 1) * laneHeight;
 	const incoming = new Map<string, number>();
 	for (const edge of visibleEdges) incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
 	// Date: 2026-11-16. Keep merge stations on the same column grid as other stations.
@@ -73,7 +93,6 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 	for (const edge of visibleEdges) visibleOutgoing.set(edge.from, (visibleOutgoing.get(edge.from) ?? 0) + 1);
 	// Dependent route headings and their endpoints share the same columns in both views.
 	const alignTerminals = compact && !layout.nodes.some((node) => node.heading && node.column > 0);
-	const stride = width / Math.max(1, layout.columns - 1);
 	function stationX(node: RouteGraphNode) {
 		// Date: 2026-11-16. A solitary heading is a starting station, not an endpoint.
 		if (
@@ -90,13 +109,14 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		const base = node.column * stride;
 		return Number(base.toFixed(3));
 	}
-	const nodes: RoadmapNode[] = layout.nodes.map((node) => ({
+	const nodes: (RoadmapNode & { codeWidth?: number })[] = layout.nodes.map((node) => ({
 		...node,
 		key: node.step.key,
 		x: stationX(node),
 		y: offset + (displayLanes.get(node.lane) ?? node.lane) * laneHeight,
 		merge: (incoming.get(node.step.key) ?? 0) > 1,
 		forkDown: false,
+		codeWidth: showCodes ? Math.min(48, stride - 4) : undefined,
 		colour: palette.get(node.routeKeys[0]) ?? routeColour(""),
 	}));
 	const byKey = new Map(nodes.map((node) => [node.step.key, node]));
@@ -117,7 +137,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		return [{ edge, from, to, routeKey, candidates, priority }];
 	});
 	requests.sort((a, b) => a.priority - b.priority);
-	const paths = planRailPaths(requests, nodes, compact, { width, height });
+	const paths = planRailPaths(requests, nodes, compact || (fitHeight !== undefined && !showCodes), { width, height });
 	const edges: RoadmapEdge[] = requests.map(({ edge, to, routeKey }, index) => {
 		const { shape, points, isCrossLine } = paths[index];
 		return {
@@ -138,6 +158,9 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		width,
 		minimumWidth,
 		height,
+		canFit,
+		fitted,
+		showCodes,
 		palette,
 	};
 }

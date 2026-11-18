@@ -177,6 +177,41 @@ describe("grouped task routes", () => {
 });
 
 // Date: 2026-11-18. Nested phases fork inside the owning route and keep their declared identities.
+test("sibling package phases share a row when the later heading can move right", () => {
+	const { routes, steps } = graphFixture();
+	const main = ["m0", "m1", "m2", "m3", "a0", "a1", "b0", "b1"];
+	const parents = new Map([
+		["m1", "m0"],
+		["m2", "m0"],
+		["m3", "m0"],
+		["a0", "m1"],
+		["a1", "m1"],
+		["b0", "m2"],
+		["b1", "m2"],
+	]);
+	const phases = main.map((key, order) => {
+		const step = steps.find((candidate) => candidate.key === key);
+		if (!step) throw Error("Missing phase fixture");
+		return { ...step, parentKey: parents.get(key) ?? null, order };
+	});
+	const route = { ...routes[0], stepKeys: ["m0"] };
+	const layout = layoutRoutes([route], phases);
+	const nodes = new Map(layout.nodes.map((node) => [node.step.key, node]));
+	const [tail, parent, head] = ["a1", "m2", "b0"].map((key) => nodes.get(key));
+	if (!tail || !parent || !head) throw Error("Missing packed phases");
+	expect(tail.lane).toBe(head.lane);
+	expect(parent.column).toBeGreaterThanOrEqual(tail.column);
+	expect(head.column).toBeGreaterThan(parent.column);
+	expect(layout.edges.some((edge) => edge.from === "m2" && edge.to === "b0")).toBe(true);
+	expect(layout.edges.some((edge) => edge.from === "a1" && edge.to === "b0")).toBe(false);
+
+	const constrained = phases.map((step) => (step.key === "a1" ? { ...step, dependsOn: ["m2"] } : step));
+	const constrainedNodes = layoutRoutes([route], constrained).nodes;
+	expect(constrainedNodes.find((node) => node.step.key === "a1")?.lane).not.toBe(
+		constrainedNodes.find((node) => node.step.key === "b0")?.lane,
+	);
+});
+
 test("nested package phases branch between main routes and preserve explicit route ownership", () => {
 	const { routes, steps } = graphFixture();
 	const heading = { ...steps[0], key: "heading", parentKey: null, code: "I" };
