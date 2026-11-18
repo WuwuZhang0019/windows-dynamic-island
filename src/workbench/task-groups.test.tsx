@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createScenario } from "./contract/fixtures";
 import type { Route, Step } from "./contract/protocol";
 import { GroupRouteGraph } from "./GroupRouteGraph";
+import { roadmapGeometry } from "./git-roadmap/geometry";
 import { layoutRoutes, orderedTaskGroups, taskGroups } from "./task-groups";
 import { WorkbenchView } from "./WorkbenchView";
 
@@ -175,8 +176,8 @@ describe("grouped task routes", () => {
 	});
 });
 
-// Date: 2026-11-17. Existing work packages and their phases expand without changing the declared service route.
-test("nested package phases remain visible and preserve explicit route ownership", () => {
+// Date: 2026-11-18. Nested phases fork inside the owning route and keep their declared identities.
+test("nested package phases branch between main routes and preserve explicit route ownership", () => {
 	const { routes, steps } = graphFixture();
 	const heading = { ...steps[0], key: "heading", parentKey: null, code: "I" };
 	const pack = { ...steps[1], key: "package", parentKey: heading.key, code: "I-04", order: 4 };
@@ -187,10 +188,37 @@ test("nested package phases remain visible and preserve explicit route ownership
 		code: `I-04-0${order}`,
 		order,
 	}));
+	const next = { ...pack, key: "next-package", code: "I-05", order: 5 };
+	const following = { ...heading, key: "following-route", code: "S", dependsOn: [pack.key] };
 	const route = { ...routes[0], stepKeys: [heading.key] };
-	const graph = layoutRoutes([route], [heading, pack, ...phases]);
-	expect(graph.nodes.map((node) => node.step.key)).toEqual([heading.key, pack.key, ...phases.map((step) => step.key)]);
-	expect(graph.edges).toHaveLength(4);
+	const followingRoute = { ...route, key: "following", stepKeys: [following.key] };
+	const layout = layoutRoutes([route, followingRoute], [heading, pack, ...phases, next, following]);
+	expect(layout.nodes).toHaveLength(7);
+	expect(layout.edges.map(({ from, to }) => [from, to])).toEqual([
+		[heading.key, pack.key],
+		[pack.key, next.key],
+		[phases[0].key, phases[1].key],
+		[phases[1].key, phases[2].key],
+		[pack.key, phases[0].key],
+		[pack.key, following.key],
+	]);
+	for (const compact of [false, true]) {
+		const graph = roadmapGeometry(layout, compact, 300);
+		const byKey = new Map(graph.nodes.map((node) => [node.key, node]));
+		const main = byKey.get(pack.key);
+		const nextOnMain = byKey.get(next.key);
+		const branch = byKey.get(phases[0].key);
+		const lower = byKey.get(following.key);
+		const fork = graph.edges.find((edge) => edge.from === pack.key && edge.to === phases[0].key);
+		if (!main || !nextOnMain || !branch || !lower || !fork) throw Error("Missing package fork");
+		expect(main.y).toBe(nextOnMain.y);
+		expect(branch.y).toBeGreaterThan(main.y);
+		expect(branch.y).toBeLessThan(lower.y);
+		expect(phases.every((step) => byKey.get(step.key)?.y === branch.y)).toBe(true);
+		expect(fork.points[0]).toEqual({ x: main.x, y: main.y });
+		expect(fork.points.at(-1)).toEqual({ x: branch.x, y: branch.y });
+		expect(branch.colour).toBe(main.colour);
+	}
 	expect(route.stepKeys).toEqual([heading.key]);
 	const separate = { ...routes[1], stepKeys: [pack.key], planKey: route.planKey };
 	const split = taskGroups({

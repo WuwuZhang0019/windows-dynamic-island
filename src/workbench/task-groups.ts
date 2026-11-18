@@ -139,7 +139,14 @@ export function orderedTaskGroups(groups: TaskGroup[], order: string[]): TaskGro
 	return [...groups].sort((a, b) => (rank(a) === Infinity ? -1 : rank(a)) - (rank(b) === Infinity ? -1 : rank(b)));
 }
 
-export type RouteGraphNode = { step: Step; routeKeys: string[]; column: number; lane: number; heading?: boolean };
+export type RouteGraphNode = {
+	step: Step;
+	routeKeys: string[];
+	column: number;
+	lane: number;
+	heading?: boolean;
+	nested?: boolean;
+};
 export type RouteGraphEdge = { key: string; from: string; to: string; kind: "route" | "dependency" };
 export type RouteGraphLayout = { nodes: RouteGraphNode[]; edges: RouteGraphEdge[]; columns: number; lanes: number };
 
@@ -171,6 +178,38 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 			if (!node.routeKeys.includes(route.key)) node.routeKeys.push(route.key);
 			nodes.set(key, node);
 		}
+	// Direct children of a route heading stay on its main line. Deeper groups branch from their own parent.
+	const tracks = routes.map((route) => {
+		const keys = route.stepKeys.filter((key) => nodes.has(key));
+		const included = new Set(keys);
+		const main: string[] = [];
+		const children = new Map<string, string[]>();
+		for (const key of keys) {
+			const parent = byKey.get(byKey.get(key)?.parentKey ?? "");
+			if (parent?.parentKey && included.has(parent.key) && included.has(parent.parentKey)) {
+				const group = children.get(parent.key) ?? [];
+				group.push(key);
+				children.set(parent.key, group);
+			} else main.push(key);
+		}
+		const sequences: { keys: string[]; parentKey: string | null }[] = [];
+		function append(group: string[], parentKey: string | null) {
+			sequences.push({ keys: group, parentKey });
+			for (const key of group) {
+				const nested = children.get(key);
+				if (nested) {
+					children.delete(key);
+					append(nested, key);
+				}
+			}
+		}
+		append(main, null);
+		for (const [key, group] of children) {
+			children.delete(key);
+			append(group, key);
+		}
+		return { route, keys, sequences };
+	});
 	const edges = new Map<string, RouteGraphEdge>();
 	function connect(
 		from: string | null | undefined,
@@ -182,31 +221,38 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		if (!edges.has(key)) edges.set(key, { key, from, to, kind });
 	}
 	function connectRoutes(useDisplayOrder: boolean) {
-		for (const route of routes) {
-			const keys = route.stepKeys.filter((key) => nodes.has(key));
-			const sequence = useDisplayOrder
-				? [...keys].sort((a, b) => (nodes.get(a)?.column ?? 0) - (nodes.get(b)?.column ?? 0))
-				: keys;
-			for (let i = 1; i < sequence.length; i++) connect(sequence[i - 1], sequence[i]);
-			connect(route.sourceStepKey, keys[0]);
+		for (const { route, keys: stepKeys, sequences } of tracks) {
+			for (const { keys, parentKey } of sequences) {
+				const sequence = useDisplayOrder
+					? [...keys].sort((a, b) => (nodes.get(a)?.column ?? 0) - (nodes.get(b)?.column ?? 0))
+					: keys;
+				for (let i = 1; i < sequence.length; i++) connect(sequence[i - 1], sequence[i]);
+				connect(parentKey, sequence[0]);
+			}
+			connect(route.sourceStepKey, stepKeys[0]);
 			// Date: 2026-11-13. Returning to the source identifies the parent context.
-			if (route.returnStepKey !== route.sourceStepKey) connect(keys.at(-1), route.returnStepKey);
+			if (route.returnStepKey !== route.sourceStepKey) connect(stepKeys.at(-1), route.returnStepKey);
 		}
 		for (const { step } of nodes.values()) for (const source of step.dependsOn) connect(source, step.key, "dependency");
 	}
-	// Date: 2026-11-17. Give every owning route one row; cross-route dependencies never move stations.
 	const main = primaryRoute(routes);
-	const ordered = main ? [main, ...routes.filter((route) => route.key !== main.key)] : routes;
+	const firstTrack = tracks.find((track) => track.route === main);
+	const ordered = firstTrack ? [firstTrack, ...tracks.filter((track) => track !== firstTrack)] : tracks;
 	let lane = 0;
-	for (const route of ordered) {
-		const owned = route.stepKeys.flatMap((key) => {
-			const node = nodes.get(key);
-			return node && node.lane < 0 ? [node] : [];
-		});
-		if (!owned.length) continue;
-		// Shared fork/join stations retain their owner's row and are drawn exactly once.
-		for (const node of owned) node.lane = lane;
-		lane++;
+	for (const { sequences } of ordered) {
+		for (const { keys, parentKey } of sequences) {
+			const owned = keys.flatMap((key) => {
+				const node = nodes.get(key);
+				return node && node.lane < 0 ? [node] : [];
+			});
+			if (!owned.length) continue;
+			// Shared stations retain their owner's row. Nested rows follow the row containing their parent.
+			for (const node of owned) {
+				node.lane = lane;
+				if (parentKey) node.nested = true;
+			}
+			lane++;
+		}
 	}
 	connectRoutes(false);
 	const placement = placeRouteColumns(nodes, edges.values());
@@ -230,10 +276,10 @@ export function layoutRoutes(routes: Route[], steps: Step[]): RouteGraphLayout {
 		}
 		return false;
 	}
-	for (const route of ordered) {
+	for (const { route, keys: stepKeys } of ordered) {
 		const heading = nodes.get(route.stepKeys[0]);
 		if (route.key === main?.key || !heading?.heading) continue;
-		const work = route.stepKeys.flatMap((key) => {
+		const work = stepKeys.flatMap((key) => {
 			const node = nodes.get(key);
 			return node && node !== heading ? [node] : [];
 		});

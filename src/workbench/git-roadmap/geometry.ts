@@ -109,6 +109,7 @@ export function roadmapGeometry(layout: RouteGraphLayout, compact: boolean, rend
 		// Date: 2026-11-16. A solitary heading is a starting station, not an endpoint.
 		if (
 			alignTerminals &&
+			!node.nested &&
 			node.column > 0 &&
 			!visibleOutgoing.has(node.step.key) &&
 			!layout.nodes.some(

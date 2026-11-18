@@ -3,6 +3,8 @@ import type { RouteGraphEdge, RouteGraphLayout } from "../task-groups";
 
 export function routeDisplayLanes(layout: RouteGraphLayout, edges: RouteGraphEdge[]): Map<number, number> {
 	const original = new Map(layout.nodes.map((node) => [node.lane, node.lane]));
+	// A nested branch needs its own row immediately below its owning route.
+	if (layout.nodes.some((node) => node.nested)) return original;
 	// Explicit heading stations identify persistent independent tracks.
 	if (new Set(layout.nodes.filter((node) => node.heading).map((node) => node.lane)).size > 1) return original;
 	const rows = [...original.keys()].map((lane) => {
